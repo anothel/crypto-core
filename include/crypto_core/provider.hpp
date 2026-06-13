@@ -1,6 +1,7 @@
 #pragma once
 
 #include "crypto_core/byte_buffer.hpp"
+#include "crypto_core/cipher.hpp"
 #include "crypto_core/hash.hpp"
 #include "crypto_core/kdf.hpp"
 #include "crypto_core/mac.hpp"
@@ -41,6 +42,15 @@ public:
 	[[nodiscard]] virtual Result<void> generate(std::span<std::uint8_t> output) noexcept = 0;
 };
 
+class ICipherContext
+{
+public:
+	virtual ~ICipherContext() = default;
+
+	[[nodiscard]] virtual Result<ByteBuffer> update(std::span<const std::uint8_t> input) noexcept = 0;
+	[[nodiscard]] virtual Result<ByteBuffer> final() noexcept = 0;
+};
+
 class ICryptoProvider
 {
 public:
@@ -51,9 +61,11 @@ public:
 	[[nodiscard]] virtual bool supports(MacAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(KdfAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(RngAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(CipherAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept;
+	[[nodiscard]] virtual Result<std::unique_ptr<ICipherContext>> create_cipher(const CipherParams &params) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(
 	    KdfAlgorithm algorithm,
 	    std::span<const std::uint8_t> password,

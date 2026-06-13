@@ -16,9 +16,11 @@ public:
 	[[nodiscard]] bool supports(MacAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(KdfAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(RngAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CipherAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept override;
+	[[nodiscard]] Result<std::unique_ptr<ICipherContext>> create_cipher(const CipherParams &params) noexcept override;
 	[[nodiscard]] Result<ByteBuffer> pbkdf2(
 	    KdfAlgorithm algorithm,
 	    std::span<const std::uint8_t> password,

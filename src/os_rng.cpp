@@ -6,8 +6,8 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <bcrypt.h>
 #include <windows.h>
+#include <bcrypt.h>
 #endif
 
 namespace crypto_core::internal

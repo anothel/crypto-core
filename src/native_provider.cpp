@@ -1,5 +1,6 @@
 #include "crypto_core/native_provider.hpp"
 
+#include "crypto_core/internal/aes_cbc.hpp"
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/kdf.hpp"
 #include "crypto_core/internal/os_rng.hpp"
@@ -34,6 +35,13 @@ bool NativeProvider::supports(KdfAlgorithm algorithm) const noexcept
 bool NativeProvider::supports(RngAlgorithm algorithm) const noexcept
 {
 	return algorithm == RngAlgorithm::os_random;
+}
+
+bool NativeProvider::supports(CipherAlgorithm algorithm) const noexcept
+{
+	return algorithm == CipherAlgorithm::aes_128_cbc ||
+	       algorithm == CipherAlgorithm::aes_192_cbc ||
+	       algorithm == CipherAlgorithm::aes_256_cbc;
 }
 
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept
@@ -81,6 +89,11 @@ Result<std::unique_ptr<IRng>> NativeProvider::create_rng(RngAlgorithm algorithm)
 	}
 
 	return Result<std::unique_ptr<IRng>>::success(std::make_unique<internal::OsRng>());
+}
+
+Result<std::unique_ptr<ICipherContext>> NativeProvider::create_cipher(const CipherParams &params) noexcept
+{
+	return internal::create_aes_cbc_context(params);
 }
 
 Result<ByteBuffer> NativeProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept

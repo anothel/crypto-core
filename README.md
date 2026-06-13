@@ -87,13 +87,13 @@ Phase 1 default implementation target:
 
 ## Current State
 
-0.7 development state:
+0.8 development state:
 
 - Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
   `Result<T>`.
 - Provider API is implemented: `ICryptoProvider`, `IHashContext`,
-  `IMacContext`, `IRng`, KDF provider methods, RNG provider methods,
-  `default_provider()`, and one-shot helpers.
+  `IMacContext`, `IRng`, `ICipherContext`, KDF provider methods, RNG provider
+  methods, cipher provider methods, `default_provider()`, and one-shot helpers.
 - `NativeProvider` is the default backend.
 - Native SHA256 and SHA512 are implemented with streaming support.
 - Native HMAC-SHA256 and HMAC-SHA512 are implemented with streaming support.
@@ -102,6 +102,8 @@ Phase 1 default implementation target:
 - Native OS-backed RNG is implemented on Windows using `BCryptGenRandom`.
 - Native AES-128/192/256 single-block encrypt/decrypt is implemented as an
   internal/test-only primitive.
+- Native AES-128/192/256-CBC encrypt/decrypt is implemented with no-padding
+  and PKCS#7 padding support.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 

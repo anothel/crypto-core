@@ -38,4 +38,14 @@ Result<std::unique_ptr<IRng>> ICryptoProvider::create_rng(RngAlgorithm) noexcept
 	return Result<std::unique_ptr<IRng>>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "RNG algorithm is not supported"));
 }
 
+bool ICryptoProvider::supports(CipherAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<std::unique_ptr<ICipherContext>> ICryptoProvider::create_cipher(const CipherParams &) noexcept
+{
+	return Result<std::unique_ptr<ICipherContext>>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "cipher algorithm is not supported"));
+}
+
 } // namespace crypto_core
