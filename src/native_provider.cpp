@@ -2,6 +2,7 @@
 
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/kdf.hpp"
+#include "crypto_core/internal/os_rng.hpp"
 #include "crypto_core/internal/sha2.hpp"
 
 namespace crypto_core
@@ -28,6 +29,11 @@ bool NativeProvider::supports(KdfAlgorithm algorithm) const noexcept
 	       algorithm == KdfAlgorithm::pbkdf2_hmac_sha512 ||
 	       algorithm == KdfAlgorithm::hkdf_sha256 ||
 	       algorithm == KdfAlgorithm::hkdf_sha512;
+}
+
+bool NativeProvider::supports(RngAlgorithm algorithm) const noexcept
+{
+	return algorithm == RngAlgorithm::os_random;
 }
 
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept
@@ -65,6 +71,16 @@ Result<std::unique_ptr<IMacContext>> NativeProvider::create_mac(MacAlgorithm alg
 	}
 
 	return Result<std::unique_ptr<IMacContext>>::success(std::move(context));
+}
+
+Result<std::unique_ptr<IRng>> NativeProvider::create_rng(RngAlgorithm algorithm) noexcept
+{
+	if (algorithm != RngAlgorithm::os_random)
+	{
+		return Result<std::unique_ptr<IRng>>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "RNG algorithm is not supported by NativeProvider"));
+	}
+
+	return Result<std::unique_ptr<IRng>>::success(std::make_unique<internal::OsRng>());
 }
 
 Result<ByteBuffer> NativeProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept

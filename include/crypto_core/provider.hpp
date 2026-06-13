@@ -5,6 +5,7 @@
 #include "crypto_core/kdf.hpp"
 #include "crypto_core/mac.hpp"
 #include "crypto_core/result.hpp"
+#include "crypto_core/rng.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -32,6 +33,14 @@ public:
 	[[nodiscard]] virtual Result<ByteBuffer> final() noexcept = 0;
 };
 
+class IRng
+{
+public:
+	virtual ~IRng() = default;
+
+	[[nodiscard]] virtual Result<void> generate(std::span<std::uint8_t> output) noexcept = 0;
+};
+
 class ICryptoProvider
 {
 public:
@@ -41,8 +50,10 @@ public:
 	[[nodiscard]] virtual bool supports(HashAlgorithm algorithm) const noexcept = 0;
 	[[nodiscard]] virtual bool supports(MacAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(KdfAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(RngAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
+	[[nodiscard]] virtual Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(
 	    KdfAlgorithm algorithm,
 	    std::span<const std::uint8_t> password,

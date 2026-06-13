@@ -28,4 +28,14 @@ Result<ByteBuffer> ICryptoProvider::hkdf(KdfAlgorithm, std::span<const std::uint
 	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "HKDF algorithm is not supported"));
 }
 
+bool ICryptoProvider::supports(RngAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<std::unique_ptr<IRng>> ICryptoProvider::create_rng(RngAlgorithm) noexcept
+{
+	return Result<std::unique_ptr<IRng>>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "RNG algorithm is not supported"));
+}
+
 } // namespace crypto_core

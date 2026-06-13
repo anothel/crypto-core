@@ -10,5 +10,6 @@
 #include "crypto_core/openssl_provider.hpp"
 #include "crypto_core/provider.hpp"
 #include "crypto_core/result.hpp"
+#include "crypto_core/rng.hpp"
 #include "crypto_core/secure_buffer.hpp"
 #include "crypto_core/version.hpp"

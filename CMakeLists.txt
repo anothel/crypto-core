@@ -18,7 +18,9 @@ add_library(crypto_core
     src/mac.cpp
     src/memory.cpp
     src/native_provider.cpp
+    src/os_rng.cpp
     src/provider.cpp
+    src/rng.cpp
     src/sha2.cpp
     src/version.cpp
 )
@@ -37,6 +39,13 @@ target_include_directories(crypto_core
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
+
+if(WIN32)
+    target_link_libraries(crypto_core
+        PRIVATE
+            bcrypt
+    )
+endif()
 
 if(CRYPTO_CORE_ENABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
@@ -132,6 +141,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.kdf COMMAND crypto_core_kdf_tests)
+
+    add_executable(crypto_core_rng_tests
+        tests/rng_test.cpp
+    )
+
+    target_link_libraries(crypto_core_rng_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.rng COMMAND crypto_core_rng_tests)
 
     if(CRYPTO_CORE_ENABLE_OPENSSL)
         add_executable(crypto_core_openssl_provider_tests
