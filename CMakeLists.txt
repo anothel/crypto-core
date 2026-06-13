@@ -11,6 +11,7 @@ option(CRYPTO_CORE_BUILD_TESTS "Build crypto-core tests" ON)
 option(CRYPTO_CORE_ENABLE_OPENSSL "Enable optional OpenSSL provider" OFF)
 
 add_library(crypto_core
+    src/aes.cpp
     src/hash.cpp
     src/hmac.cpp
     src/kdf.cpp
@@ -141,6 +142,28 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.kdf COMMAND crypto_core_kdf_tests)
+
+    add_executable(crypto_core_test_vector_tests
+        tests/test_vectors_test.cpp
+    )
+
+    target_link_libraries(crypto_core_test_vector_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.test_vectors COMMAND crypto_core_test_vector_tests)
+
+    add_executable(crypto_core_native_aes_block_tests
+        tests/native_aes_block_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_aes_block_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_aes_block COMMAND crypto_core_native_aes_block_tests)
 
     add_executable(crypto_core_rng_tests
         tests/rng_test.cpp

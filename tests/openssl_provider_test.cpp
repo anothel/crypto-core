@@ -1,11 +1,17 @@
 #include "crypto_core/crypto_core.hpp"
+#include "crypto_core/internal/aes.hpp"
+
+#include "test_vectors.hpp"
 
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
+
+#include <openssl/evp.h>
 
 #include <cstdint>
 #include <cstdlib>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace
 {
@@ -78,6 +84,67 @@ void assert_same_hkdf(crypto_core::KdfAlgorithm algorithm, std::size_t output_si
 	require(native_key.has_value());
 	require(openssl_key.has_value());
 	require(native_key.value() == openssl_key.value());
+}
+
+const EVP_CIPHER *openssl_aes_ecb_cipher(std::size_t key_size)
+{
+	switch (key_size)
+	{
+	case 16:
+		return EVP_aes_128_ecb();
+	case 24:
+		return EVP_aes_192_ecb();
+	case 32:
+		return EVP_aes_256_ecb();
+	default:
+		require(false);
+		return nullptr;
+	}
+}
+
+crypto_core::ByteBuffer openssl_aes_ecb_crypt(std::span<const std::uint8_t> key, std::span<const std::uint8_t> input, bool encrypt)
+{
+	const auto *cipher = openssl_aes_ecb_cipher(key.size());
+	auto *context = EVP_CIPHER_CTX_new();
+	require(context != nullptr);
+
+	const auto init_ok = encrypt ? EVP_EncryptInit_ex(context, cipher, nullptr, key.data(), nullptr) : EVP_DecryptInit_ex(context, cipher, nullptr, key.data(), nullptr);
+	require(init_ok == 1);
+	require(EVP_CIPHER_CTX_set_padding(context, 0) == 1);
+
+	std::vector<std::uint8_t> output(input.size() + static_cast<std::size_t>(EVP_CIPHER_get_block_size(cipher)));
+	int update_size = 0;
+	const auto update_ok = encrypt ? EVP_EncryptUpdate(context, output.data(), &update_size, input.data(), static_cast<int>(input.size())) : EVP_DecryptUpdate(context, output.data(), &update_size, input.data(), static_cast<int>(input.size()));
+	require(update_ok == 1);
+
+	int final_size = 0;
+	const auto final_ok = encrypt ? EVP_EncryptFinal_ex(context, output.data() + update_size, &final_size) : EVP_DecryptFinal_ex(context, output.data() + update_size, &final_size);
+	require(final_ok == 1);
+
+	EVP_CIPHER_CTX_free(context);
+	output.resize(static_cast<std::size_t>(update_size + final_size));
+	return crypto_core::ByteBuffer(std::move(output));
+}
+
+void assert_same_aes_block(std::string_view key_hex, std::string_view plaintext_hex)
+{
+	auto key = crypto_core::test_support::decode_hex(key_hex);
+	auto plaintext = crypto_core::test_support::decode_hex(plaintext_hex);
+	require(key.has_value());
+	require(plaintext.has_value());
+
+	auto native = crypto_core::internal::AesBlockCipher::create(key.value());
+	require(native.has_value());
+
+	auto native_ciphertext = native.value().encrypt_block(plaintext.value());
+	require(native_ciphertext.has_value());
+	auto openssl_ciphertext = openssl_aes_ecb_crypt(key.value(), plaintext.value(), true);
+	require(native_ciphertext.value() == openssl_ciphertext);
+
+	auto native_plaintext = native.value().decrypt_block(openssl_ciphertext.bytes());
+	require(native_plaintext.has_value());
+	auto openssl_plaintext = openssl_aes_ecb_crypt(key.value(), openssl_ciphertext.bytes(), false);
+	require(native_plaintext.value() == openssl_plaintext);
 }
 
 void test_openssl_provider_metadata()
@@ -179,6 +246,13 @@ void test_openssl_matches_native_hkdf()
 	assert_same_hkdf(crypto_core::KdfAlgorithm::hkdf_sha512, 42);
 }
 
+void test_openssl_matches_native_aes_block()
+{
+	assert_same_aes_block("000102030405060708090a0b0c0d0e0f", "00112233445566778899aabbccddeeff");
+	assert_same_aes_block("000102030405060708090a0b0c0d0e0f1011121314151617", "00112233445566778899aabbccddeeff");
+	assert_same_aes_block("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "00112233445566778899aabbccddeeff");
+}
+
 } // namespace
 
 int main()
@@ -192,6 +266,7 @@ int main()
 	test_openssl_hmac_streaming_matches_native();
 	test_openssl_matches_native_pbkdf2();
 	test_openssl_matches_native_hkdf();
+	test_openssl_matches_native_aes_block();
 	return 0;
 }
 

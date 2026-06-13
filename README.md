@@ -87,7 +87,7 @@ Phase 1 default implementation target:
 
 ## Current State
 
-0.6 development state:
+0.7 development state:
 
 - Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
   `Result<T>`.
@@ -100,6 +100,8 @@ Phase 1 default implementation target:
 - Native PBKDF2-HMAC-SHA256, PBKDF2-HMAC-SHA512, HKDF-SHA256, and
   HKDF-SHA512 are implemented.
 - Native OS-backed RNG is implemented on Windows using `BCryptGenRandom`.
+- Native AES-128/192/256 single-block encrypt/decrypt is implemented as an
+  internal/test-only primitive.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 
