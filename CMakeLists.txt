@@ -10,7 +10,9 @@ project(
 option(CRYPTO_CORE_BUILD_TESTS "Build crypto-core tests" ON)
 
 add_library(crypto_core
+    src/hash.cpp
     src/memory.cpp
+    src/native_provider.cpp
     src/version.cpp
 )
 
@@ -60,4 +62,15 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.foundation COMMAND crypto_core_foundation_tests)
+
+    add_executable(crypto_core_provider_api_tests
+        tests/provider_api_test.cpp
+    )
+
+    target_link_libraries(crypto_core_provider_api_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.provider_api COMMAND crypto_core_provider_api_tests)
 endif()
