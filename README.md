@@ -87,15 +87,18 @@ Phase 1 default implementation target:
 
 ## Current State
 
-0.4 development state:
+0.5 development state:
 
 - Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
   `Result<T>`.
 - Provider API is implemented: `ICryptoProvider`, `IHashContext`,
-  `IMacContext`, `default_provider()`, and one-shot helpers.
+  `IMacContext`, KDF provider methods, `default_provider()`, and one-shot
+  helpers.
 - `NativeProvider` is the default backend.
 - Native SHA256 and SHA512 are implemented with streaming support.
 - Native HMAC-SHA256 and HMAC-SHA512 are implemented with streaming support.
+- Native PBKDF2-HMAC-SHA256, PBKDF2-HMAC-SHA512, HKDF-SHA256, and
+  HKDF-SHA512 are implemented.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 

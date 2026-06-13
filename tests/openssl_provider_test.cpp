@@ -49,6 +49,37 @@ void assert_same_mac(crypto_core::MacAlgorithm algorithm, std::string_view key, 
 	require(native_mac.value() == openssl_mac.value());
 }
 
+void assert_same_pbkdf2(crypto_core::KdfAlgorithm algorithm, std::uint32_t iterations, std::size_t output_size)
+{
+	crypto_core::NativeProvider native;
+	crypto_core::OpenSSLProvider openssl;
+
+	const auto password = bytes("password");
+	const auto salt = bytes("salt");
+	auto native_key = crypto_core::pbkdf2(native, algorithm, password.bytes(), salt.bytes(), iterations, output_size);
+	auto openssl_key = crypto_core::pbkdf2(openssl, algorithm, password.bytes(), salt.bytes(), iterations, output_size);
+
+	require(native_key.has_value());
+	require(openssl_key.has_value());
+	require(native_key.value() == openssl_key.value());
+}
+
+void assert_same_hkdf(crypto_core::KdfAlgorithm algorithm, std::size_t output_size)
+{
+	crypto_core::NativeProvider native;
+	crypto_core::OpenSSLProvider openssl;
+
+	const auto ikm = bytes("input key material");
+	const auto salt = bytes("salt");
+	const auto info = bytes("context info");
+	auto native_key = crypto_core::hkdf(native, algorithm, ikm.bytes(), salt.bytes(), info.bytes(), output_size);
+	auto openssl_key = crypto_core::hkdf(openssl, algorithm, ikm.bytes(), salt.bytes(), info.bytes(), output_size);
+
+	require(native_key.has_value());
+	require(openssl_key.has_value());
+	require(native_key.value() == openssl_key.value());
+}
+
 void test_openssl_provider_metadata()
 {
 	crypto_core::OpenSSLProvider provider;
@@ -57,6 +88,10 @@ void test_openssl_provider_metadata()
 	require(provider.supports(crypto_core::HashAlgorithm::sha512));
 	require(provider.supports(crypto_core::MacAlgorithm::hmac_sha256));
 	require(provider.supports(crypto_core::MacAlgorithm::hmac_sha512));
+	require(provider.supports(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha256));
+	require(provider.supports(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha512));
+	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha256));
+	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha512));
 }
 
 void test_openssl_matches_native_sha256()
@@ -130,6 +165,20 @@ void test_openssl_hmac_streaming_matches_native()
 	require(native_mac.value() == openssl_mac.value());
 }
 
+void test_openssl_matches_native_pbkdf2()
+{
+	assert_same_pbkdf2(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha256, 1, 32);
+	assert_same_pbkdf2(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha256, 2, 32);
+	assert_same_pbkdf2(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha512, 1, 64);
+	assert_same_pbkdf2(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha512, 2, 64);
+}
+
+void test_openssl_matches_native_hkdf()
+{
+	assert_same_hkdf(crypto_core::KdfAlgorithm::hkdf_sha256, 42);
+	assert_same_hkdf(crypto_core::KdfAlgorithm::hkdf_sha512, 42);
+}
+
 } // namespace
 
 int main()
@@ -141,6 +190,8 @@ int main()
 	test_openssl_matches_native_hmac_sha256();
 	test_openssl_matches_native_hmac_sha512();
 	test_openssl_hmac_streaming_matches_native();
+	test_openssl_matches_native_pbkdf2();
+	test_openssl_matches_native_hkdf();
 	return 0;
 }
 

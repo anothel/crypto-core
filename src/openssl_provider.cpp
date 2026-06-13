@@ -4,10 +4,12 @@
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
+#include <openssl/kdf.h>
 #include <openssl/params.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <utility>
 #include <vector>
@@ -38,6 +40,38 @@ const char *evp_mac_digest(MacAlgorithm algorithm) noexcept
 		return "SHA256";
 	case MacAlgorithm::hmac_sha512:
 		return "SHA512";
+	}
+
+	return nullptr;
+}
+
+const EVP_MD *pbkdf2_digest(KdfAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case KdfAlgorithm::pbkdf2_hmac_sha256:
+		return EVP_sha256();
+	case KdfAlgorithm::pbkdf2_hmac_sha512:
+		return EVP_sha512();
+	case KdfAlgorithm::hkdf_sha256:
+	case KdfAlgorithm::hkdf_sha512:
+		break;
+	}
+
+	return nullptr;
+}
+
+const char *hkdf_digest(KdfAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case KdfAlgorithm::hkdf_sha256:
+		return "SHA256";
+	case KdfAlgorithm::hkdf_sha512:
+		return "SHA512";
+	case KdfAlgorithm::pbkdf2_hmac_sha256:
+	case KdfAlgorithm::pbkdf2_hmac_sha512:
+		break;
 	}
 
 	return nullptr;
@@ -202,6 +236,11 @@ bool OpenSSLProvider::supports(MacAlgorithm algorithm) const noexcept
 	return evp_mac_digest(algorithm) != nullptr;
 }
 
+bool OpenSSLProvider::supports(KdfAlgorithm algorithm) const noexcept
+{
+	return pbkdf2_digest(algorithm) != nullptr || hkdf_digest(algorithm) != nullptr;
+}
+
 Result<std::unique_ptr<IHashContext>> OpenSSLProvider::create_hash(HashAlgorithm algorithm) noexcept
 {
 	const EVP_MD *md = evp_md(algorithm);
@@ -234,6 +273,89 @@ Result<std::unique_ptr<IMacContext>> OpenSSLProvider::create_mac(MacAlgorithm al
 	}
 
 	return Result<std::unique_ptr<IMacContext>>::success(std::move(context));
+}
+
+Result<ByteBuffer> OpenSSLProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept
+{
+	if (iterations == 0 || output_size == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "PBKDF2 iterations and output size must be non-zero"));
+	}
+	if (password.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+	    salt.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+	    iterations > static_cast<std::uint32_t>(std::numeric_limits<int>::max()) ||
+	    output_size > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "PBKDF2 input is too large for OpenSSL"));
+	}
+
+	const EVP_MD *digest = pbkdf2_digest(algorithm);
+	if (digest == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "PBKDF2 algorithm is not supported by OpenSSLProvider"));
+	}
+
+	std::vector<std::uint8_t> output(output_size);
+	const int ok = PKCS5_PBKDF2_HMAC(
+	    reinterpret_cast<const char *>(password.data()),
+	    static_cast<int>(password.size()),
+	    salt.data(),
+	    static_cast<int>(salt.size()),
+	    static_cast<int>(iterations),
+	    digest,
+	    static_cast<int>(output.size()),
+	    output.data());
+	if (ok != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "PKCS5_PBKDF2_HMAC failed"));
+	}
+
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(output)));
+}
+
+Result<ByteBuffer> OpenSSLProvider::hkdf(KdfAlgorithm algorithm, std::span<const std::uint8_t> input_key_material, std::span<const std::uint8_t> salt, std::span<const std::uint8_t> info, std::size_t output_size) noexcept
+{
+	if (output_size == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "HKDF output size must be non-zero"));
+	}
+
+	const char *digest = hkdf_digest(algorithm);
+	if (digest == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "HKDF algorithm is not supported by OpenSSLProvider"));
+	}
+
+	EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "HKDF", nullptr);
+	if (kdf == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_KDF_fetch failed"));
+	}
+
+	EVP_KDF_CTX *context = EVP_KDF_CTX_new(kdf);
+	EVP_KDF_free(kdf);
+	if (context == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_KDF_CTX_new failed"));
+	}
+
+	std::vector<std::uint8_t> output(output_size);
+	OSSL_PARAM params[] = {
+	    OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, const_cast<char *>(digest), 0),
+	    OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, const_cast<std::uint8_t *>(input_key_material.data()), input_key_material.size()),
+	    OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, const_cast<std::uint8_t *>(salt.data()), salt.size()),
+	    OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, const_cast<std::uint8_t *>(info.data()), info.size()),
+	    OSSL_PARAM_construct_end(),
+	};
+
+	const int ok = EVP_KDF_derive(context, output.data(), output.size(), params);
+	EVP_KDF_CTX_free(context);
+	if (ok != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_KDF_derive failed"));
+	}
+
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(output)));
 }
 
 } // namespace crypto_core

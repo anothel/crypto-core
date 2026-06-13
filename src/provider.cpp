@@ -13,4 +13,19 @@ Result<std::unique_ptr<IMacContext>> ICryptoProvider::create_mac(MacAlgorithm, s
 	return Result<std::unique_ptr<IMacContext>>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "MAC algorithm is not supported"));
 }
 
+bool ICryptoProvider::supports(KdfAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<ByteBuffer> ICryptoProvider::pbkdf2(KdfAlgorithm, std::span<const std::uint8_t>, std::span<const std::uint8_t>, std::uint32_t, std::size_t) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "PBKDF2 algorithm is not supported"));
+}
+
+Result<ByteBuffer> ICryptoProvider::hkdf(KdfAlgorithm, std::span<const std::uint8_t>, std::span<const std::uint8_t>, std::span<const std::uint8_t>, std::size_t) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "HKDF algorithm is not supported"));
+}
+
 } // namespace crypto_core

@@ -2,6 +2,7 @@
 
 #include "crypto_core/byte_buffer.hpp"
 #include "crypto_core/hash.hpp"
+#include "crypto_core/kdf.hpp"
 #include "crypto_core/mac.hpp"
 #include "crypto_core/result.hpp"
 
@@ -39,8 +40,21 @@ public:
 	[[nodiscard]] virtual std::string_view name() const noexcept = 0;
 	[[nodiscard]] virtual bool supports(HashAlgorithm algorithm) const noexcept = 0;
 	[[nodiscard]] virtual bool supports(MacAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(KdfAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(
+	    KdfAlgorithm algorithm,
+	    std::span<const std::uint8_t> password,
+	    std::span<const std::uint8_t> salt,
+	    std::uint32_t iterations,
+	    std::size_t output_size) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> hkdf(
+	    KdfAlgorithm algorithm,
+	    std::span<const std::uint8_t> input_key_material,
+	    std::span<const std::uint8_t> salt,
+	    std::span<const std::uint8_t> info,
+	    std::size_t output_size) noexcept;
 };
 
 [[nodiscard]] ICryptoProvider &default_provider() noexcept;
