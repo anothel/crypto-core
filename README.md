@@ -87,7 +87,7 @@ Phase 1 default implementation target:
 
 ## Current State
 
-0.9 development state:
+0.x development state:
 
 - Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
   `Result<T>`.
@@ -107,6 +107,9 @@ Phase 1 default implementation target:
   and PKCS#7 padding support.
 - Native AES-128/192/256-GCM encrypt/decrypt is implemented with nonce, AAD,
   tag generation, and authentication failure handling.
+- Test vector helper support includes NIST-style key/value parsing, bracketed
+  metadata labels, deterministic malformed hex errors, required-field helpers,
+  and reusable vector builders for digest, MAC, KDF, CBC, and GCM tests.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 
