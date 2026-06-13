@@ -10,6 +10,7 @@ project(
 option(CRYPTO_CORE_BUILD_TESTS "Build crypto-core tests" ON)
 
 add_library(crypto_core
+    src/memory.cpp
     src/version.cpp
 )
 
@@ -48,4 +49,15 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.smoke COMMAND crypto_core_smoke_tests)
+
+    add_executable(crypto_core_foundation_tests
+        tests/foundation_test.cpp
+    )
+
+    target_link_libraries(crypto_core_foundation_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.foundation COMMAND crypto_core_foundation_tests)
 endif()
