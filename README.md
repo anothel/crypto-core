@@ -87,7 +87,17 @@ Phase 1 default implementation target:
 
 ## Current State
 
-Initial scaffold only. No cryptographic algorithm is implemented yet.
+0.4 development state:
+
+- Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
+  `Result<T>`.
+- Provider API is implemented: `ICryptoProvider`, `IHashContext`,
+  `IMacContext`, `default_provider()`, and one-shot helpers.
+- `NativeProvider` is the default backend.
+- Native SHA256 and SHA512 are implemented with streaming support.
+- Native HMAC-SHA256 and HMAC-SHA512 are implemented with streaming support.
+- `OpenSSLProvider` is optional and disabled by default. It is intended for
+  reference and differential testing.
 
 ## Near-Term Milestones
 
@@ -113,6 +123,50 @@ Initial scaffold only. No cryptographic algorithm is implemented yet.
 - known-answer tests
 - Native-vs-OpenSSL differential tests when OpenSSL is enabled
 
+### 0.4 HMAC Providers
+
+- `MacAlgorithm`
+- streaming `IMacContext`
+- one-shot HMAC convenience API
+- Native HMAC-SHA256 and HMAC-SHA512
+- optional OpenSSL HMAC-SHA256 and HMAC-SHA512
+- RFC 4231 known-answer tests
+- Native-vs-OpenSSL differential tests when OpenSSL is enabled
+
+### 0.5 KDF Providers
+
+- PBKDF2-HMAC-SHA256 and PBKDF2-HMAC-SHA512
+- HKDF-SHA256 and HKDF-SHA512
+- Native implementation using existing HMAC
+- optional OpenSSL differential tests
+
+### 0.6 RNG
+
+- OS RNG API
+- Windows `BCryptGenRandom` backend
+- deterministic test seam for provider tests
+- Native DRBG is not part of 0.6
+
+### 0.7 AES Block
+
+- Native AES-128/192/256 block encrypt/decrypt
+- test vectors for raw block operations
+- raw ECB block primitive kept internal/test-only
+
+### 0.8 AES-CBC
+
+- CBC encrypt/decrypt contexts
+- explicit padding policy
+- known-answer tests
+- optional OpenSSL differential tests
+
+### 0.9 AES-GCM
+
+- AEAD API shape
+- nonce, AAD, tag, ciphertext handling
+- authentication failure behavior
+- optional OpenSSL differential tests
+
 ## Build
 
 ```sh
@@ -125,6 +179,38 @@ OpenSSL support is optional and disabled by default:
 ```sh
 cmake -S . -B build -DCRYPTO_CORE_ENABLE_OPENSSL=ON
 ```
+
+On Windows with Visual Studio generators, pass the build configuration to
+CTest:
+
+```powershell
+cmake -S . -B build -DCRYPTO_CORE_ENABLE_OPENSSL=OFF
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+To verify `OpenSSLProvider`, install OpenSSL development headers and libraries.
+With `vcpkg`:
+
+```powershell
+git clone https://github.com/microsoft/vcpkg C:\vcpkg
+C:\vcpkg\bootstrap-vcpkg.bat
+C:\vcpkg\vcpkg install openssl:x64-windows
+```
+
+Then configure with the vcpkg toolchain:
+
+```powershell
+cmake -S . -B build-openssl `
+  -DCRYPTO_CORE_ENABLE_OPENSSL=ON `
+  -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+
+cmake --build build-openssl --config Debug
+ctest --test-dir build-openssl -C Debug --output-on-failure
+```
+
+If OpenSSL is installed outside `vcpkg`, set `OPENSSL_ROOT_DIR` or provide
+`OPENSSL_INCLUDE_DIR` and `OPENSSL_CRYPTO_LIBRARY` for CMake.
 
 ## Test
 

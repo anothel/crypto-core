@@ -12,8 +12,11 @@ option(CRYPTO_CORE_ENABLE_OPENSSL "Enable optional OpenSSL provider" OFF)
 
 add_library(crypto_core
     src/hash.cpp
+    src/hmac.cpp
+    src/mac.cpp
     src/memory.cpp
     src/native_provider.cpp
+    src/provider.cpp
     src/sha2.cpp
     src/version.cpp
 )
@@ -105,6 +108,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_hash COMMAND crypto_core_native_hash_tests)
+
+    add_executable(crypto_core_mac_tests
+        tests/mac_test.cpp
+    )
+
+    target_link_libraries(crypto_core_mac_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.mac COMMAND crypto_core_mac_tests)
 
     if(CRYPTO_CORE_ENABLE_OPENSSL)
         add_executable(crypto_core_openssl_provider_tests

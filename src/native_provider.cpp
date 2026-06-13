@@ -1,5 +1,6 @@
 #include "crypto_core/native_provider.hpp"
 
+#include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/sha2.hpp"
 
 namespace crypto_core
@@ -15,6 +16,11 @@ bool NativeProvider::supports(HashAlgorithm algorithm) const noexcept
 	return algorithm == HashAlgorithm::sha256 || algorithm == HashAlgorithm::sha512;
 }
 
+bool NativeProvider::supports(MacAlgorithm algorithm) const noexcept
+{
+	return algorithm == MacAlgorithm::hmac_sha256 || algorithm == MacAlgorithm::hmac_sha512;
+}
+
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
@@ -26,6 +32,30 @@ Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm 
 	}
 
 	return Result<std::unique_ptr<IHashContext>>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "hash algorithm is not supported by NativeProvider"));
+}
+
+Result<std::unique_ptr<IMacContext>> NativeProvider::create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept
+{
+	HashAlgorithm hash_algorithm;
+	switch (algorithm)
+	{
+	case MacAlgorithm::hmac_sha256:
+		hash_algorithm = HashAlgorithm::sha256;
+		break;
+	case MacAlgorithm::hmac_sha512:
+		hash_algorithm = HashAlgorithm::sha512;
+		break;
+	default:
+		return Result<std::unique_ptr<IMacContext>>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "MAC algorithm is not supported by NativeProvider"));
+	}
+
+	auto context = std::make_unique<internal::HmacContext>(hash_algorithm, key);
+	if (!context->initialized())
+	{
+		return Result<std::unique_ptr<IMacContext>>::failure(make_error(ErrorCode::provider_error, "native_provider", "failed to initialize HMAC context"));
+	}
+
+	return Result<std::unique_ptr<IMacContext>>::success(std::move(context));
 }
 
 ICryptoProvider &default_provider() noexcept
