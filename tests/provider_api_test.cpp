@@ -1,19 +1,32 @@
 #include "crypto_core/crypto_core.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <span>
 #include <string_view>
 #include <vector>
 
+namespace
+{
+
+void require(bool condition)
+{
+	if (!condition)
+	{
+		std::exit(1);
+	}
+}
+
+} // namespace
+
 void test_hash_algorithm_metadata()
 {
-	assert(crypto_core::digest_size(crypto_core::HashAlgorithm::sha256) == 32);
-	assert(crypto_core::digest_size(crypto_core::HashAlgorithm::sha512) == 64);
-	assert(std::string_view{crypto_core::hash_algorithm_name(crypto_core::HashAlgorithm::sha256)} == std::string_view{"SHA256"});
-	assert(std::string_view{crypto_core::hash_algorithm_name(crypto_core::HashAlgorithm::sha512)} == std::string_view{"SHA512"});
+	require(crypto_core::digest_size(crypto_core::HashAlgorithm::sha256) == 32);
+	require(crypto_core::digest_size(crypto_core::HashAlgorithm::sha512) == 64);
+	require(std::string_view{crypto_core::hash_algorithm_name(crypto_core::HashAlgorithm::sha256)} == std::string_view{"SHA256"});
+	require(std::string_view{crypto_core::hash_algorithm_name(crypto_core::HashAlgorithm::sha512)} == std::string_view{"SHA512"});
 }
 
 class RecordingHashContext final : public crypto_core::IHashContext
@@ -86,17 +99,18 @@ public:
 void test_native_provider_default_behavior()
 {
 	crypto_core::NativeProvider native;
-	assert(native.name() == std::string_view{"NativeProvider"});
-	assert(!native.supports(crypto_core::HashAlgorithm::sha256));
-	assert(!native.supports(crypto_core::HashAlgorithm::sha512));
+	require(native.name() == std::string_view{"NativeProvider"});
+	require(native.supports(crypto_core::HashAlgorithm::sha256));
+	require(native.supports(crypto_core::HashAlgorithm::sha512));
 
-	auto created = native.create_hash(crypto_core::HashAlgorithm::sha256);
-	assert(!created);
-	assert(created.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+	auto sha256 = native.create_hash(crypto_core::HashAlgorithm::sha256);
+	auto sha512 = native.create_hash(crypto_core::HashAlgorithm::sha512);
+	require(sha256.has_value());
+	require(sha512.has_value());
 
 	auto &default_provider = crypto_core::default_provider();
-	assert(default_provider.name() == std::string_view{"NativeProvider"});
-	assert(&default_provider == &crypto_core::default_provider());
+	require(default_provider.name() == std::string_view{"NativeProvider"});
+	require(&default_provider == &crypto_core::default_provider());
 }
 
 void test_hash_wrapper_uses_explicit_provider()
@@ -105,11 +119,11 @@ void test_hash_wrapper_uses_explicit_provider()
 	const std::array<std::uint8_t, 4> input{9, 8, 7, 6};
 
 	auto digest = crypto_core::hash(provider, crypto_core::HashAlgorithm::sha256, input);
-	assert(digest);
-	assert(provider.create_hash_calls == 1);
-	assert(provider.requested_algorithm == crypto_core::HashAlgorithm::sha256);
-	assert((provider.updates == std::vector<std::uint8_t>{9, 8, 7, 6}));
-	assert((digest.value() == crypto_core::ByteBuffer(std::vector<std::uint8_t>{1, 2, 3})));
+	require(digest.has_value());
+	require(provider.create_hash_calls == 1);
+	require(provider.requested_algorithm == crypto_core::HashAlgorithm::sha256);
+	require((provider.updates == std::vector<std::uint8_t>{9, 8, 7, 6}));
+	require((digest.value() == crypto_core::ByteBuffer(std::vector<std::uint8_t>{1, 2, 3})));
 }
 
 void test_hash_wrapper_returns_provider_error()
@@ -118,17 +132,17 @@ void test_hash_wrapper_returns_provider_error()
 	const std::array<std::uint8_t, 1> input{0};
 
 	auto digest = crypto_core::hash(provider, crypto_core::HashAlgorithm::sha256, input);
-	assert(!digest);
-	assert(digest.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+	require(!digest.has_value());
+	require(digest.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 }
 
-void test_default_hash_uses_native_provider_and_is_unsupported_for_now()
+void test_default_hash_uses_native_provider()
 {
 	const std::array<std::uint8_t, 3> input{1, 2, 3};
 
 	auto digest = crypto_core::hash(crypto_core::HashAlgorithm::sha256, input);
-	assert(!digest);
-	assert(digest.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+	require(digest.has_value());
+	require(digest.value().size() == crypto_core::digest_size(crypto_core::HashAlgorithm::sha256));
 }
 
 int main()
@@ -137,6 +151,6 @@ int main()
 	test_native_provider_default_behavior();
 	test_hash_wrapper_uses_explicit_provider();
 	test_hash_wrapper_returns_provider_error();
-	test_default_hash_uses_native_provider_and_is_unsupported_for_now();
+	test_default_hash_uses_native_provider();
 	return 0;
 }
