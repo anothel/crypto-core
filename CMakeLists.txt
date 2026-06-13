@@ -11,8 +11,10 @@ option(CRYPTO_CORE_BUILD_TESTS "Build crypto-core tests" ON)
 option(CRYPTO_CORE_ENABLE_OPENSSL "Enable optional OpenSSL provider" OFF)
 
 add_library(crypto_core
+    src/aead.cpp
     src/aes.cpp
     src/aes_cbc.cpp
+    src/aes_gcm.cpp
     src/cipher.cpp
     src/hash.cpp
     src/hmac.cpp
@@ -144,6 +146,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.cipher COMMAND crypto_core_cipher_tests)
+
+    add_executable(crypto_core_aead_tests
+        tests/aead_test.cpp
+    )
+
+    target_link_libraries(crypto_core_aead_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.aead COMMAND crypto_core_aead_tests)
 
     add_executable(crypto_core_kdf_tests
         tests/kdf_test.cpp

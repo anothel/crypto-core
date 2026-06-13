@@ -1,5 +1,6 @@
 #pragma once
 
+#include "crypto_core/aead.hpp"
 #include "crypto_core/byte_buffer.hpp"
 #include "crypto_core/cipher.hpp"
 #include "crypto_core/hash.hpp"
@@ -62,10 +63,13 @@ public:
 	[[nodiscard]] virtual bool supports(KdfAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(RngAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(CipherAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(AeadAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<ICipherContext>> create_cipher(const CipherParams &params) noexcept;
+	[[nodiscard]] virtual Result<AeadEncryptResult> aead_encrypt(const AeadEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> aead_decrypt(const AeadDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(
 	    KdfAlgorithm algorithm,
 	    std::span<const std::uint8_t> password,

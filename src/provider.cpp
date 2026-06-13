@@ -48,4 +48,19 @@ Result<std::unique_ptr<ICipherContext>> ICryptoProvider::create_cipher(const Cip
 	return Result<std::unique_ptr<ICipherContext>>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "cipher algorithm is not supported"));
 }
 
+bool ICryptoProvider::supports(AeadAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<AeadEncryptResult> ICryptoProvider::aead_encrypt(const AeadEncryptParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<AeadEncryptResult>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "AEAD algorithm is not supported"));
+}
+
+Result<ByteBuffer> ICryptoProvider::aead_decrypt(const AeadDecryptParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "AEAD algorithm is not supported"));
+}
+
 } // namespace crypto_core

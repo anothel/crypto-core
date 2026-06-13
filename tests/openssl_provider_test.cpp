@@ -7,6 +7,7 @@
 
 #include <openssl/evp.h>
 
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <span>
@@ -118,6 +119,22 @@ const EVP_CIPHER *openssl_aes_cbc_cipher(std::size_t key_size)
 	}
 }
 
+const EVP_CIPHER *openssl_aes_gcm_cipher(std::size_t key_size)
+{
+	switch (key_size)
+	{
+	case 16:
+		return EVP_aes_128_gcm();
+	case 24:
+		return EVP_aes_192_gcm();
+	case 32:
+		return EVP_aes_256_gcm();
+	default:
+		require(false);
+		return nullptr;
+	}
+}
+
 crypto_core::ByteBuffer openssl_aes_ecb_crypt(std::span<const std::uint8_t> key, std::span<const std::uint8_t> input, bool encrypt)
 {
 	const auto *cipher = openssl_aes_ecb_cipher(key.size());
@@ -166,6 +183,77 @@ crypto_core::ByteBuffer openssl_aes_cbc_crypt(std::span<const std::uint8_t> key,
 	return crypto_core::ByteBuffer(std::move(output));
 }
 
+crypto_core::AeadEncryptResult openssl_aes_gcm_encrypt(
+    std::span<const std::uint8_t> key,
+    std::span<const std::uint8_t> nonce,
+    std::span<const std::uint8_t> aad,
+    std::span<const std::uint8_t> plaintext,
+    std::size_t tag_size)
+{
+	const auto *cipher = openssl_aes_gcm_cipher(key.size());
+	auto *context = EVP_CIPHER_CTX_new();
+	require(context != nullptr);
+	require(EVP_EncryptInit_ex(context, cipher, nullptr, nullptr, nullptr) == 1);
+	require(EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()), nullptr) == 1);
+	require(EVP_EncryptInit_ex(context, nullptr, nullptr, key.data(), nonce.data()) == 1);
+
+	int out_size = 0;
+	if (!aad.empty())
+	{
+		require(EVP_EncryptUpdate(context, nullptr, &out_size, aad.data(), static_cast<int>(aad.size())) == 1);
+	}
+
+	std::vector<std::uint8_t> ciphertext(plaintext.size());
+	if (!plaintext.empty())
+	{
+		require(EVP_EncryptUpdate(context, ciphertext.data(), &out_size, plaintext.data(), static_cast<int>(plaintext.size())) == 1);
+		ciphertext.resize(static_cast<std::size_t>(out_size));
+	}
+
+	std::array<std::uint8_t, 16> final_block{};
+	int final_size = 0;
+	require(EVP_EncryptFinal_ex(context, final_block.data(), &final_size) == 1);
+	ciphertext.insert(ciphertext.end(), final_block.begin(), final_block.begin() + final_size);
+
+	std::vector<std::uint8_t> tag(tag_size);
+	require(EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_GET_TAG, static_cast<int>(tag.size()), tag.data()) == 1);
+	EVP_CIPHER_CTX_free(context);
+	return crypto_core::AeadEncryptResult{crypto_core::ByteBuffer(std::move(ciphertext)), crypto_core::ByteBuffer(std::move(tag))};
+}
+
+bool openssl_aes_gcm_decrypt_accepts(
+    std::span<const std::uint8_t> key,
+    std::span<const std::uint8_t> nonce,
+    std::span<const std::uint8_t> aad,
+    std::span<const std::uint8_t> ciphertext,
+    std::span<const std::uint8_t> tag)
+{
+	const auto *cipher = openssl_aes_gcm_cipher(key.size());
+	auto *context = EVP_CIPHER_CTX_new();
+	require(context != nullptr);
+	require(EVP_DecryptInit_ex(context, cipher, nullptr, nullptr, nullptr) == 1);
+	require(EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()), nullptr) == 1);
+	require(EVP_DecryptInit_ex(context, nullptr, nullptr, key.data(), nonce.data()) == 1);
+
+	int out_size = 0;
+	if (!aad.empty())
+	{
+		require(EVP_DecryptUpdate(context, nullptr, &out_size, aad.data(), static_cast<int>(aad.size())) == 1);
+	}
+	std::vector<std::uint8_t> plaintext(ciphertext.size());
+	if (!ciphertext.empty())
+	{
+		require(EVP_DecryptUpdate(context, plaintext.data(), &out_size, ciphertext.data(), static_cast<int>(ciphertext.size())) == 1);
+	}
+	require(EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_SET_TAG, static_cast<int>(tag.size()), const_cast<std::uint8_t *>(tag.data())) == 1);
+
+	std::array<std::uint8_t, 16> final_block{};
+	int final_size = 0;
+	const auto ok = EVP_DecryptFinal_ex(context, final_block.data(), &final_size) == 1;
+	EVP_CIPHER_CTX_free(context);
+	return ok;
+}
+
 void assert_same_aes_block(std::string_view key_hex, std::string_view plaintext_hex)
 {
 	auto key = crypto_core::test_support::decode_hex(key_hex);
@@ -185,6 +273,58 @@ void assert_same_aes_block(std::string_view key_hex, std::string_view plaintext_
 	require(native_plaintext.has_value());
 	auto openssl_plaintext = openssl_aes_ecb_crypt(key.value(), openssl_ciphertext.bytes(), false);
 	require(native_plaintext.value() == openssl_plaintext);
+}
+
+void assert_same_aes_gcm(crypto_core::AeadAlgorithm algorithm, std::string_view key_hex, std::string_view nonce_hex, std::string_view aad_hex, std::string_view plaintext_hex)
+{
+	auto key = crypto_core::test_support::decode_hex(key_hex);
+	auto nonce = crypto_core::test_support::decode_hex(nonce_hex);
+	auto aad = crypto_core::test_support::decode_hex(aad_hex);
+	auto plaintext = crypto_core::test_support::decode_hex(plaintext_hex);
+	require(key.has_value());
+	require(nonce.has_value());
+	require(aad.has_value());
+	require(plaintext.has_value());
+
+	crypto_core::NativeProvider native;
+	const crypto_core::AeadEncryptParams encrypt_params{
+	    algorithm,
+	    key.value(),
+	    nonce.value(),
+	    aad.value(),
+	    16,
+	};
+	auto native_encrypted = crypto_core::aead_encrypt(native, encrypt_params, plaintext.value());
+	require(native_encrypted.has_value());
+
+	auto openssl_encrypted = openssl_aes_gcm_encrypt(key.value(), nonce.value(), aad.value(), plaintext.value(), 16);
+	require(native_encrypted.value().ciphertext == openssl_encrypted.ciphertext);
+	require(native_encrypted.value().tag == openssl_encrypted.tag);
+
+	const crypto_core::AeadDecryptParams decrypt_params{
+	    algorithm,
+	    key.value(),
+	    nonce.value(),
+	    aad.value(),
+	    native_encrypted.value().tag.bytes(),
+	};
+	auto native_plaintext = crypto_core::aead_decrypt(native, decrypt_params, native_encrypted.value().ciphertext.bytes());
+	require(native_plaintext.has_value());
+	require(native_plaintext.value() == crypto_core::ByteBuffer::copy_from(plaintext.value()));
+
+	auto bad_tag = std::vector<std::uint8_t>(native_encrypted.value().tag.bytes().begin(), native_encrypted.value().tag.bytes().end());
+	bad_tag[0] ^= 0x80U;
+	require(!openssl_aes_gcm_decrypt_accepts(key.value(), nonce.value(), aad.value(), native_encrypted.value().ciphertext.bytes(), bad_tag));
+	const crypto_core::AeadDecryptParams bad_decrypt_params{
+	    algorithm,
+	    key.value(),
+	    nonce.value(),
+	    aad.value(),
+	    bad_tag,
+	};
+	auto native_bad_decrypt = crypto_core::aead_decrypt(native, bad_decrypt_params, native_encrypted.value().ciphertext.bytes());
+	require(!native_bad_decrypt.has_value());
+	require(native_bad_decrypt.error().code() == crypto_core::ErrorCode::authentication_failed);
 }
 
 void assert_same_aes_cbc(crypto_core::CipherAlgorithm algorithm, std::string_view key_hex, std::string_view iv_hex, std::string_view plaintext_hex, crypto_core::CipherPadding padding)
@@ -342,6 +482,17 @@ void test_openssl_matches_native_aes_cbc()
 	assert_same_aes_cbc(crypto_core::CipherAlgorithm::aes_128_cbc, "2b7e151628aed2a6abf7158809cf4f3c", iv, "68656c6c6f", crypto_core::CipherPadding::pkcs7);
 }
 
+void test_openssl_matches_native_aes_gcm()
+{
+	constexpr std::string_view nonce = "cafebabefacedbaddecaf888";
+	constexpr std::string_view aad = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
+	constexpr std::string_view plaintext = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72";
+
+	assert_same_aes_gcm(crypto_core::AeadAlgorithm::aes_128_gcm, "feffe9928665731c6d6a8f9467308308", nonce, aad, plaintext);
+	assert_same_aes_gcm(crypto_core::AeadAlgorithm::aes_192_gcm, "000102030405060708090a0b0c0d0e0f1011121314151617", nonce, aad, plaintext);
+	assert_same_aes_gcm(crypto_core::AeadAlgorithm::aes_256_gcm, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", nonce, aad, plaintext);
+}
+
 } // namespace
 
 int main()
@@ -357,6 +508,7 @@ int main()
 	test_openssl_matches_native_hkdf();
 	test_openssl_matches_native_aes_block();
 	test_openssl_matches_native_aes_cbc();
+	test_openssl_matches_native_aes_gcm();
 	return 0;
 }
 

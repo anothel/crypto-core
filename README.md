@@ -87,13 +87,14 @@ Phase 1 default implementation target:
 
 ## Current State
 
-0.8 development state:
+0.9 development state:
 
 - Foundation types are implemented: `ByteBuffer`, `SecureBuffer`, `Error`,
   `Result<T>`.
 - Provider API is implemented: `ICryptoProvider`, `IHashContext`,
   `IMacContext`, `IRng`, `ICipherContext`, KDF provider methods, RNG provider
-  methods, cipher provider methods, `default_provider()`, and one-shot helpers.
+  methods, cipher provider methods, AEAD provider methods,
+  `default_provider()`, and one-shot helpers.
 - `NativeProvider` is the default backend.
 - Native SHA256 and SHA512 are implemented with streaming support.
 - Native HMAC-SHA256 and HMAC-SHA512 are implemented with streaming support.
@@ -104,6 +105,8 @@ Phase 1 default implementation target:
   internal/test-only primitive.
 - Native AES-128/192/256-CBC encrypt/decrypt is implemented with no-padding
   and PKCS#7 padding support.
+- Native AES-128/192/256-GCM encrypt/decrypt is implemented with nonce, AAD,
+  tag generation, and authentication failure handling.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 
