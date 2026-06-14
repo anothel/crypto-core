@@ -113,6 +113,9 @@ Phase 1 default implementation target:
   `SignatureAlgorithm`, `PublicKey`, move-only `PrivateKey`, `KeyPair`,
   provider sign/verify hooks, asymmetric encrypt/decrypt hooks, shared-secret
   derivation hook, and deterministic invalid-signature result modeling.
+- RSA parameter API base is implemented: generic `RSA-PSS` and `RSA-OAEP`
+  algorithm selectors plus explicit `RsaPssParams` and `RsaOaepParams` for
+  message hash, MGF1 hash, salt length, and OAEP label ownership.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -228,6 +231,17 @@ Phase 1 default implementation target:
 - invalid signatures represented as successful `VerifyResult::invalid()`, not
   as provider errors
 - actual RSA, ECDSA, and Ed25519 implementations deferred to 1.1+
+
+### 1.1 RSA API Parameters
+
+- generic `SignatureAlgorithm::rsa_pss`
+- generic `AsymmetricEncryptionAlgorithm::rsa_oaep`
+- `RsaPssParams`
+- `RsaOaepParams`
+- explicit message hash and MGF1 hash selection
+- explicit PSS salt length
+- OAEP label copied into owned `ByteBuffer`
+- RSA math, DER key parsing, and key generation deferred to later 1.1 slices
 
 ## Build
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "crypto_core/byte_buffer.hpp"
+#include "crypto_core/hash.hpp"
 #include "crypto_core/key.hpp"
 #include "crypto_core/result.hpp"
 #include "crypto_core/secure_buffer.hpp"
@@ -26,6 +27,7 @@ enum class AsymmetricKeyAlgorithm
 
 enum class SignatureAlgorithm
 {
+	rsa_pss,
 	rsa_pss_sha256,
 	ecdsa_p256_sha256,
 	ecdsa_p384_sha384,
@@ -34,6 +36,7 @@ enum class SignatureAlgorithm
 
 enum class AsymmetricEncryptionAlgorithm
 {
+	rsa_oaep,
 	rsa_oaep_sha256,
 };
 
@@ -70,6 +73,8 @@ enum class VerifyStatus
 {
 	switch (algorithm)
 	{
+	case SignatureAlgorithm::rsa_pss:
+		return "RSA-PSS";
 	case SignatureAlgorithm::rsa_pss_sha256:
 		return "RSA-PSS-SHA256";
 	case SignatureAlgorithm::ecdsa_p256_sha256:
@@ -87,6 +92,8 @@ enum class VerifyStatus
 {
 	switch (algorithm)
 	{
+	case AsymmetricEncryptionAlgorithm::rsa_oaep:
+		return "RSA-OAEP";
 	case AsymmetricEncryptionAlgorithm::rsa_oaep_sha256:
 		return "RSA-OAEP-SHA256";
 	}
@@ -267,10 +274,40 @@ struct VerifyResult final
 	}
 };
 
+struct RsaPssParams final
+{
+	HashAlgorithm message_hash{HashAlgorithm::sha256};
+	HashAlgorithm mgf1_hash{HashAlgorithm::sha256};
+	std::size_t salt_length{digest_size(HashAlgorithm::sha256)};
+
+	[[nodiscard]] static constexpr RsaPssParams for_hash(HashAlgorithm hash) noexcept
+	{
+		return RsaPssParams{hash, hash, digest_size(hash)};
+	}
+};
+
+struct RsaOaepParams final
+{
+	HashAlgorithm message_hash{HashAlgorithm::sha256};
+	HashAlgorithm mgf1_hash{HashAlgorithm::sha256};
+	ByteBuffer label{};
+
+	[[nodiscard]] static RsaOaepParams for_hash(HashAlgorithm hash)
+	{
+		return RsaOaepParams{hash, hash, ByteBuffer{}};
+	}
+
+	[[nodiscard]] static RsaOaepParams with_label(HashAlgorithm hash, std::span<const std::uint8_t> label)
+	{
+		return RsaOaepParams{hash, hash, ByteBuffer::copy_from(label)};
+	}
+};
+
 struct SignParams final
 {
 	SignatureAlgorithm algorithm;
 	const PrivateKey *private_key;
+	RsaPssParams rsa_pss{};
 };
 
 struct VerifyParams final
@@ -278,18 +315,21 @@ struct VerifyParams final
 	SignatureAlgorithm algorithm;
 	const PublicKey *public_key;
 	std::span<const std::uint8_t> signature;
+	RsaPssParams rsa_pss{};
 };
 
 struct AsymmetricEncryptParams final
 {
 	AsymmetricEncryptionAlgorithm algorithm;
 	const PublicKey *public_key;
+	RsaOaepParams rsa_oaep{};
 };
 
 struct AsymmetricDecryptParams final
 {
 	AsymmetricEncryptionAlgorithm algorithm;
 	const PrivateKey *private_key;
+	RsaOaepParams rsa_oaep{};
 };
 
 struct SharedSecretParams final

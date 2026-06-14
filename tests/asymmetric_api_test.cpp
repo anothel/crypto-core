@@ -89,11 +89,46 @@ void test_asymmetric_algorithm_metadata()
 	require(crypto_core::asymmetric_key_algorithm_name(crypto_core::AsymmetricKeyAlgorithm::rsa) == std::string_view{"RSA"});
 	require(crypto_core::asymmetric_key_algorithm_name(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256) == std::string_view{"ECDSA-P256"});
 	require(crypto_core::asymmetric_key_algorithm_name(crypto_core::AsymmetricKeyAlgorithm::ed25519) == std::string_view{"Ed25519"});
+	require(crypto_core::signature_algorithm_name(crypto_core::SignatureAlgorithm::rsa_pss) == std::string_view{"RSA-PSS"});
 	require(crypto_core::signature_algorithm_name(crypto_core::SignatureAlgorithm::rsa_pss_sha256) == std::string_view{"RSA-PSS-SHA256"});
+	require(crypto_core::asymmetric_encryption_algorithm_name(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep) == std::string_view{"RSA-OAEP"});
 	require(crypto_core::signature_algorithm_name(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256) == std::string_view{"ECDSA-P256-SHA256"});
 	require(crypto_core::signature_algorithm_name(crypto_core::SignatureAlgorithm::ed25519) == std::string_view{"Ed25519"});
 	require(crypto_core::verify_status_name(crypto_core::VerifyStatus::valid) == std::string_view{"valid"});
 	require(crypto_core::verify_status_name(crypto_core::VerifyStatus::invalid) == std::string_view{"invalid"});
+}
+
+void test_rsa_pss_params_are_explicit()
+{
+	const auto defaults = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	require(defaults.message_hash == crypto_core::HashAlgorithm::sha256);
+	require(defaults.mgf1_hash == crypto_core::HashAlgorithm::sha256);
+	require(defaults.salt_length == crypto_core::digest_size(crypto_core::HashAlgorithm::sha256));
+
+	const crypto_core::RsaPssParams custom{
+	    crypto_core::HashAlgorithm::sha512,
+	    crypto_core::HashAlgorithm::sha256,
+	    20,
+	};
+	require(custom.message_hash == crypto_core::HashAlgorithm::sha512);
+	require(custom.mgf1_hash == crypto_core::HashAlgorithm::sha256);
+	require(custom.salt_length == 20);
+}
+
+void test_rsa_oaep_params_own_label()
+{
+	const std::array<std::uint8_t, 3> label{1, 2, 3};
+	auto params = crypto_core::RsaOaepParams::with_label(crypto_core::HashAlgorithm::sha512, label);
+	require(params.message_hash == crypto_core::HashAlgorithm::sha512);
+	require(params.mgf1_hash == crypto_core::HashAlgorithm::sha512);
+	require(params.label.size() == label.size());
+	params.label.bytes()[0] = 0xFFU;
+	require(label[0] == 1U);
+
+	const auto defaults = crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	require(defaults.message_hash == crypto_core::HashAlgorithm::sha256);
+	require(defaults.mgf1_hash == crypto_core::HashAlgorithm::sha256);
+	require(defaults.label.empty());
 }
 
 void test_public_and_private_key_import_export()
@@ -181,19 +216,19 @@ void test_asymmetric_provider_defaults_return_unsupported_algorithm()
 	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, key_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
 	require(public_key.has_value());
 
-	auto sign_result = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &private_key.value()}, message);
+	auto sign_result = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key.value(), crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256)}, message);
 	require(!sign_result.has_value());
 	require(sign_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 
-	auto verify_result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &public_key.value(), signature}, message);
+	auto verify_result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &public_key.value(), signature, crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256)}, message);
 	require(!verify_result.has_value());
 	require(verify_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 
-	auto encrypt_result = crypto_core::asymmetric_encrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &public_key.value()}, message);
+	auto encrypt_result = crypto_core::asymmetric_encrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &public_key.value(), crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256)}, message);
 	require(!encrypt_result.has_value());
 	require(encrypt_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 
-	auto decrypt_result = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &private_key.value()}, message);
+	auto decrypt_result = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &private_key.value(), crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256)}, message);
 	require(!decrypt_result.has_value());
 	require(decrypt_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 
@@ -222,6 +257,8 @@ void test_invalid_signature_is_successful_verify_result()
 int main()
 {
 	test_asymmetric_algorithm_metadata();
+	test_rsa_pss_params_are_explicit();
+	test_rsa_oaep_params_own_label();
 	test_public_and_private_key_import_export();
 	test_asymmetric_keys_reject_empty_der();
 	test_private_key_and_key_pair_are_move_only();
