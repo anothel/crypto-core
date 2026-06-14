@@ -15,6 +15,8 @@ class BigInt final
 public:
 	[[nodiscard]] static Result<BigInt> from_be_bytes(std::span<const std::uint8_t> bytes);
 
+	[[nodiscard]] static Result<BigInt> mod_add(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus);
+	[[nodiscard]] static Result<BigInt> mod_subtract(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus);
 	[[nodiscard]] static Result<BigInt> mod_multiply(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus);
 	[[nodiscard]] static Result<BigInt> mod_exp(const BigInt &base, const BigInt &exponent, const BigInt &modulus);
 

@@ -94,6 +94,19 @@ void test_rsa_private_operation()
 	require_bytes(output.value().bytes(), std::array<std::uint8_t, 2>{0x00, 0x41});
 }
 
+void test_rsa_private_crt_operation_matches_private_operation()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+
+	const std::array<std::uint8_t, 2> ciphertext{0x0A, 0xE6};
+	auto plain = crypto_core::internal::rsa_private_operation(key.value(), ciphertext);
+	auto crt = crypto_core::internal::rsa_private_crt_operation(key.value(), ciphertext);
+	require(plain.has_value());
+	require(crt.has_value());
+	require_bytes(crt.value().bytes(), plain.value().bytes());
+}
+
 void test_rsa_operation_left_pads_to_modulus_width()
 {
 	auto key = crypto_core::internal::parse_rsa_public_key_der(pkcs1_public_key_der);
@@ -116,13 +129,26 @@ void test_rsa_operation_rejects_representative_not_less_than_modulus()
 	require(output.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_rsa_private_crt_operation_rejects_representative_not_less_than_modulus()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+
+	const std::array<std::uint8_t, 2> too_large{0x0C, 0xA1};
+	auto output = crypto_core::internal::rsa_private_crt_operation(key.value(), too_large);
+	require(!output.has_value());
+	require(output.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 } // namespace
 
 int main()
 {
 	test_rsa_public_operation();
 	test_rsa_private_operation();
+	test_rsa_private_crt_operation_matches_private_operation();
 	test_rsa_operation_left_pads_to_modulus_width();
 	test_rsa_operation_rejects_representative_not_less_than_modulus();
+	test_rsa_private_crt_operation_rejects_representative_not_less_than_modulus();
 	return 0;
 }

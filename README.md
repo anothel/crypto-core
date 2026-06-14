@@ -123,9 +123,11 @@ Phase 1 default implementation target:
   keys, SubjectPublicKeyInfo public keys, PKCS#1 private keys, and PKCS#8
   private keys.
 - Native internal unsigned `BigInt` core is implemented for RSA work: big-endian
-  import/export, comparison, modular multiplication, and modular exponentiation.
+  import/export, comparison, modular addition/subtraction, modular
+  multiplication, and modular exponentiation.
 - Native internal raw RSA public/private operations are implemented over parsed
-  RSA material and `BigInt` modular exponentiation.
+  RSA material and `BigInt` modular exponentiation. Native RSA private CRT
+  operation is implemented for parsed PKCS#1/PKCS#8 private key material.
 - Native internal EMSA-PSS encode/verify building blocks are implemented with
   MGF1 over native SHA2 and deterministic invalid-encoding rejection.
 - `NativeProvider` signs and verifies RSA-PSS/SHA256 signatures by parsing DER
@@ -284,6 +286,8 @@ Phase 1 default implementation target:
 - big-endian byte import/export
 - normalized zero handling
 - unsigned comparison
+- modular addition
+- modular subtraction
 - modular multiplication
 - modular exponentiation
 - zero modulus rejection
@@ -294,9 +298,9 @@ Phase 1 default implementation target:
 - internal raw RSA public operation
 - internal raw RSA private operation
 - parsed RSA DER material flows into `BigInt::mod_exp`
+- CRT private operation uses `dP`, `dQ`, primes, and coefficient
 - representatives greater than or equal to modulus are rejected
 - outputs are left-padded to modulus width
-- RSA-PSS encoding and provider wiring are still deferred
 
 ### 1.1 Native EMSA-PSS Verify
 
@@ -322,7 +326,7 @@ Phase 1 default implementation target:
 - `NativeProvider::supports(SignatureAlgorithm)` reports RSA-PSS support
 - DER RSA private keys are parsed through the native DER boundary
 - salts are generated through the NativeProvider OS RNG
-- EMSA-PSS encodings are signed with the raw RSA private operation
+- EMSA-PSS encodings are signed with the RSA private CRT operation
 - Native sign/verify round trip is covered
 - RSA blinding and constant-time BigInt hardening are still deferred
 

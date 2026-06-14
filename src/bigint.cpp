@@ -42,6 +42,33 @@ Result<BigInt> BigInt::from_be_bytes(std::span<const std::uint8_t> bytes)
 	return Result<BigInt>::success(BigInt(std::move(limbs)));
 }
 
+Result<BigInt> BigInt::mod_add(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus)
+{
+	if (modulus.is_zero())
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "modulus must be non-zero"));
+	}
+
+	return Result<BigInt>::success(mod(add(mod(lhs, modulus), mod(rhs, modulus)), modulus));
+}
+
+Result<BigInt> BigInt::mod_subtract(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus)
+{
+	if (modulus.is_zero())
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "modulus must be non-zero"));
+	}
+
+	const auto left = mod(lhs, modulus);
+	const auto right = mod(rhs, modulus);
+	if (left.compare(right) >= 0)
+	{
+		return Result<BigInt>::success(subtract(left, right));
+	}
+
+	return Result<BigInt>::success(subtract(add(left, modulus), right));
+}
+
 Result<BigInt> BigInt::mod_multiply(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus)
 {
 	if (modulus.is_zero())

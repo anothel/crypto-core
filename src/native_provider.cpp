@@ -242,7 +242,7 @@ Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<cons
 		return Result<ByteBuffer>::failure(encoded_message.error());
 	}
 
-	return internal::rsa_private_operation(key.value(), encoded_message.value().bytes());
+	return internal::rsa_private_crt_operation(key.value(), encoded_message.value().bytes());
 }
 
 Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept

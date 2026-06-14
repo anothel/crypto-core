@@ -14,4 +14,6 @@ namespace crypto_core::internal
 
 [[nodiscard]] Result<ByteBuffer> rsa_private_operation(const RsaPrivateKeyMaterial &key, std::span<const std::uint8_t> input);
 
+[[nodiscard]] Result<ByteBuffer> rsa_private_crt_operation(const RsaPrivateKeyMaterial &key, std::span<const std::uint8_t> input);
+
 } // namespace crypto_core::internal

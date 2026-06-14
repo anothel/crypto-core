@@ -68,6 +68,23 @@ void test_mod_multiply_small_values()
 	require_bytes(result.value().to_be_bytes().bytes(), std::array<std::uint8_t, 2>{0x27, 0xDD});
 }
 
+void test_mod_add_and_subtract_wrap_values()
+{
+	const std::array<std::uint8_t, 1> lhs_add{0xFE};
+	const std::array<std::uint8_t, 1> rhs_add{0x03};
+	const std::array<std::uint8_t, 1> modulus_add{0xFF};
+	auto add = crypto_core::internal::BigInt::mod_add(bigint(lhs_add), bigint(rhs_add), bigint(modulus_add));
+	require(add.has_value());
+	require_bytes(add.value().to_be_bytes().bytes(), std::array<std::uint8_t, 1>{0x02});
+
+	const std::array<std::uint8_t, 1> lhs_sub{0x02};
+	const std::array<std::uint8_t, 1> rhs_sub{0x05};
+	const std::array<std::uint8_t, 1> modulus_sub{0x0B};
+	auto subtract = crypto_core::internal::BigInt::mod_subtract(bigint(lhs_sub), bigint(rhs_sub), bigint(modulus_sub));
+	require(subtract.has_value());
+	require_bytes(subtract.value().to_be_bytes().bytes(), std::array<std::uint8_t, 1>{0x08});
+}
+
 void test_mod_multiply_handles_values_larger_than_uint64()
 {
 	const std::array<std::uint8_t, 9> almost_modulus{
@@ -113,6 +130,14 @@ void test_mod_operations_reject_zero_modulus()
 	require(!multiply.has_value());
 	require(multiply.error().code() == crypto_core::ErrorCode::invalid_argument);
 
+	auto add = crypto_core::internal::BigInt::mod_add(bigint(one), bigint(one), bigint(zero));
+	require(!add.has_value());
+	require(add.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	auto subtract = crypto_core::internal::BigInt::mod_subtract(bigint(one), bigint(one), bigint(zero));
+	require(!subtract.has_value());
+	require(subtract.error().code() == crypto_core::ErrorCode::invalid_argument);
+
 	auto exponent = crypto_core::internal::BigInt::mod_exp(bigint(one), bigint(one), bigint(zero));
 	require(!exponent.has_value());
 	require(exponent.error().code() == crypto_core::ErrorCode::invalid_argument);
@@ -125,6 +150,7 @@ int main()
 	test_bigint_normalizes_big_endian_bytes();
 	test_bigint_compare_ignores_leading_zeroes();
 	test_mod_multiply_small_values();
+	test_mod_add_and_subtract_wrap_values();
 	test_mod_multiply_handles_values_larger_than_uint64();
 	test_mod_exp_small_values();
 	test_mod_exp_handles_values_larger_than_uint64();
