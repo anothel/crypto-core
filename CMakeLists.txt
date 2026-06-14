@@ -15,6 +15,7 @@ add_library(crypto_core
     src/aes.cpp
     src/aes_cbc.cpp
     src/aes_gcm.cpp
+    src/asymmetric.cpp
     src/cipher.cpp
     src/encoding.cpp
     src/hash.cpp
@@ -181,6 +182,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.key COMMAND crypto_core_key_tests)
+
+    add_executable(crypto_core_asymmetric_api_tests
+        tests/asymmetric_api_test.cpp
+    )
+
+    target_link_libraries(crypto_core_asymmetric_api_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.asymmetric_api COMMAND crypto_core_asymmetric_api_tests)
 
     add_executable(crypto_core_encoding_tests
         tests/encoding_test.cpp

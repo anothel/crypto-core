@@ -63,4 +63,44 @@ Result<ByteBuffer> ICryptoProvider::aead_decrypt(const AeadDecryptParams &, std:
 	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "AEAD algorithm is not supported"));
 }
 
+bool ICryptoProvider::supports(SignatureAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<ByteBuffer> ICryptoProvider::sign(const SignParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "signature algorithm is not supported"));
+}
+
+Result<VerifyResult> ICryptoProvider::verify(const VerifyParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "signature algorithm is not supported"));
+}
+
+bool ICryptoProvider::supports(AsymmetricEncryptionAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<ByteBuffer> ICryptoProvider::asymmetric_encrypt(const AsymmetricEncryptParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "asymmetric encryption algorithm is not supported"));
+}
+
+Result<ByteBuffer> ICryptoProvider::asymmetric_decrypt(const AsymmetricDecryptParams &, std::span<const std::uint8_t>) noexcept
+{
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "asymmetric encryption algorithm is not supported"));
+}
+
+bool ICryptoProvider::supports(KeyAgreementAlgorithm) const noexcept
+{
+	return false;
+}
+
+Result<SecureBuffer> ICryptoProvider::derive_shared_secret(const SharedSecretParams &) noexcept
+{
+	return Result<SecureBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "key agreement algorithm is not supported"));
+}
+
 } // namespace crypto_core

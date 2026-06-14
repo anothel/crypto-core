@@ -1,0 +1,317 @@
+#pragma once
+
+#include "crypto_core/byte_buffer.hpp"
+#include "crypto_core/key.hpp"
+#include "crypto_core/result.hpp"
+#include "crypto_core/secure_buffer.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <string_view>
+#include <utility>
+
+namespace crypto_core
+{
+
+class ICryptoProvider;
+
+enum class AsymmetricKeyAlgorithm
+{
+	rsa,
+	ecdsa_p256,
+	ecdsa_p384,
+	ed25519,
+};
+
+enum class SignatureAlgorithm
+{
+	rsa_pss_sha256,
+	ecdsa_p256_sha256,
+	ecdsa_p384_sha384,
+	ed25519,
+};
+
+enum class AsymmetricEncryptionAlgorithm
+{
+	rsa_oaep_sha256,
+};
+
+enum class KeyAgreementAlgorithm
+{
+	ecdh_p256,
+	ecdh_p384,
+};
+
+enum class VerifyStatus
+{
+	valid,
+	invalid,
+};
+
+[[nodiscard]] constexpr std::string_view asymmetric_key_algorithm_name(AsymmetricKeyAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case AsymmetricKeyAlgorithm::rsa:
+		return "RSA";
+	case AsymmetricKeyAlgorithm::ecdsa_p256:
+		return "ECDSA-P256";
+	case AsymmetricKeyAlgorithm::ecdsa_p384:
+		return "ECDSA-P384";
+	case AsymmetricKeyAlgorithm::ed25519:
+		return "Ed25519";
+	}
+
+	return "unknown";
+}
+
+[[nodiscard]] constexpr std::string_view signature_algorithm_name(SignatureAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case SignatureAlgorithm::rsa_pss_sha256:
+		return "RSA-PSS-SHA256";
+	case SignatureAlgorithm::ecdsa_p256_sha256:
+		return "ECDSA-P256-SHA256";
+	case SignatureAlgorithm::ecdsa_p384_sha384:
+		return "ECDSA-P384-SHA384";
+	case SignatureAlgorithm::ed25519:
+		return "Ed25519";
+	}
+
+	return "unknown";
+}
+
+[[nodiscard]] constexpr std::string_view asymmetric_encryption_algorithm_name(AsymmetricEncryptionAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case AsymmetricEncryptionAlgorithm::rsa_oaep_sha256:
+		return "RSA-OAEP-SHA256";
+	}
+
+	return "unknown";
+}
+
+[[nodiscard]] constexpr std::string_view key_agreement_algorithm_name(KeyAgreementAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case KeyAgreementAlgorithm::ecdh_p256:
+		return "ECDH-P256";
+	case KeyAgreementAlgorithm::ecdh_p384:
+		return "ECDH-P384";
+	}
+
+	return "unknown";
+}
+
+[[nodiscard]] constexpr std::string_view verify_status_name(VerifyStatus status) noexcept
+{
+	switch (status)
+	{
+	case VerifyStatus::valid:
+		return "valid";
+	case VerifyStatus::invalid:
+		return "invalid";
+	}
+
+	return "unknown";
+}
+
+class PublicKey final
+{
+public:
+	[[nodiscard]] static Result<PublicKey> import_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    std::span<const std::uint8_t> der,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PublicKey> import_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    std::span<const std::uint8_t> der,
+	    KeyUsage usage);
+
+	[[nodiscard]] AsymmetricKeyAlgorithm algorithm() const noexcept
+	{
+		return algorithm_;
+	}
+
+	[[nodiscard]] KeyUsageMask usages() const noexcept
+	{
+		return usages_;
+	}
+
+	[[nodiscard]] bool allows(KeyUsage usage) const noexcept
+	{
+		return has_key_usage(usages_, usage);
+	}
+
+	[[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept
+	{
+		return der_.bytes();
+	}
+
+	[[nodiscard]] std::size_t size() const noexcept
+	{
+		return der_.size();
+	}
+
+	[[nodiscard]] bool empty() const noexcept
+	{
+		return der_.empty();
+	}
+
+	[[nodiscard]] ByteBuffer export_der() const
+	{
+		return ByteBuffer::copy_from(der_.bytes());
+	}
+
+private:
+	PublicKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, ByteBuffer der) noexcept
+	    : algorithm_(algorithm), usages_(usages), der_(std::move(der))
+	{
+	}
+
+	AsymmetricKeyAlgorithm algorithm_{AsymmetricKeyAlgorithm::rsa};
+	KeyUsageMask usages_{key_usage_value(KeyUsage::none)};
+	ByteBuffer der_;
+};
+
+class PrivateKey final
+{
+public:
+	PrivateKey(const PrivateKey &) = delete;
+	PrivateKey &operator=(const PrivateKey &) = delete;
+	PrivateKey(PrivateKey &&) noexcept = default;
+	PrivateKey &operator=(PrivateKey &&) noexcept = default;
+
+	[[nodiscard]] static Result<PrivateKey> import_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    SecureBuffer der,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PrivateKey> import_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    SecureBuffer der,
+	    KeyUsage usage);
+
+	[[nodiscard]] AsymmetricKeyAlgorithm algorithm() const noexcept
+	{
+		return algorithm_;
+	}
+
+	[[nodiscard]] KeyUsageMask usages() const noexcept
+	{
+		return usages_;
+	}
+
+	[[nodiscard]] bool allows(KeyUsage usage) const noexcept
+	{
+		return has_key_usage(usages_, usage);
+	}
+
+	[[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept
+	{
+		return der_.bytes();
+	}
+
+	[[nodiscard]] std::size_t size() const noexcept
+	{
+		return der_.size();
+	}
+
+	[[nodiscard]] bool empty() const noexcept
+	{
+		return der_.empty();
+	}
+
+	[[nodiscard]] Result<SecureBuffer> export_der() const
+	{
+		return der_.clone();
+	}
+
+private:
+	PrivateKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, SecureBuffer der) noexcept
+	    : algorithm_(algorithm), usages_(usages), der_(std::move(der))
+	{
+	}
+
+	AsymmetricKeyAlgorithm algorithm_{AsymmetricKeyAlgorithm::rsa};
+	KeyUsageMask usages_{key_usage_value(KeyUsage::none)};
+	SecureBuffer der_;
+};
+
+struct KeyPair final
+{
+	PublicKey public_key;
+	PrivateKey private_key;
+};
+
+struct VerifyResult final
+{
+	VerifyStatus status{VerifyStatus::invalid};
+
+	[[nodiscard]] static constexpr VerifyResult valid() noexcept
+	{
+		return VerifyResult{VerifyStatus::valid};
+	}
+
+	[[nodiscard]] static constexpr VerifyResult invalid() noexcept
+	{
+		return VerifyResult{VerifyStatus::invalid};
+	}
+
+	[[nodiscard]] constexpr bool is_valid() const noexcept
+	{
+		return status == VerifyStatus::valid;
+	}
+};
+
+struct SignParams final
+{
+	SignatureAlgorithm algorithm;
+	const PrivateKey *private_key;
+};
+
+struct VerifyParams final
+{
+	SignatureAlgorithm algorithm;
+	const PublicKey *public_key;
+	std::span<const std::uint8_t> signature;
+};
+
+struct AsymmetricEncryptParams final
+{
+	AsymmetricEncryptionAlgorithm algorithm;
+	const PublicKey *public_key;
+};
+
+struct AsymmetricDecryptParams final
+{
+	AsymmetricEncryptionAlgorithm algorithm;
+	const PrivateKey *private_key;
+};
+
+struct SharedSecretParams final
+{
+	KeyAgreementAlgorithm algorithm;
+	const PrivateKey *private_key;
+	const PublicKey *peer_public_key;
+};
+
+[[nodiscard]] Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept;
+[[nodiscard]] Result<ByteBuffer> sign(ICryptoProvider &provider, const SignParams &params, std::span<const std::uint8_t> message) noexcept;
+
+[[nodiscard]] Result<VerifyResult> verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
+[[nodiscard]] Result<VerifyResult> verify(ICryptoProvider &provider, const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
+
+[[nodiscard]] Result<ByteBuffer> asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
+[[nodiscard]] Result<ByteBuffer> asymmetric_encrypt(ICryptoProvider &provider, const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
+
+[[nodiscard]] Result<ByteBuffer> asymmetric_decrypt(const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
+[[nodiscard]] Result<ByteBuffer> asymmetric_decrypt(ICryptoProvider &provider, const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
+
+[[nodiscard]] Result<SecureBuffer> derive_shared_secret(const SharedSecretParams &params) noexcept;
+[[nodiscard]] Result<SecureBuffer> derive_shared_secret(ICryptoProvider &provider, const SharedSecretParams &params) noexcept;
+
+} // namespace crypto_core

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "crypto_core/aead.hpp"
+#include "crypto_core/asymmetric.hpp"
 #include "crypto_core/byte_buffer.hpp"
 #include "crypto_core/cipher.hpp"
 #include "crypto_core/hash.hpp"
@@ -64,24 +65,22 @@ public:
 	[[nodiscard]] virtual bool supports(RngAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(CipherAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(AeadAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(SignatureAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(KeyAgreementAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<ICipherContext>> create_cipher(const CipherParams &params) noexcept;
 	[[nodiscard]] virtual Result<AeadEncryptResult> aead_encrypt(const AeadEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> aead_decrypt(const AeadDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
-	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(
-	    KdfAlgorithm algorithm,
-	    std::span<const std::uint8_t> password,
-	    std::span<const std::uint8_t> salt,
-	    std::uint32_t iterations,
-	    std::size_t output_size) noexcept;
-	[[nodiscard]] virtual Result<ByteBuffer> hkdf(
-	    KdfAlgorithm algorithm,
-	    std::span<const std::uint8_t> input_key_material,
-	    std::span<const std::uint8_t> salt,
-	    std::span<const std::uint8_t> info,
-	    std::size_t output_size) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept;
+	[[nodiscard]] virtual Result<VerifyResult> verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> asymmetric_decrypt(const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
+	[[nodiscard]] virtual Result<SecureBuffer> derive_shared_secret(const SharedSecretParams &params) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept;
+	[[nodiscard]] virtual Result<ByteBuffer> hkdf(KdfAlgorithm algorithm, std::span<const std::uint8_t> input_key_material, std::span<const std::uint8_t> salt, std::span<const std::uint8_t> info, std::size_t output_size) noexcept;
 };
 
 [[nodiscard]] ICryptoProvider &default_provider() noexcept;

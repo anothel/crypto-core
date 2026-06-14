@@ -109,6 +109,10 @@ Phase 1 default implementation target:
   tag generation, and authentication failure handling.
 - Key material base is implemented: `KeyAlgorithm`, `KeyUsage`, `Key`, and
   move-only `SecretKey` backed by `SecureBuffer` with raw import/export.
+- Asymmetric API base is implemented: `AsymmetricKeyAlgorithm`,
+  `SignatureAlgorithm`, `PublicKey`, move-only `PrivateKey`, `KeyPair`,
+  provider sign/verify hooks, asymmetric encrypt/decrypt hooks, shared-secret
+  derivation hook, and deterministic invalid-signature result modeling.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -210,6 +214,20 @@ Phase 1 default implementation target:
 - algorithm-name return type consistency
 - streaming repeated-finalization tests
 - self-test and validated-mode deferred to Phase 2+ unless required
+
+### 1.0 Asymmetric API Base
+
+- `AsymmetricKeyAlgorithm`
+- `PublicKey`
+- move-only `PrivateKey`
+- `KeyPair`
+- `SignatureAlgorithm`
+- provider sign/verify interfaces
+- provider-neutral parameter structs for sign, verify, encrypt, decrypt, and
+  shared-secret derivation
+- invalid signatures represented as successful `VerifyResult::invalid()`, not
+  as provider errors
+- actual RSA, ECDSA, and Ed25519 implementations deferred to 1.1+
 
 ## Build
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "crypto_core/aead.hpp"
+#include "crypto_core/asymmetric.hpp"
 #include "crypto_core/byte_buffer.hpp"
 #include "crypto_core/cipher.hpp"
 #include "crypto_core/encoding.hpp"
