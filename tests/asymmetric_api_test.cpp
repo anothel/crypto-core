@@ -200,7 +200,8 @@ void test_default_provider_reports_rsa_pss_signature_support()
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
 	require(!provider.supports(crypto_core::SignatureAlgorithm::ed25519));
-	require(!provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
+	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep));
+	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
 	require(!provider.supports(crypto_core::KeyAgreementAlgorithm::ecdh_p256));
 }
 

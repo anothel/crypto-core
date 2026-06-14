@@ -132,6 +132,11 @@ Phase 1 default implementation target:
   MGF1 over native SHA2 and deterministic invalid-encoding rejection.
 - `NativeProvider` signs and verifies RSA-PSS/SHA256 signatures by parsing DER
   RSA keys, applying raw RSA operations, and checking EMSA-PSS.
+- Native internal EME-OAEP encode/decode building blocks are implemented with
+  MGF1 over native SHA2 and deterministic authentication-failure rejection.
+- `NativeProvider` encrypts and decrypts RSA-OAEP/SHA256 payloads by parsing
+  DER RSA keys, using OS RNG OAEP seeds, applying raw RSA public/private CRT
+  operations, and checking OAEP labels.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -328,6 +333,21 @@ Phase 1 default implementation target:
 - salts are generated through the NativeProvider OS RNG
 - EMSA-PSS encodings are signed with the RSA private CRT operation
 - Native sign/verify round trip is covered
+
+### 1.1 Native RSA-OAEP Encrypt/Decrypt
+
+- internal EME-OAEP encoding helper
+- internal EME-OAEP decoding helper
+- MGF1 implemented over native SHA256/SHA512
+- `NativeProvider::supports(AsymmetricEncryptionAlgorithm)` reports RSA-OAEP
+  support
+- `NativeProvider::asymmetric_encrypt` handles RSA-OAEP encryption
+- `NativeProvider::asymmetric_decrypt` handles RSA-OAEP decryption
+- `AsymmetricEncryptionAlgorithm::rsa_oaep_sha256` maps to SHA256 OAEP
+  defaults
+- `AsymmetricEncryptionAlgorithm::rsa_oaep` uses explicit `RsaOaepParams`
+- OAEP seed bytes are generated through the NativeProvider OS RNG
+- label mismatch and tampered ciphertext return `ErrorCode::authentication_failed`
 - RSA blinding and constant-time BigInt hardening are still deferred
 
 ## Build

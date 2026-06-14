@@ -7,6 +7,7 @@
 #include "crypto_core/internal/os_rng.hpp"
 #include "crypto_core/internal/rsa.hpp"
 #include "crypto_core/internal/rsa_der.hpp"
+#include "crypto_core/internal/rsa_oaep.hpp"
 #include "crypto_core/internal/rsa_pss.hpp"
 #include "crypto_core/internal/sha2.hpp"
 
@@ -33,6 +34,18 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 	return false;
 }
 
+bool is_rsa_oaep_algorithm(AsymmetricEncryptionAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case AsymmetricEncryptionAlgorithm::rsa_oaep:
+	case AsymmetricEncryptionAlgorithm::rsa_oaep_sha256:
+		return true;
+	}
+
+	return false;
+}
+
 RsaPssParams rsa_pss_params(const VerifyParams &params) noexcept
 {
 	if (params.algorithm == SignatureAlgorithm::rsa_pss_sha256)
@@ -51,6 +64,21 @@ RsaPssParams rsa_pss_params(const SignParams &params) noexcept
 	}
 
 	return params.rsa_pss;
+}
+
+const RsaOaepParams &rsa_oaep_params(const AsymmetricEncryptParams &params) noexcept
+{
+	return params.rsa_oaep;
+}
+
+const RsaOaepParams &rsa_oaep_params(const AsymmetricDecryptParams &params) noexcept
+{
+	return params.rsa_oaep;
+}
+
+RsaOaepParams rsa_oaep_sha256_params()
+{
+	return RsaOaepParams::for_hash(HashAlgorithm::sha256);
 }
 
 std::size_t bit_length(std::span<const std::uint8_t> bytes) noexcept
@@ -123,6 +151,11 @@ bool NativeProvider::supports(AeadAlgorithm algorithm) const noexcept
 bool NativeProvider::supports(SignatureAlgorithm algorithm) const noexcept
 {
 	return is_rsa_pss_algorithm(algorithm);
+}
+
+bool NativeProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
+{
+	return is_rsa_oaep_algorithm(algorithm);
 }
 
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept
@@ -302,6 +335,96 @@ Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::spa
 	}
 
 	return Result<VerifyResult>::success(valid.value() ? VerifyResult::valid() : VerifyResult::invalid());
+}
+
+Result<ByteBuffer> NativeProvider::asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept
+{
+	if (!is_rsa_oaep_algorithm(params.algorithm))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "asymmetric encryption algorithm is not supported by NativeProvider"));
+	}
+	if (params.public_key == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "public key is required"));
+	}
+	if (params.public_key->algorithm() != AsymmetricKeyAlgorithm::rsa || !params.public_key->allows(KeyUsage::encrypt))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "RSA encryption key is required"));
+	}
+
+	auto key = internal::parse_rsa_public_key_der(params.public_key->bytes());
+	if (!key)
+	{
+		return Result<ByteBuffer>::failure(key.error());
+	}
+
+	auto default_params = rsa_oaep_sha256_params();
+	const auto &oaep = params.algorithm == AsymmetricEncryptionAlgorithm::rsa_oaep_sha256 ? default_params : rsa_oaep_params(params);
+	const auto seed_size = digest_size(oaep.message_hash);
+	if (seed_size == 0 || digest_size(oaep.mgf1_hash) == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "RSA-OAEP hash algorithm is not supported by NativeProvider"));
+	}
+
+	std::vector<std::uint8_t> seed(seed_size);
+	auto rng = create_rng(RngAlgorithm::os_random);
+	if (!rng)
+	{
+		return Result<ByteBuffer>::failure(rng.error());
+	}
+	auto generated = rng.value()->generate(seed);
+	if (!generated)
+	{
+		return Result<ByteBuffer>::failure(generated.error());
+	}
+
+	auto encoded = internal::eme_oaep_encode(key.value().modulus.size(), plaintext, seed, oaep);
+	if (!encoded)
+	{
+		return Result<ByteBuffer>::failure(encoded.error());
+	}
+
+	return internal::rsa_public_operation(key.value(), encoded.value().bytes());
+}
+
+Result<ByteBuffer> NativeProvider::asymmetric_decrypt(const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept
+{
+	if (!is_rsa_oaep_algorithm(params.algorithm))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "asymmetric encryption algorithm is not supported by NativeProvider"));
+	}
+	if (params.private_key == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "private key is required"));
+	}
+	if (params.private_key->algorithm() != AsymmetricKeyAlgorithm::rsa || !params.private_key->allows(KeyUsage::decrypt))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "RSA decryption key is required"));
+	}
+
+	auto key = internal::parse_rsa_private_key_der(params.private_key->bytes());
+	if (!key)
+	{
+		return Result<ByteBuffer>::failure(key.error());
+	}
+	if (ciphertext.size() != key.value().modulus.size())
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::authentication_failed, "native_provider", "RSA-OAEP ciphertext is invalid"));
+	}
+
+	auto encoded = internal::rsa_private_crt_operation(key.value(), ciphertext);
+	if (!encoded)
+	{
+		if (encoded.error().code() == ErrorCode::invalid_argument)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::authentication_failed, "native_provider", "RSA-OAEP ciphertext is invalid"));
+		}
+		return Result<ByteBuffer>::failure(encoded.error());
+	}
+
+	auto default_params = rsa_oaep_sha256_params();
+	const auto &oaep = params.algorithm == AsymmetricEncryptionAlgorithm::rsa_oaep_sha256 ? default_params : rsa_oaep_params(params);
+	return internal::eme_oaep_decode(encoded.value().bytes(), oaep);
 }
 
 Result<ByteBuffer> NativeProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept
