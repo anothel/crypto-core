@@ -126,6 +126,8 @@ Phase 1 default implementation target:
   import/export, comparison, modular multiplication, and modular exponentiation.
 - Native internal raw RSA public/private operations are implemented over parsed
   RSA material and `BigInt` modular exponentiation.
+- Native internal EMSA-PSS verification building block is implemented with MGF1
+  over native SHA2 and deterministic invalid-encoding rejection.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -293,6 +295,16 @@ Phase 1 default implementation target:
 - representatives greater than or equal to modulus are rejected
 - outputs are left-padded to modulus width
 - RSA-PSS encoding and provider wiring are still deferred
+
+### 1.1 Native EMSA-PSS Verify
+
+- internal EMSA-PSS verification helper
+- MGF1 implemented over native SHA256/SHA512
+- message-hash size validation
+- encoded-message width validation
+- trailer, top-bit, padding, separator, salt, and hash checks
+- malformed encodings return successful `false` verification results
+- NativeProvider RSA-PSS wiring and signing are still deferred
 
 ## Build
 
