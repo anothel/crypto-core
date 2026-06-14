@@ -109,6 +109,8 @@ Phase 1 default implementation target:
   tag generation, and authentication failure handling.
 - Key material base is implemented: `KeyAlgorithm`, `KeyUsage`, `Key`, and
   move-only `SecretKey` backed by `SecureBuffer` with raw import/export.
+- Encoding base is implemented: Base64, Base64url, and PEM armor shell with
+  strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
   metadata labels, deterministic malformed hex errors, required-field helpers,
   and reusable vector builders for digest, MAC, KDF, CBC, and GCM tests.
@@ -191,6 +193,13 @@ Phase 1 default implementation target:
 - move-only `SecretKey`
 - raw symmetric key import/export through `SecureBuffer`
 - exact AES key-size validation
+
+### 0.11 Encoding Base
+
+- Base64 encode/decode
+- Base64url encode/decode
+- PEM armor encode/decode shell
+- strict malformed input errors
 
 ## Build
 

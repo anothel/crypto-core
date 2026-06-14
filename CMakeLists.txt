@@ -16,6 +16,7 @@ add_library(crypto_core
     src/aes_cbc.cpp
     src/aes_gcm.cpp
     src/cipher.cpp
+    src/encoding.cpp
     src/hash.cpp
     src/hmac.cpp
     src/key.cpp
@@ -180,6 +181,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.key COMMAND crypto_core_key_tests)
+
+    add_executable(crypto_core_encoding_tests
+        tests/encoding_test.cpp
+    )
+
+    target_link_libraries(crypto_core_encoding_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.encoding COMMAND crypto_core_encoding_tests)
 
     add_executable(crypto_core_test_vector_tests
         tests/test_vectors_test.cpp
