@@ -16,6 +16,7 @@ add_library(crypto_core
     src/aes_cbc.cpp
     src/aes_gcm.cpp
     src/asymmetric.cpp
+    src/bigint.cpp
     src/cipher.cpp
     src/encoding.cpp
     src/hash.cpp
@@ -128,6 +129,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_hash COMMAND crypto_core_native_hash_tests)
+
+    add_executable(crypto_core_native_bigint_tests
+        tests/native_bigint_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_bigint_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_bigint COMMAND crypto_core_native_bigint_tests)
 
     add_executable(crypto_core_mac_tests
         tests/mac_test.cpp

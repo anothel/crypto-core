@@ -122,6 +122,8 @@ Phase 1 default implementation target:
 - Native internal RSA DER parsing boundary is implemented for PKCS#1 public
   keys, SubjectPublicKeyInfo public keys, PKCS#1 private keys, and PKCS#8
   private keys.
+- Native internal unsigned `BigInt` core is implemented for RSA work: big-endian
+  import/export, comparison, modular multiplication, and modular exponentiation.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -269,6 +271,17 @@ Phase 1 default implementation target:
 - reject trailing data, malformed lengths, negative integers, and non-RSA
   algorithm identifiers
 - Native RSA math/sign/verify is still deferred
+
+### 1.1 Native BigInt Core
+
+- internal unsigned `BigInt`
+- big-endian byte import/export
+- normalized zero handling
+- unsigned comparison
+- modular multiplication
+- modular exponentiation
+- zero modulus rejection
+- optimized/constant-time big integer arithmetic and RSA-PSS are still deferred
 
 ## Build
 
