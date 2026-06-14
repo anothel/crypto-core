@@ -5,10 +5,66 @@
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/kdf.hpp"
 #include "crypto_core/internal/os_rng.hpp"
+#include "crypto_core/internal/rsa.hpp"
+#include "crypto_core/internal/rsa_der.hpp"
+#include "crypto_core/internal/rsa_pss.hpp"
 #include "crypto_core/internal/sha2.hpp"
 
 namespace crypto_core
 {
+namespace
+{
+
+bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case SignatureAlgorithm::rsa_pss:
+	case SignatureAlgorithm::rsa_pss_sha256:
+		return true;
+	case SignatureAlgorithm::ecdsa_p256_sha256:
+	case SignatureAlgorithm::ecdsa_p384_sha384:
+	case SignatureAlgorithm::ed25519:
+		return false;
+	}
+
+	return false;
+}
+
+RsaPssParams rsa_pss_params(const VerifyParams &params) noexcept
+{
+	if (params.algorithm == SignatureAlgorithm::rsa_pss_sha256)
+	{
+		return RsaPssParams::for_hash(HashAlgorithm::sha256);
+	}
+
+	return params.rsa_pss;
+}
+
+std::size_t bit_length(std::span<const std::uint8_t> bytes) noexcept
+{
+	std::size_t offset = 0;
+	while (offset < bytes.size() && bytes[offset] == 0)
+	{
+		++offset;
+	}
+	if (offset == bytes.size())
+	{
+		return 0;
+	}
+
+	std::size_t high_bits = 0;
+	auto value = bytes[offset];
+	while (value != 0)
+	{
+		++high_bits;
+		value = static_cast<std::uint8_t>(value >> 1U);
+	}
+
+	return ((bytes.size() - offset - 1U) * 8U) + high_bits;
+}
+
+} // namespace
 
 std::string_view NativeProvider::name() const noexcept
 {
@@ -112,6 +168,65 @@ Result<AeadEncryptResult> NativeProvider::aead_encrypt(const AeadEncryptParams &
 Result<ByteBuffer> NativeProvider::aead_decrypt(const AeadDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept
 {
 	return internal::aes_gcm_decrypt(params, ciphertext);
+}
+
+Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept
+{
+	if (!is_rsa_pss_algorithm(params.algorithm))
+	{
+		return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "signature algorithm is not supported by NativeProvider"));
+	}
+	if (params.public_key == nullptr)
+	{
+		return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "public key is required"));
+	}
+	if (params.public_key->algorithm() != AsymmetricKeyAlgorithm::rsa || !params.public_key->allows(KeyUsage::verify))
+	{
+		return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_key, "native_provider", "RSA verification key is required"));
+	}
+
+	auto key = internal::parse_rsa_public_key_der(params.public_key->bytes());
+	if (!key)
+	{
+		return Result<VerifyResult>::failure(key.error());
+	}
+	if (params.signature.size() != key.value().modulus.size())
+	{
+		return Result<VerifyResult>::success(VerifyResult::invalid());
+	}
+
+	auto encoded_message = internal::rsa_public_operation(key.value(), params.signature);
+	if (!encoded_message)
+	{
+		if (encoded_message.error().code() == ErrorCode::invalid_argument)
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+		return Result<VerifyResult>::failure(encoded_message.error());
+	}
+
+	const auto pss = rsa_pss_params(params);
+	auto message_hash = hash(*this, pss.message_hash, message);
+	if (!message_hash)
+	{
+		return Result<VerifyResult>::failure(message_hash.error());
+	}
+
+	const auto encoded_bits = bit_length(key.value().modulus.bytes()) - 1U;
+	const auto encoded_size = (encoded_bits + 7U) / 8U;
+	if (encoded_size > encoded_message.value().size())
+	{
+		return Result<VerifyResult>::success(VerifyResult::invalid());
+	}
+
+	const auto encoded = encoded_message.value().bytes().last(encoded_size);
+	auto valid = internal::emsa_pss_verify(encoded, encoded_bits, message_hash.value().bytes(), pss);
+	if (!valid)
+	{
+		return Result<VerifyResult>::failure(valid.error());
+	}
+
+	return Result<VerifyResult>::success(valid.value() ? VerifyResult::valid() : VerifyResult::invalid());
 }
 
 Result<ByteBuffer> NativeProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept

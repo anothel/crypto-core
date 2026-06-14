@@ -286,6 +286,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
 
     add_test(NAME crypto_core.native_rsa_pss COMMAND crypto_core_native_rsa_pss_tests)
 
+    add_executable(crypto_core_native_rsa_provider_tests
+        tests/native_rsa_provider_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_rsa_provider_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_rsa_provider COMMAND crypto_core_native_rsa_provider_tests)
+
     add_executable(crypto_core_rng_tests
         tests/rng_test.cpp
     )

@@ -128,6 +128,8 @@ Phase 1 default implementation target:
   RSA material and `BigInt` modular exponentiation.
 - Native internal EMSA-PSS verification building block is implemented with MGF1
   over native SHA2 and deterministic invalid-encoding rejection.
+- `NativeProvider` verifies RSA-PSS/SHA256 signatures by parsing DER RSA public
+  keys, applying raw RSA public operation, and checking EMSA-PSS.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -305,6 +307,15 @@ Phase 1 default implementation target:
 - trailer, top-bit, padding, separator, salt, and hash checks
 - malformed encodings return successful `false` verification results
 - NativeProvider RSA-PSS wiring and signing are still deferred
+
+### 1.1 Native RSA-PSS Verify Wiring
+
+- `NativeProvider::verify` handles RSA-PSS verification
+- DER RSA public keys are parsed through the native DER boundary
+- signatures are converted to encoded messages through raw RSA public operation
+- EMSA-PSS verification is applied to the native message digest
+- tampered messages and signatures return `VerifyResult::invalid()`
+- Native RSA-PSS signing and capability advertisement are still deferred
 
 ## Build
 
