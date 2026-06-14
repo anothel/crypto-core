@@ -424,6 +424,8 @@ void test_openssl_provider_metadata()
 	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha512));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
+	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep));
+	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
 }
 
 void test_openssl_matches_native_sha256()
@@ -590,6 +592,79 @@ void test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs()
 	require(!bad_signature.value().is_valid());
 }
 
+void test_openssl_rsa_oaep_encrypt_decrypt_round_trip()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto der = generate_rsa_der_key_pair();
+
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	require(private_key.has_value());
+	require(public_key.has_value());
+
+	const auto plaintext = bytes("openssl rsa oaep message");
+	const auto label = bytes("oaep label");
+	const auto params = crypto_core::RsaOaepParams::with_label(crypto_core::HashAlgorithm::sha256, label.bytes());
+
+	auto ciphertext = crypto_core::asymmetric_encrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &public_key.value(), params}, plaintext.bytes());
+	require(ciphertext.has_value());
+	require(!ciphertext.value().empty());
+
+	auto decrypted = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &private_key.value(), params}, ciphertext.value().bytes());
+	require(decrypted.has_value());
+	require(decrypted.value() == plaintext);
+}
+
+void test_openssl_rsa_oaep_rejects_bad_inputs()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto der = generate_rsa_der_key_pair();
+
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	require(private_key.has_value());
+	require(public_key.has_value());
+
+	const auto plaintext = bytes("openssl rsa oaep tamper");
+	const auto label = bytes("oaep label");
+	const auto wrong_label = bytes("wrong label");
+	const auto params = crypto_core::RsaOaepParams::with_label(crypto_core::HashAlgorithm::sha256, label.bytes());
+	const auto wrong_params = crypto_core::RsaOaepParams::with_label(crypto_core::HashAlgorithm::sha256, wrong_label.bytes());
+
+	auto ciphertext = crypto_core::asymmetric_encrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &public_key.value(), params}, plaintext.bytes());
+	require(ciphertext.has_value());
+
+	auto wrong = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &private_key.value(), wrong_params}, ciphertext.value().bytes());
+	require(!wrong.has_value());
+	require(wrong.error().code() == crypto_core::ErrorCode::authentication_failed);
+
+	auto tampered = ciphertext.value();
+	tampered.bytes()[0] ^= 0x80U;
+	auto bad = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, &private_key.value(), params}, tampered.bytes());
+	require(!bad.has_value());
+	require(bad.error().code() == crypto_core::ErrorCode::authentication_failed);
+}
+
+void test_native_rsa_oaep_ciphertext_decrypts_with_openssl()
+{
+	crypto_core::NativeProvider native;
+	crypto_core::OpenSSLProvider openssl;
+	auto der = generate_rsa_der_key_pair();
+
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	require(private_key.has_value());
+	require(public_key.has_value());
+
+	const auto plaintext = bytes("native to openssl oaep");
+	auto ciphertext = crypto_core::asymmetric_encrypt(native, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &public_key.value()}, plaintext.bytes());
+	require(ciphertext.has_value());
+
+	auto decrypted = crypto_core::asymmetric_decrypt(openssl, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &private_key.value()}, ciphertext.value().bytes());
+	require(decrypted.has_value());
+	require(decrypted.value() == plaintext);
+}
+
 } // namespace
 
 int main()
@@ -608,6 +683,9 @@ int main()
 	test_openssl_matches_native_aes_gcm();
 	test_openssl_rsa_pss_sign_verify_round_trip();
 	test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs();
+	test_openssl_rsa_oaep_encrypt_decrypt_round_trip();
+	test_openssl_rsa_oaep_rejects_bad_inputs();
+	test_native_rsa_oaep_ciphertext_decrypts_with_openssl();
 	return 0;
 }
 

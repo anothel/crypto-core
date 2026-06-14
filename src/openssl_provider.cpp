@@ -3,6 +3,7 @@
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 
 #include <openssl/core_names.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 #include <openssl/params.h>
@@ -12,6 +13,7 @@
 #include <climits>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <span>
@@ -52,6 +54,18 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 	return false;
 }
 
+bool is_rsa_oaep_algorithm(AsymmetricEncryptionAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case AsymmetricEncryptionAlgorithm::rsa_oaep:
+	case AsymmetricEncryptionAlgorithm::rsa_oaep_sha256:
+		return true;
+	}
+
+	return false;
+}
+
 RsaPssParams rsa_pss_params(const SignParams &params) noexcept
 {
 	if (params.algorithm == SignatureAlgorithm::rsa_pss_sha256)
@@ -72,14 +86,30 @@ RsaPssParams rsa_pss_params(const VerifyParams &params) noexcept
 	return params.rsa_pss;
 }
 
+const RsaOaepParams &rsa_oaep_params(const AsymmetricEncryptParams &params) noexcept
+{
+	return params.rsa_oaep;
+}
+
+const RsaOaepParams &rsa_oaep_params(const AsymmetricDecryptParams &params) noexcept
+{
+	return params.rsa_oaep;
+}
+
+RsaOaepParams rsa_oaep_sha256_params()
+{
+	return RsaOaepParams::for_hash(HashAlgorithm::sha256);
+}
+
 using EvpPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
 using EvpMdCtxPtr = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>;
+using EvpPkeyCtxPtr = std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
 
-Result<EvpPkeyPtr> import_private_key(const PrivateKey &key) noexcept
+Result<EvpPkeyPtr> import_private_key(const PrivateKey &key, KeyUsage required_usage, const char *usage_error) noexcept
 {
-	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(KeyUsage::sign))
+	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(required_usage))
 	{
-		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", "RSA signing key is required"));
+		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
 	}
 	if (key.size() > static_cast<std::size_t>(LONG_MAX))
 	{
@@ -96,11 +126,11 @@ Result<EvpPkeyPtr> import_private_key(const PrivateKey &key) noexcept
 	return Result<EvpPkeyPtr>::success(std::move(pkey));
 }
 
-Result<EvpPkeyPtr> import_public_key(const PublicKey &key) noexcept
+Result<EvpPkeyPtr> import_public_key(const PublicKey &key, KeyUsage required_usage, const char *usage_error) noexcept
 {
-	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(KeyUsage::verify))
+	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(required_usage))
 	{
-		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", "RSA verification key is required"));
+		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
 	}
 	if (key.size() > static_cast<std::size_t>(LONG_MAX))
 	{
@@ -134,6 +164,46 @@ Result<void> configure_rsa_pss(EVP_PKEY_CTX *context, const RsaPssParams &params
 	    EVP_PKEY_CTX_set_rsa_pss_saltlen(context, static_cast<int>(params.salt_length)) != 1)
 	{
 		return Result<void>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "RSA-PSS parameter configuration failed"));
+	}
+
+	return Result<void>::success();
+}
+
+Result<void> configure_rsa_oaep(EVP_PKEY_CTX *context, const RsaOaepParams &params) noexcept
+{
+	const EVP_MD *message_md = evp_md(params.message_hash);
+	const EVP_MD *mgf1_md = evp_md(params.mgf1_hash);
+	if (message_md == nullptr || mgf1_md == nullptr)
+	{
+		return Result<void>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "RSA-OAEP digest is not supported by OpenSSLProvider"));
+	}
+	if (EVP_PKEY_CTX_set_rsa_padding(context, RSA_PKCS1_OAEP_PADDING) != 1 ||
+	    EVP_PKEY_CTX_set_rsa_oaep_md(context, message_md) != 1 ||
+	    EVP_PKEY_CTX_set_rsa_mgf1_md(context, mgf1_md) != 1)
+	{
+		return Result<void>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "RSA-OAEP parameter configuration failed"));
+	}
+
+	const auto label = params.label.bytes();
+	if (label.empty())
+	{
+		return Result<void>::success();
+	}
+	if (label.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+	{
+		return Result<void>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "RSA-OAEP label is too large for OpenSSL"));
+	}
+
+	auto *owned_label = static_cast<unsigned char *>(OPENSSL_malloc(label.size()));
+	if (owned_label == nullptr)
+	{
+		return Result<void>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "OPENSSL_malloc failed"));
+	}
+	std::memcpy(owned_label, label.data(), label.size());
+	if (EVP_PKEY_CTX_set0_rsa_oaep_label(context, owned_label, static_cast<int>(label.size())) != 1)
+	{
+		OPENSSL_free(owned_label);
+		return Result<void>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "RSA-OAEP label configuration failed"));
 	}
 
 	return Result<void>::success();
@@ -353,6 +423,11 @@ bool OpenSSLProvider::supports(SignatureAlgorithm algorithm) const noexcept
 	return is_rsa_pss_algorithm(algorithm);
 }
 
+bool OpenSSLProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
+{
+	return is_rsa_oaep_algorithm(algorithm);
+}
+
 Result<std::unique_ptr<IHashContext>> OpenSSLProvider::create_hash(HashAlgorithm algorithm) noexcept
 {
 	const EVP_MD *md = evp_md(algorithm);
@@ -398,7 +473,7 @@ Result<ByteBuffer> OpenSSLProvider::sign(const SignParams &params, std::span<con
 		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
 	}
 
-	auto key = import_private_key(*params.private_key);
+	auto key = import_private_key(*params.private_key, KeyUsage::sign, "RSA signing key is required");
 	if (!key)
 	{
 		return Result<ByteBuffer>::failure(key.error());
@@ -463,7 +538,7 @@ Result<VerifyResult> OpenSSLProvider::verify(const VerifyParams &params, std::sp
 		return Result<VerifyResult>::success(VerifyResult::invalid());
 	}
 
-	auto key = import_public_key(*params.public_key);
+	auto key = import_public_key(*params.public_key, KeyUsage::verify, "RSA verification key is required");
 	if (!key)
 	{
 		return Result<VerifyResult>::failure(key.error());
@@ -508,6 +583,100 @@ Result<VerifyResult> OpenSSLProvider::verify(const VerifyParams &params, std::sp
 	}
 
 	return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyFinal failed"));
+}
+
+Result<ByteBuffer> OpenSSLProvider::asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept
+{
+	if (!is_rsa_oaep_algorithm(params.algorithm))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "asymmetric encryption algorithm is not supported by OpenSSLProvider"));
+	}
+	if (params.public_key == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
+	}
+
+	auto key = import_public_key(*params.public_key, KeyUsage::encrypt, "RSA encryption key is required");
+	if (!key)
+	{
+		return Result<ByteBuffer>::failure(key.error());
+	}
+
+	EvpPkeyCtxPtr context(EVP_PKEY_CTX_new(key.value().get(), nullptr), EVP_PKEY_CTX_free);
+	if (context == nullptr || EVP_PKEY_encrypt_init(context.get()) != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_encrypt_init failed"));
+	}
+
+	auto default_params = rsa_oaep_sha256_params();
+	const auto &oaep = params.algorithm == AsymmetricEncryptionAlgorithm::rsa_oaep_sha256 ? default_params : rsa_oaep_params(params);
+	auto configured = configure_rsa_oaep(context.get(), oaep);
+	if (!configured)
+	{
+		return Result<ByteBuffer>::failure(configured.error());
+	}
+
+	std::size_t ciphertext_size = 0;
+	if (EVP_PKEY_encrypt(context.get(), nullptr, &ciphertext_size, plaintext.data(), plaintext.size()) != 1 || ciphertext_size == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "RSA-OAEP plaintext is invalid"));
+	}
+
+	std::vector<std::uint8_t> ciphertext(ciphertext_size);
+	if (EVP_PKEY_encrypt(context.get(), ciphertext.data(), &ciphertext_size, plaintext.data(), plaintext.size()) != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "RSA-OAEP plaintext is invalid"));
+	}
+
+	ciphertext.resize(ciphertext_size);
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(ciphertext)));
+}
+
+Result<ByteBuffer> OpenSSLProvider::asymmetric_decrypt(const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept
+{
+	if (!is_rsa_oaep_algorithm(params.algorithm))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "asymmetric encryption algorithm is not supported by OpenSSLProvider"));
+	}
+	if (params.private_key == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
+	}
+
+	auto key = import_private_key(*params.private_key, KeyUsage::decrypt, "RSA decryption key is required");
+	if (!key)
+	{
+		return Result<ByteBuffer>::failure(key.error());
+	}
+
+	EvpPkeyCtxPtr context(EVP_PKEY_CTX_new(key.value().get(), nullptr), EVP_PKEY_CTX_free);
+	if (context == nullptr || EVP_PKEY_decrypt_init(context.get()) != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_decrypt_init failed"));
+	}
+
+	auto default_params = rsa_oaep_sha256_params();
+	const auto &oaep = params.algorithm == AsymmetricEncryptionAlgorithm::rsa_oaep_sha256 ? default_params : rsa_oaep_params(params);
+	auto configured = configure_rsa_oaep(context.get(), oaep);
+	if (!configured)
+	{
+		return Result<ByteBuffer>::failure(configured.error());
+	}
+
+	std::size_t plaintext_size = 0;
+	if (EVP_PKEY_decrypt(context.get(), nullptr, &plaintext_size, ciphertext.data(), ciphertext.size()) != 1 || plaintext_size == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::authentication_failed, "openssl_provider", "RSA-OAEP ciphertext is invalid"));
+	}
+
+	std::vector<std::uint8_t> plaintext(plaintext_size);
+	if (EVP_PKEY_decrypt(context.get(), plaintext.data(), &plaintext_size, ciphertext.data(), ciphertext.size()) != 1)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::authentication_failed, "openssl_provider", "RSA-OAEP ciphertext is invalid"));
+	}
+
+	plaintext.resize(plaintext_size);
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(plaintext)));
 }
 
 Result<ByteBuffer> OpenSSLProvider::pbkdf2(KdfAlgorithm algorithm, std::span<const std::uint8_t> password, std::span<const std::uint8_t> salt, std::uint32_t iterations, std::size_t output_size) noexcept

@@ -119,6 +119,9 @@ Phase 1 default implementation target:
 - `OpenSSLProvider` supports RSA-PSS sign/verify for DER RSA keys when
   OpenSSL is enabled. Invalid RSA-PSS signatures return
   `VerifyResult::invalid()`.
+- `OpenSSLProvider` supports RSA-OAEP encrypt/decrypt for DER RSA keys when
+  OpenSSL is enabled. Invalid OAEP ciphertexts return
+  `ErrorCode::authentication_failed`.
 - Native internal RSA DER parsing boundary is implemented for PKCS#1 public
   keys, SubjectPublicKeyInfo public keys, PKCS#1 private keys, and PKCS#8
   private keys.
@@ -268,10 +271,15 @@ Phase 1 default implementation target:
 
 - `OpenSSLProvider` supports `SignatureAlgorithm::rsa_pss`
 - `OpenSSLProvider` supports legacy `SignatureAlgorithm::rsa_pss_sha256`
+- `OpenSSLProvider` supports `AsymmetricEncryptionAlgorithm::rsa_oaep`
+- `OpenSSLProvider` supports legacy `AsymmetricEncryptionAlgorithm::rsa_oaep_sha256`
 - DER RSA private keys are parsed inside the provider for signing
 - DER RSA public keys are parsed inside the provider for verification
+- DER RSA public keys are parsed inside the provider for encryption
+- DER RSA private keys are parsed inside the provider for decryption
 - invalid signatures and tampered messages return `VerifyResult::invalid()`
-- Native RSA implementation is still deferred
+- invalid OAEP ciphertexts return `ErrorCode::authentication_failed`
+- Native-to-OpenSSL RSA-OAEP interoperability is covered
 
 ### 1.1 Native RSA DER Boundary
 
