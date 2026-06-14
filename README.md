@@ -107,6 +107,8 @@ Phase 1 default implementation target:
   and PKCS#7 padding support.
 - Native AES-128/192/256-GCM encrypt/decrypt is implemented with nonce, AAD,
   tag generation, and authentication failure handling.
+- Key material base is implemented: `KeyAlgorithm`, `KeyUsage`, `Key`, and
+  move-only `SecretKey` backed by `SecureBuffer` with raw import/export.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
   metadata labels, deterministic malformed hex errors, required-field helpers,
   and reusable vector builders for digest, MAC, KDF, CBC, and GCM tests.
@@ -180,6 +182,15 @@ Phase 1 default implementation target:
 - nonce, AAD, tag, ciphertext handling
 - authentication failure behavior
 - optional OpenSSL differential tests
+
+### 0.10 Key Material
+
+- `KeyAlgorithm`
+- `KeyUsage`
+- `Key`
+- move-only `SecretKey`
+- raw symmetric key import/export through `SecureBuffer`
+- exact AES key-size validation
 
 ## Build
 

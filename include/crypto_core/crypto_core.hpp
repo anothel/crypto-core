@@ -5,6 +5,7 @@
 #include "crypto_core/cipher.hpp"
 #include "crypto_core/error.hpp"
 #include "crypto_core/hash.hpp"
+#include "crypto_core/key.hpp"
 #include "crypto_core/kdf.hpp"
 #include "crypto_core/mac.hpp"
 #include "crypto_core/memory.hpp"

@@ -18,6 +18,7 @@ add_library(crypto_core
     src/cipher.cpp
     src/hash.cpp
     src/hmac.cpp
+    src/key.cpp
     src/kdf.cpp
     src/kdf_native.cpp
     src/mac.cpp
@@ -168,6 +169,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.kdf COMMAND crypto_core_kdf_tests)
+
+    add_executable(crypto_core_key_tests
+        tests/key_test.cpp
+    )
+
+    target_link_libraries(crypto_core_key_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.key COMMAND crypto_core_key_tests)
 
     add_executable(crypto_core_test_vector_tests
         tests/test_vectors_test.cpp
