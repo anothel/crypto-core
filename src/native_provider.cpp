@@ -10,6 +10,8 @@
 #include "crypto_core/internal/rsa_pss.hpp"
 #include "crypto_core/internal/sha2.hpp"
 
+#include <vector>
+
 namespace crypto_core
 {
 namespace
@@ -32,6 +34,16 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 }
 
 RsaPssParams rsa_pss_params(const VerifyParams &params) noexcept
+{
+	if (params.algorithm == SignatureAlgorithm::rsa_pss_sha256)
+	{
+		return RsaPssParams::for_hash(HashAlgorithm::sha256);
+	}
+
+	return params.rsa_pss;
+}
+
+RsaPssParams rsa_pss_params(const SignParams &params) noexcept
 {
 	if (params.algorithm == SignatureAlgorithm::rsa_pss_sha256)
 	{
@@ -108,6 +120,11 @@ bool NativeProvider::supports(AeadAlgorithm algorithm) const noexcept
 	       algorithm == AeadAlgorithm::aes_256_gcm;
 }
 
+bool NativeProvider::supports(SignatureAlgorithm algorithm) const noexcept
+{
+	return is_rsa_pss_algorithm(algorithm);
+}
+
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
@@ -168,6 +185,64 @@ Result<AeadEncryptResult> NativeProvider::aead_encrypt(const AeadEncryptParams &
 Result<ByteBuffer> NativeProvider::aead_decrypt(const AeadDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept
 {
 	return internal::aes_gcm_decrypt(params, ciphertext);
+}
+
+Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept
+{
+	if (!is_rsa_pss_algorithm(params.algorithm))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "signature algorithm is not supported by NativeProvider"));
+	}
+	if (params.private_key == nullptr)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "private key is required"));
+	}
+	if (params.private_key->algorithm() != AsymmetricKeyAlgorithm::rsa || !params.private_key->allows(KeyUsage::sign))
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "RSA signing key is required"));
+	}
+
+	auto key = internal::parse_rsa_private_key_der(params.private_key->bytes());
+	if (!key)
+	{
+		return Result<ByteBuffer>::failure(key.error());
+	}
+
+	const auto pss = rsa_pss_params(params);
+	auto message_hash = hash(*this, pss.message_hash, message);
+	if (!message_hash)
+	{
+		return Result<ByteBuffer>::failure(message_hash.error());
+	}
+
+	std::vector<std::uint8_t> salt(pss.salt_length);
+	if (!salt.empty())
+	{
+		auto rng = create_rng(RngAlgorithm::os_random);
+		if (!rng)
+		{
+			return Result<ByteBuffer>::failure(rng.error());
+		}
+		auto generated = rng.value()->generate(salt);
+		if (!generated)
+		{
+			return Result<ByteBuffer>::failure(generated.error());
+		}
+	}
+
+	const auto modulus_bits = bit_length(key.value().modulus.bytes());
+	if (modulus_bits == 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "RSA modulus must be non-zero"));
+	}
+
+	auto encoded_message = internal::emsa_pss_encode(modulus_bits - 1U, message_hash.value().bytes(), salt, pss);
+	if (!encoded_message)
+	{
+		return Result<ByteBuffer>::failure(encoded_message.error());
+	}
+
+	return internal::rsa_private_operation(key.value(), encoded_message.value().bytes());
 }
 
 Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept

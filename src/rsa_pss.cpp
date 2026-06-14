@@ -93,6 +93,66 @@ void store_be32(std::uint32_t value, std::array<std::uint8_t, 4> &output) noexce
 
 } // namespace
 
+Result<ByteBuffer> emsa_pss_encode(std::size_t encoded_bits, std::span<const std::uint8_t> message_hash, std::span<const std::uint8_t> salt, const RsaPssParams &params)
+{
+	const auto hash_size = digest_size(params.message_hash);
+	if (hash_size == 0 || digest_size(params.mgf1_hash) == 0)
+	{
+		return Result<ByteBuffer>::failure(pss_error(ErrorCode::unsupported_algorithm, "hash algorithm is not supported"));
+	}
+	if (message_hash.size() != hash_size)
+	{
+		return Result<ByteBuffer>::failure(pss_error(ErrorCode::invalid_argument, "message hash size does not match RSA-PSS hash algorithm"));
+	}
+	if (salt.size() != params.salt_length)
+	{
+		return Result<ByteBuffer>::failure(pss_error(ErrorCode::invalid_argument, "salt size does not match RSA-PSS salt length"));
+	}
+
+	const auto encoded_size = (encoded_bits + 7U) / 8U;
+	if (encoded_size < hash_size + salt.size() + 2U)
+	{
+		return Result<ByteBuffer>::failure(pss_error(ErrorCode::invalid_argument, "RSA-PSS encoded message is too short for hash and salt"));
+	}
+
+	auto hash = pss_hash(params.message_hash, message_hash, salt);
+	if (!hash)
+	{
+		return Result<ByteBuffer>::failure(hash.error());
+	}
+
+	const auto db_size = encoded_size - hash_size - 1U;
+	const auto padding_size = encoded_size - salt.size() - hash_size - 2U;
+	std::vector<std::uint8_t> db(db_size, 0);
+	db[padding_size] = 0x01U;
+	std::copy(salt.begin(), salt.end(), db.begin() + static_cast<std::ptrdiff_t>(padding_size + 1U));
+
+	auto db_mask = mgf1(params.mgf1_hash, hash.value().bytes(), db_size);
+	if (!db_mask)
+	{
+		return Result<ByteBuffer>::failure(db_mask.error());
+	}
+
+	for (std::size_t i = 0; i < db.size(); ++i)
+	{
+		db[i] ^= db_mask.value().bytes()[i];
+	}
+
+	const auto unused_bits = (8U * encoded_size) - encoded_bits;
+	if (unused_bits > 0)
+	{
+		db[0] &= static_cast<std::uint8_t>(0xFFU >> unused_bits);
+	}
+
+	std::vector<std::uint8_t> encoded_message;
+	encoded_message.reserve(encoded_size);
+	encoded_message.insert(encoded_message.end(), db.begin(), db.end());
+	const auto hash_bytes = hash.value().bytes();
+	encoded_message.insert(encoded_message.end(), hash_bytes.begin(), hash_bytes.end());
+	encoded_message.push_back(0xBCU);
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(encoded_message)));
+}
+
 Result<bool> emsa_pss_verify(std::span<const std::uint8_t> encoded_message, std::size_t encoded_bits, std::span<const std::uint8_t> message_hash, const RsaPssParams &params)
 {
 	const auto hash_size = digest_size(params.message_hash);

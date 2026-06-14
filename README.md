@@ -126,10 +126,10 @@ Phase 1 default implementation target:
   import/export, comparison, modular multiplication, and modular exponentiation.
 - Native internal raw RSA public/private operations are implemented over parsed
   RSA material and `BigInt` modular exponentiation.
-- Native internal EMSA-PSS verification building block is implemented with MGF1
-  over native SHA2 and deterministic invalid-encoding rejection.
-- `NativeProvider` verifies RSA-PSS/SHA256 signatures by parsing DER RSA public
-  keys, applying raw RSA public operation, and checking EMSA-PSS.
+- Native internal EMSA-PSS encode/verify building blocks are implemented with
+  MGF1 over native SHA2 and deterministic invalid-encoding rejection.
+- `NativeProvider` signs and verifies RSA-PSS/SHA256 signatures by parsing DER
+  RSA keys, applying raw RSA operations, and checking EMSA-PSS.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -301,12 +301,12 @@ Phase 1 default implementation target:
 ### 1.1 Native EMSA-PSS Verify
 
 - internal EMSA-PSS verification helper
+- internal EMSA-PSS encoding helper
 - MGF1 implemented over native SHA256/SHA512
 - message-hash size validation
 - encoded-message width validation
 - trailer, top-bit, padding, separator, salt, and hash checks
 - malformed encodings return successful `false` verification results
-- NativeProvider RSA-PSS wiring and signing are still deferred
 
 ### 1.1 Native RSA-PSS Verify Wiring
 
@@ -315,7 +315,16 @@ Phase 1 default implementation target:
 - signatures are converted to encoded messages through raw RSA public operation
 - EMSA-PSS verification is applied to the native message digest
 - tampered messages and signatures return `VerifyResult::invalid()`
-- Native RSA-PSS signing and capability advertisement are still deferred
+
+### 1.1 Native RSA-PSS Sign/Verify
+
+- `NativeProvider::sign` handles RSA-PSS signing
+- `NativeProvider::supports(SignatureAlgorithm)` reports RSA-PSS support
+- DER RSA private keys are parsed through the native DER boundary
+- salts are generated through the NativeProvider OS RNG
+- EMSA-PSS encodings are signed with the raw RSA private operation
+- Native sign/verify round trip is covered
+- RSA blinding and constant-time BigInt hardening are still deferred
 
 ## Build
 

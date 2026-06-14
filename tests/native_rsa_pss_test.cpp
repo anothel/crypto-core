@@ -2,6 +2,7 @@
 #include "crypto_core/internal/rsa_pss.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 
@@ -74,6 +75,23 @@ void test_emsa_pss_verify_rejects_wrong_message_hash_size()
 	require(result.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_emsa_pss_encode_matches_known_encoding()
+{
+	const auto params = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	constexpr std::array<std::uint8_t, 32> salt{
+	    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+	    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+	    0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F};
+	auto encoded = crypto_core::internal::emsa_pss_encode(1023, sha256_abc, salt, params);
+	require(encoded.has_value());
+	require(encoded.value().size() == pss_sha256_encoded_message.size());
+	for (std::size_t i = 0; i < pss_sha256_encoded_message.size(); ++i)
+	{
+		require(encoded.value().bytes()[i] == pss_sha256_encoded_message[i]);
+	}
+}
+
 } // namespace
 
 int main()
@@ -82,5 +100,6 @@ int main()
 	test_emsa_pss_verify_rejects_tampered_encoding();
 	test_emsa_pss_verify_rejects_too_short_encoding();
 	test_emsa_pss_verify_rejects_wrong_message_hash_size();
+	test_emsa_pss_encode_matches_known_encoding();
 	return 0;
 }
