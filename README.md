@@ -124,6 +124,8 @@ Phase 1 default implementation target:
   private keys.
 - Native internal unsigned `BigInt` core is implemented for RSA work: big-endian
   import/export, comparison, modular multiplication, and modular exponentiation.
+- Native internal raw RSA public/private operations are implemented over parsed
+  RSA material and `BigInt` modular exponentiation.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -282,6 +284,15 @@ Phase 1 default implementation target:
 - modular exponentiation
 - zero modulus rejection
 - optimized/constant-time big integer arithmetic and RSA-PSS are still deferred
+
+### 1.1 Native RSA Primitive
+
+- internal raw RSA public operation
+- internal raw RSA private operation
+- parsed RSA DER material flows into `BigInt::mod_exp`
+- representatives greater than or equal to modulus are rejected
+- outputs are left-padded to modulus width
+- RSA-PSS encoding and provider wiring are still deferred
 
 ## Build
 
