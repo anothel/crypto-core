@@ -1,0 +1,228 @@
+#include "crypto_core/internal/rsa_der.hpp"
+
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <span>
+
+namespace
+{
+
+void require(bool condition)
+{
+	if (!condition)
+	{
+		std::exit(1);
+	}
+}
+
+void require_bytes(std::span<const std::uint8_t> actual, std::span<const std::uint8_t> expected)
+{
+	require(actual.size() == expected.size());
+	for (std::size_t i = 0; i < actual.size(); ++i)
+	{
+		require(actual[i] == expected[i]);
+	}
+}
+
+constexpr std::array<std::uint8_t, 9> pkcs1_public_key_der{
+    0x30,
+    0x07,
+    0x02,
+    0x02,
+    0x0C,
+    0xA1,
+    0x02,
+    0x01,
+    0x11,
+};
+
+constexpr std::array<std::uint8_t, 29> spki_public_key_der{
+    0x30,
+    0x1B,
+    0x30,
+    0x0D,
+    0x06,
+    0x09,
+    0x2A,
+    0x86,
+    0x48,
+    0x86,
+    0xF7,
+    0x0D,
+    0x01,
+    0x01,
+    0x01,
+    0x05,
+    0x00,
+    0x03,
+    0x0A,
+    0x00,
+    0x30,
+    0x07,
+    0x02,
+    0x02,
+    0x0C,
+    0xA1,
+    0x02,
+    0x01,
+    0x11,
+};
+
+constexpr std::array<std::uint8_t, 31> pkcs1_private_key_der{
+    0x30,
+    0x1D,
+    0x02,
+    0x01,
+    0x00,
+    0x02,
+    0x02,
+    0x0C,
+    0xA1,
+    0x02,
+    0x01,
+    0x11,
+    0x02,
+    0x02,
+    0x0A,
+    0xC1,
+    0x02,
+    0x01,
+    0x3D,
+    0x02,
+    0x01,
+    0x35,
+    0x02,
+    0x01,
+    0x35,
+    0x02,
+    0x01,
+    0x31,
+    0x02,
+    0x01,
+    0x26,
+};
+
+constexpr std::array<std::uint8_t, 53> pkcs8_private_key_der{
+    0x30,
+    0x33,
+    0x02,
+    0x01,
+    0x00,
+    0x30,
+    0x0D,
+    0x06,
+    0x09,
+    0x2A,
+    0x86,
+    0x48,
+    0x86,
+    0xF7,
+    0x0D,
+    0x01,
+    0x01,
+    0x01,
+    0x05,
+    0x00,
+    0x04,
+    0x1F,
+    0x30,
+    0x1D,
+    0x02,
+    0x01,
+    0x00,
+    0x02,
+    0x02,
+    0x0C,
+    0xA1,
+    0x02,
+    0x01,
+    0x11,
+    0x02,
+    0x02,
+    0x0A,
+    0xC1,
+    0x02,
+    0x01,
+    0x3D,
+    0x02,
+    0x01,
+    0x35,
+    0x02,
+    0x01,
+    0x35,
+    0x02,
+    0x01,
+    0x31,
+    0x02,
+    0x01,
+    0x26,
+};
+
+void test_parses_pkcs1_public_key()
+{
+	auto key = crypto_core::internal::parse_rsa_public_key_der(pkcs1_public_key_der);
+	require(key.has_value());
+	require_bytes(key.value().modulus.bytes(), std::array<std::uint8_t, 2>{0x0C, 0xA1});
+	require_bytes(key.value().public_exponent.bytes(), std::array<std::uint8_t, 1>{0x11});
+}
+
+void test_parses_spki_public_key()
+{
+	auto key = crypto_core::internal::parse_rsa_public_key_der(spki_public_key_der);
+	require(key.has_value());
+	require_bytes(key.value().modulus.bytes(), std::array<std::uint8_t, 2>{0x0C, 0xA1});
+	require_bytes(key.value().public_exponent.bytes(), std::array<std::uint8_t, 1>{0x11});
+}
+
+void test_parses_pkcs1_private_key()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+	require_bytes(key.value().modulus.bytes(), std::array<std::uint8_t, 2>{0x0C, 0xA1});
+	require_bytes(key.value().public_exponent.bytes(), std::array<std::uint8_t, 1>{0x11});
+	require_bytes(key.value().private_exponent.bytes(), std::array<std::uint8_t, 2>{0x0A, 0xC1});
+	require_bytes(key.value().prime1.bytes(), std::array<std::uint8_t, 1>{0x3D});
+	require_bytes(key.value().prime2.bytes(), std::array<std::uint8_t, 1>{0x35});
+	require_bytes(key.value().exponent1.bytes(), std::array<std::uint8_t, 1>{0x35});
+	require_bytes(key.value().exponent2.bytes(), std::array<std::uint8_t, 1>{0x31});
+	require_bytes(key.value().coefficient.bytes(), std::array<std::uint8_t, 1>{0x26});
+}
+
+void test_parses_pkcs8_private_key()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs8_private_key_der);
+	require(key.has_value());
+	require_bytes(key.value().modulus.bytes(), std::array<std::uint8_t, 2>{0x0C, 0xA1});
+	require_bytes(key.value().public_exponent.bytes(), std::array<std::uint8_t, 1>{0x11});
+}
+
+void test_rejects_malformed_der()
+{
+	auto truncated = crypto_core::internal::parse_rsa_public_key_der(std::span<const std::uint8_t>(spki_public_key_der.data(), spki_public_key_der.size() - 1));
+	require(!truncated.has_value());
+	require(truncated.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	const std::array<std::uint8_t, 5> negative_integer_der{
+	    0x30,
+	    0x03,
+	    0x02,
+	    0x01,
+	    0x80,
+	};
+	auto negative = crypto_core::internal::parse_rsa_public_key_der(negative_integer_der);
+	require(!negative.has_value());
+	require(negative.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
+} // namespace
+
+int main()
+{
+	test_parses_pkcs1_public_key();
+	test_parses_spki_public_key();
+	test_parses_pkcs1_private_key();
+	test_parses_pkcs8_private_key();
+	test_rejects_malformed_der();
+	return 0;
+}

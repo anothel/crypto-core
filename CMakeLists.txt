@@ -29,6 +29,7 @@ add_library(crypto_core
     src/os_rng.cpp
     src/provider.cpp
     src/rng.cpp
+    src/rsa_der.cpp
     src/sha2.cpp
     src/version.cpp
 )
@@ -237,6 +238,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_aes_block COMMAND crypto_core_native_aes_block_tests)
+
+    add_executable(crypto_core_native_rsa_der_tests
+        tests/native_rsa_der_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_rsa_der_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_rsa_der COMMAND crypto_core_native_rsa_der_tests)
 
     add_executable(crypto_core_rng_tests
         tests/rng_test.cpp

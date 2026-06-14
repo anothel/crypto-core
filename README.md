@@ -119,6 +119,9 @@ Phase 1 default implementation target:
 - `OpenSSLProvider` supports RSA-PSS sign/verify for DER RSA keys when
   OpenSSL is enabled. Invalid RSA-PSS signatures return
   `VerifyResult::invalid()`.
+- Native internal RSA DER parsing boundary is implemented for PKCS#1 public
+  keys, SubjectPublicKeyInfo public keys, PKCS#1 private keys, and PKCS#8
+  private keys.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -254,6 +257,18 @@ Phase 1 default implementation target:
 - DER RSA public keys are parsed inside the provider for verification
 - invalid signatures and tampered messages return `VerifyResult::invalid()`
 - Native RSA implementation is still deferred
+
+### 1.1 Native RSA DER Boundary
+
+- internal `RsaPublicKeyMaterial`
+- internal `RsaPrivateKeyMaterial`
+- parse PKCS#1 `RSAPublicKey`
+- parse SubjectPublicKeyInfo RSA public keys
+- parse PKCS#1 `RSAPrivateKey`
+- parse PKCS#8 RSA private keys
+- reject trailing data, malformed lengths, negative integers, and non-RSA
+  algorithm identifiers
+- Native RSA math/sign/verify is still deferred
 
 ## Build
 
