@@ -114,6 +114,9 @@ Phase 1 default implementation target:
 - Test vector helper support includes NIST-style key/value parsing, bracketed
   metadata labels, deterministic malformed hex errors, required-field helpers,
   and reusable vector builders for digest, MAC, KDF, CBC, and GCM tests.
+- 0.x API stabilization review is complete: algorithm-name return types are
+  consistent, provider default unsupported contracts are tested, and streaming
+  contexts reject repeated finalization deterministically.
 - `OpenSSLProvider` is optional and disabled by default. It is intended for
   reference and differential testing.
 
@@ -200,6 +203,13 @@ Phase 1 default implementation target:
 - Base64url encode/decode
 - PEM armor encode/decode shell
 - strict malformed input errors
+
+### 0.12 API Stabilization
+
+- provider default unsupported contract tests
+- algorithm-name return type consistency
+- streaming repeated-finalization tests
+- self-test and validated-mode deferred to Phase 2+ unless required
 
 ## Build
 

@@ -157,6 +157,19 @@ void test_update_after_final_fails()
 	require(update_after_final.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_final_after_final_fails()
+{
+	crypto_core::NativeProvider provider;
+	auto context = provider.create_hash(crypto_core::HashAlgorithm::sha256);
+	require(context.has_value());
+	require(context.value()->update(bytes("abc").bytes()).has_value());
+	require(context.value()->final().has_value());
+
+	auto final_after_final = context.value()->final();
+	require(!final_after_final.has_value());
+	require(final_after_final.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_default_hash_uses_native_sha()
 {
 	auto digest = crypto_core::hash(crypto_core::HashAlgorithm::sha256, bytes("abc").bytes());
@@ -176,6 +189,7 @@ int main()
 	test_sha256_streaming_matches_one_shot();
 	test_sha512_streaming_matches_one_shot();
 	test_update_after_final_fails();
+	test_final_after_final_fails();
 	test_default_hash_uses_native_sha();
 	return 0;
 }

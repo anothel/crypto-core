@@ -150,6 +150,20 @@ void test_update_after_final_fails()
 	require(update_after_final.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_final_after_final_fails()
+{
+	crypto_core::NativeProvider provider;
+	const auto key = bytes("Jefe");
+	auto context = provider.create_mac(crypto_core::MacAlgorithm::hmac_sha256, key.bytes());
+	require(context.has_value());
+	require(context.value()->update(bytes("abc").bytes()).has_value());
+	require(context.value()->final().has_value());
+
+	auto final_after_final = context.value()->final();
+	require(!final_after_final.has_value());
+	require(final_after_final.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_default_mac_uses_native_provider()
 {
 	const auto key = bytes("Jefe");
@@ -170,6 +184,7 @@ int main()
 	test_hmac_sha512_known_answer_vectors();
 	test_hmac_streaming_matches_one_shot();
 	test_update_after_final_fails();
+	test_final_after_final_fails();
 	test_default_mac_uses_native_provider();
 	return 0;
 }

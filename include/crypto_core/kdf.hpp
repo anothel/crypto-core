@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace crypto_core
 {
@@ -20,7 +21,7 @@ enum class KdfAlgorithm
 	hkdf_sha512,
 };
 
-[[nodiscard]] constexpr const char *kdf_algorithm_name(KdfAlgorithm algorithm) noexcept
+[[nodiscard]] constexpr std::string_view kdf_algorithm_name(KdfAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
 	{

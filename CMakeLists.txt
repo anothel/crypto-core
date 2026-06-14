@@ -193,6 +193,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
 
     add_test(NAME crypto_core.encoding COMMAND crypto_core_encoding_tests)
 
+    add_executable(crypto_core_api_stability_tests
+        tests/api_stability_test.cpp
+    )
+
+    target_link_libraries(crypto_core_api_stability_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.api_stability COMMAND crypto_core_api_stability_tests)
+
     add_executable(crypto_core_test_vector_tests
         tests/test_vectors_test.cpp
     )

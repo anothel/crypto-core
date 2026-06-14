@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace crypto_core
 {
@@ -31,7 +32,7 @@ enum class HashAlgorithm
 	return 0;
 }
 
-[[nodiscard]] constexpr const char *hash_algorithm_name(HashAlgorithm algorithm) noexcept
+[[nodiscard]] constexpr std::string_view hash_algorithm_name(HashAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
 	{

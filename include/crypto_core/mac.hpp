@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace crypto_core
 {
@@ -31,7 +32,7 @@ enum class MacAlgorithm
 	return 0;
 }
 
-[[nodiscard]] constexpr const char *mac_algorithm_name(MacAlgorithm algorithm) noexcept
+[[nodiscard]] constexpr std::string_view mac_algorithm_name(MacAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
 	{

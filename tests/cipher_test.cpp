@@ -188,6 +188,22 @@ void test_aes_cbc_rejects_invalid_inputs()
 	require(invalid_plaintext.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_aes_cbc_final_after_final_fails()
+{
+	crypto_core::NativeProvider provider;
+	auto cbc_vectors = load_cbc_vectors();
+	const auto &vector = cbc_vectors[0];
+
+	auto context = provider.create_cipher(params(cbc_algorithm(vector.label), crypto_core::CipherDirection::encrypt, vector.key, vector.iv));
+	require(context.has_value());
+	require(context.value()->update(vector.plaintext).has_value());
+	require(context.value()->final().has_value());
+
+	auto final_after_final = context.value()->final();
+	require(!final_after_final.has_value());
+	require(final_after_final.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 } // namespace
 
 int main()
@@ -198,5 +214,6 @@ int main()
 	test_aes_cbc_streaming_matches_one_shot();
 	test_aes_cbc_pkcs7_round_trip();
 	test_aes_cbc_rejects_invalid_inputs();
+	test_aes_cbc_final_after_final_fails();
 	return 0;
 }
