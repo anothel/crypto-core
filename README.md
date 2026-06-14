@@ -116,6 +116,9 @@ Phase 1 default implementation target:
 - RSA parameter API base is implemented: generic `RSA-PSS` and `RSA-OAEP`
   algorithm selectors plus explicit `RsaPssParams` and `RsaOaepParams` for
   message hash, MGF1 hash, salt length, and OAEP label ownership.
+- `OpenSSLProvider` supports RSA-PSS sign/verify for DER RSA keys when
+  OpenSSL is enabled. Invalid RSA-PSS signatures return
+  `VerifyResult::invalid()`.
 - Encoding base is implemented: Base64, Base64url, and PEM armor shell with
   strict malformed-input errors.
 - Test vector helper support includes NIST-style key/value parsing, bracketed
@@ -242,6 +245,15 @@ Phase 1 default implementation target:
 - explicit PSS salt length
 - OAEP label copied into owned `ByteBuffer`
 - RSA math, DER key parsing, and key generation deferred to later 1.1 slices
+
+### 1.1 RSA OpenSSL Reference
+
+- `OpenSSLProvider` supports `SignatureAlgorithm::rsa_pss`
+- `OpenSSLProvider` supports legacy `SignatureAlgorithm::rsa_pss_sha256`
+- DER RSA private keys are parsed inside the provider for signing
+- DER RSA public keys are parsed inside the provider for verification
+- invalid signatures and tampered messages return `VerifyResult::invalid()`
+- Native RSA implementation is still deferred
 
 ## Build
 

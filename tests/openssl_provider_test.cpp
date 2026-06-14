@@ -6,10 +6,13 @@
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/x509.h>
 
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -28,6 +31,50 @@ void require(bool condition)
 crypto_core::ByteBuffer bytes(std::string_view text)
 {
 	return crypto_core::ByteBuffer::copy_from(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t *>(text.data()), text.size()));
+}
+
+using EvpPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
+using EvpPkeyCtxPtr = std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
+
+struct RsaDerKeyPair
+{
+	crypto_core::ByteBuffer public_key;
+	crypto_core::SecureBuffer private_key;
+};
+
+crypto_core::ByteBuffer export_public_key_der(EVP_PKEY *key)
+{
+	const int size = i2d_PUBKEY(key, nullptr);
+	require(size > 0);
+
+	std::vector<std::uint8_t> der(static_cast<std::size_t>(size));
+	auto *out = der.data();
+	require(i2d_PUBKEY(key, &out) == size);
+	return crypto_core::ByteBuffer(std::move(der));
+}
+
+crypto_core::SecureBuffer export_private_key_der(EVP_PKEY *key)
+{
+	const int size = i2d_PrivateKey(key, nullptr);
+	require(size > 0);
+
+	std::vector<std::uint8_t> der(static_cast<std::size_t>(size));
+	auto *out = der.data();
+	require(i2d_PrivateKey(key, &out) == size);
+	return crypto_core::SecureBuffer(std::move(der));
+}
+
+RsaDerKeyPair generate_rsa_der_key_pair()
+{
+	EvpPkeyCtxPtr context(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr), EVP_PKEY_CTX_free);
+	require(context != nullptr);
+	require(EVP_PKEY_keygen_init(context.get()) == 1);
+	require(EVP_PKEY_CTX_set_rsa_keygen_bits(context.get(), 2048) == 1);
+
+	EVP_PKEY *raw_key = nullptr;
+	require(EVP_PKEY_keygen(context.get(), &raw_key) == 1);
+	EvpPkeyPtr key(raw_key, EVP_PKEY_free);
+	return RsaDerKeyPair{export_public_key_der(key.get()), export_private_key_der(key.get())};
 }
 
 void assert_same_digest(crypto_core::HashAlgorithm algorithm, std::string_view input)
@@ -375,6 +422,8 @@ void test_openssl_provider_metadata()
 	require(provider.supports(crypto_core::KdfAlgorithm::pbkdf2_hmac_sha512));
 	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha256));
 	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha512));
+	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
+	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
 }
 
 void test_openssl_matches_native_sha256()
@@ -493,6 +542,54 @@ void test_openssl_matches_native_aes_gcm()
 	assert_same_aes_gcm(crypto_core::AeadAlgorithm::aes_256_gcm, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", nonce, aad, plaintext);
 }
 
+void test_openssl_rsa_pss_sign_verify_round_trip()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto der = generate_rsa_der_key_pair();
+
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::sign);
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
+	require(private_key.has_value());
+	require(public_key.has_value());
+
+	const auto message = bytes("rsa pss message");
+	const auto pss = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key.value(), pss}, message.bytes());
+	require(signature.has_value());
+	require(!signature.value().empty());
+
+	auto valid = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &public_key.value(), signature.value().bytes(), pss}, message.bytes());
+	require(valid.has_value());
+	require(valid.value().is_valid());
+}
+
+void test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto der = generate_rsa_der_key_pair();
+
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::sign);
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
+	require(private_key.has_value());
+	require(public_key.has_value());
+
+	const auto message = bytes("rsa pss message");
+	const auto pss = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key.value(), pss}, message.bytes());
+	require(signature.has_value());
+
+	const auto tampered_message = bytes("rsa pss tampered");
+	auto bad_message = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &public_key.value(), signature.value().bytes(), pss}, tampered_message.bytes());
+	require(bad_message.has_value());
+	require(!bad_message.value().is_valid());
+
+	auto tampered_signature = signature.value();
+	tampered_signature.bytes()[0] ^= 0x80U;
+	auto bad_signature = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &public_key.value(), tampered_signature.bytes(), pss}, message.bytes());
+	require(bad_signature.has_value());
+	require(!bad_signature.value().is_valid());
+}
+
 } // namespace
 
 int main()
@@ -509,6 +606,8 @@ int main()
 	test_openssl_matches_native_aes_block();
 	test_openssl_matches_native_aes_cbc();
 	test_openssl_matches_native_aes_gcm();
+	test_openssl_rsa_pss_sign_verify_round_trip();
+	test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs();
 	return 0;
 }
 
