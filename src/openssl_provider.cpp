@@ -4,8 +4,11 @@
 
 #include <openssl/core_names.h>
 #include <openssl/crypto.h>
+#include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
+#include <openssl/obj_mac.h>
+#include <openssl/objects.h>
 #include <openssl/params.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
@@ -52,6 +55,38 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 	}
 
 	return false;
+}
+
+bool is_ecdsa_algorithm(SignatureAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case SignatureAlgorithm::ecdsa_p256_sha256:
+		return true;
+	case SignatureAlgorithm::rsa_pss:
+	case SignatureAlgorithm::rsa_pss_sha256:
+	case SignatureAlgorithm::ecdsa_p384_sha384:
+	case SignatureAlgorithm::ed25519:
+		return false;
+	}
+
+	return false;
+}
+
+const EVP_MD *ecdsa_md(SignatureAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case SignatureAlgorithm::ecdsa_p256_sha256:
+		return EVP_sha256();
+	case SignatureAlgorithm::rsa_pss:
+	case SignatureAlgorithm::rsa_pss_sha256:
+	case SignatureAlgorithm::ecdsa_p384_sha384:
+	case SignatureAlgorithm::ed25519:
+		return nullptr;
+	}
+
+	return nullptr;
 }
 
 bool is_rsa_oaep_algorithm(AsymmetricEncryptionAlgorithm algorithm) noexcept
@@ -105,9 +140,80 @@ using EvpPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
 using EvpMdCtxPtr = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>;
 using EvpPkeyCtxPtr = std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
 
-Result<EvpPkeyPtr> import_private_key(const PrivateKey &key, KeyUsage required_usage, const char *usage_error) noexcept
+const char *openssl_key_type(AsymmetricKeyAlgorithm algorithm) noexcept
 {
-	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(required_usage))
+	switch (algorithm)
+	{
+	case AsymmetricKeyAlgorithm::rsa:
+		return "RSA";
+	case AsymmetricKeyAlgorithm::ecdsa_p256:
+	case AsymmetricKeyAlgorithm::ecdsa_p384:
+		return "EC";
+	case AsymmetricKeyAlgorithm::ed25519:
+		return "ED25519";
+	}
+
+	return nullptr;
+}
+
+int ec_curve_nid(AsymmetricKeyAlgorithm algorithm) noexcept
+{
+	switch (algorithm)
+	{
+	case AsymmetricKeyAlgorithm::ecdsa_p256:
+		return NID_X9_62_prime256v1;
+	case AsymmetricKeyAlgorithm::rsa:
+	case AsymmetricKeyAlgorithm::ecdsa_p384:
+	case AsymmetricKeyAlgorithm::ed25519:
+		return NID_undef;
+	}
+
+	return NID_undef;
+}
+
+bool ec_group_matches(EVP_PKEY *key, int expected_nid) noexcept
+{
+	char group_name[80]{};
+	std::size_t group_name_size = 0;
+	if (EVP_PKEY_get_utf8_string_param(key, OSSL_PKEY_PARAM_GROUP_NAME, group_name, sizeof(group_name), &group_name_size) != 1)
+	{
+		return false;
+	}
+	group_name[sizeof(group_name) - 1] = '\0';
+	const int group_nid = OBJ_txt2nid(group_name);
+	return group_nid == expected_nid;
+}
+
+bool pkey_matches_algorithm(EVP_PKEY *key, AsymmetricKeyAlgorithm algorithm) noexcept
+{
+	const char *type = openssl_key_type(algorithm);
+	if (key == nullptr || type == nullptr || EVP_PKEY_is_a(key, type) != 1)
+	{
+		return false;
+	}
+
+	switch (algorithm)
+	{
+	case AsymmetricKeyAlgorithm::ecdsa_p256:
+		return ec_group_matches(key, NID_X9_62_prime256v1);
+	case AsymmetricKeyAlgorithm::ecdsa_p384:
+		return false;
+	case AsymmetricKeyAlgorithm::rsa:
+	case AsymmetricKeyAlgorithm::ed25519:
+		return true;
+	}
+
+	return false;
+}
+
+Result<EvpPkeyPtr> import_private_key(
+    const PrivateKey &key,
+    AsymmetricKeyAlgorithm expected_algorithm,
+    KeyUsage required_usage,
+    const char *usage_error,
+    const char *parse_error) noexcept
+{
+	if (key.algorithm() != expected_algorithm || !key.allows(required_usage))
 	{
 		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
 	}
@@ -118,17 +224,22 @@ Result<EvpPkeyPtr> import_private_key(const PrivateKey &key, KeyUsage required_u
 
 	const unsigned char *input = key.bytes().data();
 	EvpPkeyPtr pkey(d2i_AutoPrivateKey(nullptr, &input, static_cast<long>(key.size())), EVP_PKEY_free);
-	if (pkey == nullptr || EVP_PKEY_is_a(pkey.get(), "RSA") != 1)
+	if (!pkey_matches_algorithm(pkey.get(), expected_algorithm))
 	{
-		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", "private key DER is not an RSA private key"));
+		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", parse_error));
 	}
 
 	return Result<EvpPkeyPtr>::success(std::move(pkey));
 }
 
-Result<EvpPkeyPtr> import_public_key(const PublicKey &key, KeyUsage required_usage, const char *usage_error) noexcept
+Result<EvpPkeyPtr> import_public_key(
+    const PublicKey &key,
+    AsymmetricKeyAlgorithm expected_algorithm,
+    KeyUsage required_usage,
+    const char *usage_error,
+    const char *parse_error) noexcept
 {
-	if (key.algorithm() != AsymmetricKeyAlgorithm::rsa || !key.allows(required_usage))
+	if (key.algorithm() != expected_algorithm || !key.allows(required_usage))
 	{
 		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
 	}
@@ -139,9 +250,9 @@ Result<EvpPkeyPtr> import_public_key(const PublicKey &key, KeyUsage required_usa
 
 	const unsigned char *input = key.bytes().data();
 	EvpPkeyPtr pkey(d2i_PUBKEY(nullptr, &input, static_cast<long>(key.size())), EVP_PKEY_free);
-	if (pkey == nullptr || EVP_PKEY_is_a(pkey.get(), "RSA") != 1)
+	if (!pkey_matches_algorithm(pkey.get(), expected_algorithm))
 	{
-		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", "public key DER is not an RSA public key"));
+		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", parse_error));
 	}
 
 	return Result<EvpPkeyPtr>::success(std::move(pkey));
@@ -475,7 +586,7 @@ bool OpenSSLProvider::supports(KdfAlgorithm algorithm) const noexcept
 
 bool OpenSSLProvider::supports(SignatureAlgorithm algorithm) const noexcept
 {
-	return is_rsa_pss_algorithm(algorithm);
+	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
 }
 
 bool OpenSSLProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
@@ -519,129 +630,269 @@ Result<std::unique_ptr<IMacContext>> OpenSSLProvider::create_mac(MacAlgorithm al
 
 Result<ByteBuffer> OpenSSLProvider::sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept
 {
-	if (!is_rsa_pss_algorithm(params.algorithm))
+	if (is_rsa_pss_algorithm(params.algorithm))
 	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));
-	}
-	if (params.private_key == nullptr)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
+		if (params.private_key == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
+		}
+
+		auto key = import_private_key(*params.private_key, AsymmetricKeyAlgorithm::rsa, KeyUsage::sign, "RSA signing key is required", "private key DER is not an RSA private key");
+		if (!key)
+		{
+			return Result<ByteBuffer>::failure(key.error());
+		}
+
+		const auto pss = rsa_pss_params(params);
+		const EVP_MD *message_md = evp_md(pss.message_hash);
+		if (message_md == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "RSA-PSS digest is not supported by OpenSSLProvider"));
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+
+		EVP_PKEY_CTX *pkey_context = nullptr;
+		if (EVP_DigestSignInit(context.get(), &pkey_context, message_md, nullptr, key.value().get()) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignInit failed"));
+		}
+		auto configured = configure_rsa_pss(pkey_context, pss);
+		if (!configured)
+		{
+			return Result<ByteBuffer>::failure(configured.error());
+		}
+		if (EVP_DigestSignUpdate(context.get(), message.data(), message.size()) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignUpdate failed"));
+		}
+
+		std::size_t signature_size = 0;
+		if (EVP_DigestSignFinal(context.get(), nullptr, &signature_size) != 1 || signature_size == 0)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal size query failed"));
+		}
+
+		std::vector<std::uint8_t> signature(signature_size);
+		if (EVP_DigestSignFinal(context.get(), signature.data(), &signature_size) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal failed"));
+		}
+
+		signature.resize(signature_size);
+		return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
 	}
 
-	auto key = import_private_key(*params.private_key, KeyUsage::sign, "RSA signing key is required");
-	if (!key)
+	if (is_ecdsa_algorithm(params.algorithm))
 	{
-		return Result<ByteBuffer>::failure(key.error());
+		if (params.private_key == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
+		}
+
+		auto key = import_private_key(*params.private_key, AsymmetricKeyAlgorithm::ecdsa_p256, KeyUsage::sign, "ECDSA signing key is required", "private key DER is not an ECDSA P-256 private key");
+		if (!key)
+		{
+			return Result<ByteBuffer>::failure(key.error());
+		}
+
+		const EVP_MD *message_md = ecdsa_md(params.algorithm);
+		if (message_md == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "ECDSA digest is not supported by OpenSSLProvider"));
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+
+		if (EVP_DigestSignInit(context.get(), nullptr, message_md, nullptr, key.value().get()) != 1 ||
+		    EVP_DigestSignUpdate(context.get(), message.data(), message.size()) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSign failed"));
+		}
+
+		std::size_t signature_size = 0;
+		if (EVP_DigestSignFinal(context.get(), nullptr, &signature_size) != 1 || signature_size == 0)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal size query failed"));
+		}
+
+		std::vector<std::uint8_t> signature(signature_size);
+		if (EVP_DigestSignFinal(context.get(), signature.data(), &signature_size) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal failed"));
+		}
+
+		signature.resize(signature_size);
+		return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
 	}
 
-	const auto pss = rsa_pss_params(params);
-	const EVP_MD *message_md = evp_md(pss.message_hash);
-	if (message_md == nullptr)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "RSA-PSS digest is not supported by OpenSSLProvider"));
-	}
-
-	EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
-	if (context == nullptr)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
-	}
-
-	EVP_PKEY_CTX *pkey_context = nullptr;
-	if (EVP_DigestSignInit(context.get(), &pkey_context, message_md, nullptr, key.value().get()) != 1)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignInit failed"));
-	}
-	auto configured = configure_rsa_pss(pkey_context, pss);
-	if (!configured)
-	{
-		return Result<ByteBuffer>::failure(configured.error());
-	}
-	if (EVP_DigestSignUpdate(context.get(), message.data(), message.size()) != 1)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignUpdate failed"));
-	}
-
-	std::size_t signature_size = 0;
-	if (EVP_DigestSignFinal(context.get(), nullptr, &signature_size) != 1 || signature_size == 0)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal size query failed"));
-	}
-
-	std::vector<std::uint8_t> signature(signature_size);
-	if (EVP_DigestSignFinal(context.get(), signature.data(), &signature_size) != 1)
-	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignFinal failed"));
-	}
-
-	signature.resize(signature_size);
-	return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
+	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));
 }
 
 Result<VerifyResult> OpenSSLProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept
 {
-	if (!is_rsa_pss_algorithm(params.algorithm))
+	if (is_rsa_pss_algorithm(params.algorithm))
 	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));
+		if (params.public_key == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
+		}
+		if (params.signature.empty())
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
+		auto key = import_public_key(*params.public_key, AsymmetricKeyAlgorithm::rsa, KeyUsage::verify, "RSA verification key is required", "public key DER is not an RSA public key");
+		if (!key)
+		{
+			return Result<VerifyResult>::failure(key.error());
+		}
+
+		const auto pss = rsa_pss_params(params);
+		const EVP_MD *message_md = evp_md(pss.message_hash);
+		if (message_md == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "RSA-PSS digest is not supported by OpenSSLProvider"));
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+
+		EVP_PKEY_CTX *pkey_context = nullptr;
+		if (EVP_DigestVerifyInit(context.get(), &pkey_context, message_md, nullptr, key.value().get()) != 1)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyInit failed"));
+		}
+		auto configured = configure_rsa_pss(pkey_context, pss);
+		if (!configured)
+		{
+			return Result<VerifyResult>::failure(configured.error());
+		}
+		if (EVP_DigestVerifyUpdate(context.get(), message.data(), message.size()) != 1)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyUpdate failed"));
+		}
+
+		const int ok = EVP_DigestVerifyFinal(context.get(), params.signature.data(), params.signature.size());
+		if (ok == 1)
+		{
+			return Result<VerifyResult>::success(VerifyResult::valid());
+		}
+		if (ok == 0)
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
+		return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyFinal failed"));
 	}
-	if (params.public_key == nullptr)
+
+	if (is_ecdsa_algorithm(params.algorithm))
 	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
-	}
-	if (params.signature.empty())
-	{
+		if (params.public_key == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
+		}
+		if (params.signature.empty())
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
+		auto key = import_public_key(*params.public_key, AsymmetricKeyAlgorithm::ecdsa_p256, KeyUsage::verify, "ECDSA verification key is required", "public key DER is not an ECDSA P-256 public key");
+		if (!key)
+		{
+			return Result<VerifyResult>::failure(key.error());
+		}
+
+		const EVP_MD *message_md = ecdsa_md(params.algorithm);
+		if (message_md == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "ECDSA digest is not supported by OpenSSLProvider"));
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+
+		if (EVP_DigestVerifyInit(context.get(), nullptr, message_md, nullptr, key.value().get()) != 1 ||
+		    EVP_DigestVerifyUpdate(context.get(), message.data(), message.size()) != 1)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerify failed"));
+		}
+
+		const int ok = EVP_DigestVerifyFinal(context.get(), params.signature.data(), params.signature.size());
+		if (ok == 1)
+		{
+			return Result<VerifyResult>::success(VerifyResult::valid());
+		}
+		if (ok == 0)
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
 		return Result<VerifyResult>::success(VerifyResult::invalid());
 	}
 
-	auto key = import_public_key(*params.public_key, KeyUsage::verify, "RSA verification key is required");
-	if (!key)
-	{
-		return Result<VerifyResult>::failure(key.error());
-	}
-
-	const auto pss = rsa_pss_params(params);
-	const EVP_MD *message_md = evp_md(pss.message_hash);
-	if (message_md == nullptr)
-	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "RSA-PSS digest is not supported by OpenSSLProvider"));
-	}
-
-	EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
-	if (context == nullptr)
-	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
-	}
-
-	EVP_PKEY_CTX *pkey_context = nullptr;
-	if (EVP_DigestVerifyInit(context.get(), &pkey_context, message_md, nullptr, key.value().get()) != 1)
-	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyInit failed"));
-	}
-	auto configured = configure_rsa_pss(pkey_context, pss);
-	if (!configured)
-	{
-		return Result<VerifyResult>::failure(configured.error());
-	}
-	if (EVP_DigestVerifyUpdate(context.get(), message.data(), message.size()) != 1)
-	{
-		return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyUpdate failed"));
-	}
-
-	const int ok = EVP_DigestVerifyFinal(context.get(), params.signature.data(), params.signature.size());
-	if (ok == 1)
-	{
-		return Result<VerifyResult>::success(VerifyResult::valid());
-	}
-	if (ok == 0)
-	{
-		return Result<VerifyResult>::success(VerifyResult::invalid());
-	}
-
-	return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyFinal failed"));
+	return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));
 }
 
 Result<KeyPair> OpenSSLProvider::generate_key_pair(const GenerateKeyPairParams &params) noexcept
 {
+	if (params.algorithm == AsymmetricKeyAlgorithm::ecdsa_p256)
+	{
+		EvpPkeyCtxPtr context(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr), EVP_PKEY_CTX_free);
+		if (context == nullptr || EVP_PKEY_keygen_init(context.get()) != 1)
+		{
+			return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EC keygen init failed"));
+		}
+		if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(context.get(), ec_curve_nid(params.algorithm)) != 1)
+		{
+			return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EC keygen curve configuration failed"));
+		}
+
+		EVP_PKEY *raw_key = nullptr;
+		if (EVP_PKEY_keygen(context.get(), &raw_key) != 1 || raw_key == nullptr)
+		{
+			return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EC keygen failed"));
+		}
+		EvpPkeyPtr key(raw_key, EVP_PKEY_free);
+
+		auto public_der = export_public_key_der(key.get());
+		if (!public_der)
+		{
+			return Result<KeyPair>::failure(public_der.error());
+		}
+		auto private_der = export_private_key_der(key.get());
+		if (!private_der)
+		{
+			return Result<KeyPair>::failure(private_der.error());
+		}
+
+		auto public_key = PublicKey::import_der(AsymmetricKeyAlgorithm::ecdsa_p256, public_der.value().bytes(), params.ec.public_usages);
+		if (!public_key)
+		{
+			return Result<KeyPair>::failure(public_key.error());
+		}
+		auto private_key = PrivateKey::import_der(AsymmetricKeyAlgorithm::ecdsa_p256, std::move(private_der.value()), params.ec.private_usages);
+		if (!private_key)
+		{
+			return Result<KeyPair>::failure(private_key.error());
+		}
+
+		return Result<KeyPair>::success(KeyPair{public_key.value(), std::move(private_key.value())});
+	}
 	if (params.algorithm != AsymmetricKeyAlgorithm::rsa)
 	{
 		return Result<KeyPair>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "key generation algorithm is not supported by OpenSSLProvider"));
@@ -715,7 +966,7 @@ Result<ByteBuffer> OpenSSLProvider::asymmetric_encrypt(const AsymmetricEncryptPa
 		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
 	}
 
-	auto key = import_public_key(*params.public_key, KeyUsage::encrypt, "RSA encryption key is required");
+	auto key = import_public_key(*params.public_key, AsymmetricKeyAlgorithm::rsa, KeyUsage::encrypt, "RSA encryption key is required", "public key DER is not an RSA public key");
 	if (!key)
 	{
 		return Result<ByteBuffer>::failure(key.error());
@@ -762,7 +1013,7 @@ Result<ByteBuffer> OpenSSLProvider::asymmetric_decrypt(const AsymmetricDecryptPa
 		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
 	}
 
-	auto key = import_private_key(*params.private_key, KeyUsage::decrypt, "RSA decryption key is required");
+	auto key = import_private_key(*params.private_key, AsymmetricKeyAlgorithm::rsa, KeyUsage::decrypt, "RSA decryption key is required", "private key DER is not an RSA private key");
 	if (!key)
 	{
 		return Result<ByteBuffer>::failure(key.error());

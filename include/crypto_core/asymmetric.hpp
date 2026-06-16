@@ -262,10 +262,17 @@ struct RsaKeyGenerationParams final
 	KeyUsageMask private_usages{KeyUsage::sign | KeyUsage::decrypt};
 };
 
+struct EcKeyGenerationParams final
+{
+	KeyUsageMask public_usages{key_usage_value(KeyUsage::verify)};
+	KeyUsageMask private_usages{key_usage_value(KeyUsage::sign)};
+};
+
 struct GenerateKeyPairParams final
 {
 	AsymmetricKeyAlgorithm algorithm;
 	RsaKeyGenerationParams rsa{};
+	EcKeyGenerationParams ec{};
 };
 
 struct VerifyResult final

@@ -424,6 +424,7 @@ void test_openssl_provider_metadata()
 	require(provider.supports(crypto_core::KdfAlgorithm::hkdf_sha512));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
+	require(provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
 	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep));
 	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
 }
@@ -595,6 +596,76 @@ void test_openssl_generates_usable_rsa_key_pair()
 	require(decrypted.value() == plaintext);
 }
 
+void test_openssl_generates_usable_ecdsa_p256_key_pair()
+{
+	crypto_core::OpenSSLProvider provider;
+	crypto_core::GenerateKeyPairParams params{crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256};
+	params.ec.public_usages = crypto_core::key_usage_value(crypto_core::KeyUsage::verify);
+	params.ec.private_usages = crypto_core::key_usage_value(crypto_core::KeyUsage::sign);
+
+	auto key_pair = crypto_core::generate_key_pair(provider, params);
+	require(key_pair.has_value());
+	require(key_pair.value().public_key.algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
+	require(key_pair.value().private_key.algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
+	require(key_pair.value().public_key.allows(crypto_core::KeyUsage::verify));
+	require(!key_pair.value().public_key.allows(crypto_core::KeyUsage::encrypt));
+	require(key_pair.value().private_key.allows(crypto_core::KeyUsage::sign));
+	require(!key_pair.value().private_key.allows(crypto_core::KeyUsage::decrypt));
+
+	const auto message = bytes("generated ecdsa p256 key pair");
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().private_key}, message.bytes());
+	require(signature.has_value());
+	require(!signature.value().empty());
+
+	auto verified = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, signature.value().bytes()}, message.bytes());
+	require(verified.has_value());
+	require(verified.value().is_valid());
+}
+
+void test_openssl_ecdsa_p256_verify_returns_invalid_for_bad_inputs()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto key_pair = crypto_core::generate_key_pair(provider, {crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256});
+	require(key_pair.has_value());
+
+	const auto message = bytes("ecdsa p256 message");
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().private_key}, message.bytes());
+	require(signature.has_value());
+
+	const auto tampered_message = bytes("ecdsa p256 tampered");
+	auto bad_message = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, signature.value().bytes()}, tampered_message.bytes());
+	require(bad_message.has_value());
+	require(!bad_message.value().is_valid());
+
+	auto tampered_signature = signature.value();
+	tampered_signature.bytes()[tampered_signature.size() - 1] ^= 0x01U;
+	auto bad_signature = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, tampered_signature.bytes()}, message.bytes());
+	require(bad_signature.has_value());
+	require(!bad_signature.value().is_valid());
+
+	const std::array<std::uint8_t, 0> empty_signature{};
+	auto empty = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, empty_signature}, message.bytes());
+	require(empty.has_value());
+	require(!empty.value().is_valid());
+}
+
+void test_openssl_ecdsa_p256_rejects_rsa_keys()
+{
+	crypto_core::OpenSSLProvider provider;
+	auto rsa_key_pair = crypto_core::generate_key_pair(provider, {crypto_core::AsymmetricKeyAlgorithm::rsa});
+	require(rsa_key_pair.has_value());
+
+	const auto message = bytes("wrong key family");
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &rsa_key_pair.value().private_key}, message.bytes());
+	require(!signature.has_value());
+	require(signature.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	const std::array<std::uint8_t, 8> fake_signature{0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01};
+	auto verified = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &rsa_key_pair.value().public_key, fake_signature}, message.bytes());
+	require(!verified.has_value());
+	require(verified.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 void test_openssl_rsa_key_generation_rejects_weak_parameters()
 {
 	crypto_core::OpenSSLProvider provider;
@@ -724,6 +795,9 @@ int main()
 	test_openssl_matches_native_aes_gcm();
 	test_openssl_rsa_pss_sign_verify_round_trip();
 	test_openssl_generates_usable_rsa_key_pair();
+	test_openssl_generates_usable_ecdsa_p256_key_pair();
+	test_openssl_ecdsa_p256_verify_returns_invalid_for_bad_inputs();
+	test_openssl_ecdsa_p256_rejects_rsa_keys();
 	test_openssl_rsa_key_generation_rejects_weak_parameters();
 	test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs();
 	test_openssl_rsa_oaep_encrypt_decrypt_round_trip();
