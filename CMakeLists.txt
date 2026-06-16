@@ -22,6 +22,7 @@ add_library(crypto_core
     src/hash.cpp
     src/hmac.cpp
     src/key.cpp
+    src/key_store.cpp
     src/kdf.cpp
     src/kdf_native.cpp
     src/mac.cpp

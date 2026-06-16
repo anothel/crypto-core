@@ -109,6 +109,8 @@ Phase 1 default implementation target:
   tag generation, and authentication failure handling.
 - Key material base is implemented: `KeyAlgorithm`, `KeyUsage`, `Key`, and
   move-only `SecretKey` backed by `SecureBuffer` with raw import/export.
+- In-memory `KeyStore` is implemented for `SecretKey`, `PublicKey`, and
+  move-only `PrivateKey` lookup by string id with usage-gated require helpers.
 - Asymmetric API base is implemented: `AsymmetricKeyAlgorithm`,
   `SignatureAlgorithm`, `PublicKey`, move-only `PrivateKey`, `KeyPair`,
   provider key generation hook, provider sign/verify hooks, asymmetric
@@ -231,6 +233,17 @@ Phase 1 default implementation target:
 - move-only `SecretKey`
 - raw symmetric key import/export through `SecureBuffer`
 - exact AES key-size validation
+
+### 1.4 In-Memory KeyStore
+
+- in-memory `KeyStore`
+- string id lookup
+- duplicate id rejection across secret, public, and private key namespaces
+- secret key storage
+- public key storage
+- move-only private key storage
+- usage-gated require helpers for secret, public, and private keys
+- provider-backed key handles and persistent storage are still deferred
 
 ### 0.11 Encoding Base
 

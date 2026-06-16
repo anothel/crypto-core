@@ -1,6 +1,8 @@
 #include "crypto_core/crypto_core.hpp"
 
 #include <cstdlib>
+#include <span>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -94,6 +96,83 @@ void test_secret_key_can_take_secure_buffer_ownership()
 	require(key.value().bytes()[0] == 0x33U);
 }
 
+void test_key_store_stores_and_requires_secret_keys_by_id()
+{
+	crypto_core::KeyStore store;
+	std::vector<std::uint8_t> raw(32, 0x44U);
+	auto key = crypto_core::SecretKey::import_raw(crypto_core::KeyAlgorithm::aes_256, raw, crypto_core::KeyUsage::encrypt | crypto_core::KeyUsage::decrypt);
+	require(key.has_value());
+
+	auto inserted = store.insert_secret("aes-main", std::move(key.value()));
+	require(inserted.has_value());
+	require(store.contains("aes-main"));
+
+	auto found = store.find_secret("aes-main");
+	require(found != nullptr);
+	require(found->algorithm() == crypto_core::KeyAlgorithm::aes_256);
+	require(found->allows(crypto_core::KeyUsage::encrypt));
+
+	auto required = store.require_secret("aes-main", crypto_core::KeyUsage::decrypt);
+	require(required.has_value());
+	require(required.value()->size() == raw.size());
+
+	auto wrong_usage = store.require_secret("aes-main", crypto_core::KeyUsage::mac);
+	require(!wrong_usage.has_value());
+	require(wrong_usage.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto missing = store.require_secret("missing", crypto_core::KeyUsage::encrypt);
+	require(!missing.has_value());
+	require(missing.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
+void test_key_store_rejects_duplicate_ids()
+{
+	crypto_core::KeyStore store;
+	std::vector<std::uint8_t> raw(16, 0x55U);
+	auto first_key = crypto_core::SecretKey::import_raw(crypto_core::KeyAlgorithm::aes_128, raw, crypto_core::KeyUsage::encrypt);
+	auto second_key = crypto_core::SecretKey::import_raw(crypto_core::KeyAlgorithm::aes_128, raw, crypto_core::KeyUsage::encrypt);
+	require(first_key.has_value());
+	require(second_key.has_value());
+
+	auto first = store.insert_secret("duplicate", std::move(first_key.value()));
+	require(first.has_value());
+
+	auto second = store.insert_secret("duplicate", std::move(second_key.value()));
+	require(!second.has_value());
+	require(second.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
+void test_key_store_stores_asymmetric_keys_by_id()
+{
+	crypto_core::KeyStore store;
+	const std::uint8_t public_der_bytes[] = {1, 2, 3};
+	const std::uint8_t private_der_bytes[] = {4, 5, 6};
+	const auto public_der = std::span<const std::uint8_t>(public_der_bytes, 3);
+	const auto private_der = std::span<const std::uint8_t>(private_der_bytes, 3);
+
+	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, public_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
+	auto private_buffer = crypto_core::SecureBuffer::copy_from(private_der);
+	require(public_key.has_value());
+	require(private_buffer.has_value());
+	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(private_buffer.value()), crypto_core::KeyUsage::sign | crypto_core::KeyUsage::decrypt);
+	require(private_key.has_value());
+
+	require(store.insert_public("rsa-public", public_key.value()).has_value());
+	require(store.insert_private("rsa-private", std::move(private_key.value())).has_value());
+
+	auto public_required = store.require_public("rsa-public", crypto_core::KeyUsage::verify);
+	require(public_required.has_value());
+	require(public_required.value()->algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+
+	auto private_required = store.require_private("rsa-private", crypto_core::KeyUsage::decrypt);
+	require(private_required.has_value());
+	require(private_required.value()->algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+
+	auto wrong_usage = store.require_private("rsa-private", crypto_core::KeyUsage::verify);
+	require(!wrong_usage.has_value());
+	require(wrong_usage.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 } // namespace
 
 int main()
@@ -105,5 +184,8 @@ int main()
 	test_secret_key_rejects_invalid_raw_key_sizes();
 	test_secret_key_exports_clone();
 	test_secret_key_can_take_secure_buffer_ownership();
+	test_key_store_stores_and_requires_secret_keys_by_id();
+	test_key_store_rejects_duplicate_ids();
+	test_key_store_stores_asymmetric_keys_by_id();
 	return 0;
 }
