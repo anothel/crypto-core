@@ -104,6 +104,41 @@ std::size_t bit_length(std::span<const std::uint8_t> bytes) noexcept
 	return ((bytes.size() - offset - 1U) * 8U) + high_bits;
 }
 
+Result<ByteBuffer> rsa_private_crt_blinded_with_rng(NativeProvider &provider, const internal::RsaPrivateKeyMaterial &key, std::span<const std::uint8_t> input) noexcept
+{
+	auto rng = provider.create_rng(RngAlgorithm::os_random);
+	if (!rng)
+	{
+		return Result<ByteBuffer>::failure(rng.error());
+	}
+
+	Error last_error = make_error(ErrorCode::provider_error, "native_provider", "RSA blinding failed");
+	constexpr std::size_t max_attempts = 8;
+	for (std::size_t attempt = 0; attempt < max_attempts; ++attempt)
+	{
+		std::vector<std::uint8_t> blinding_factor(key.modulus.size());
+		auto generated = rng.value()->generate(blinding_factor);
+		if (!generated)
+		{
+			return Result<ByteBuffer>::failure(generated.error());
+		}
+
+		auto output = internal::rsa_private_crt_blinded_operation(key, input, blinding_factor);
+		if (output)
+		{
+			return output;
+		}
+
+		last_error = output.error();
+		if (last_error.code() != ErrorCode::invalid_argument)
+		{
+			return Result<ByteBuffer>::failure(last_error);
+		}
+	}
+
+	return Result<ByteBuffer>::failure(last_error);
+}
+
 } // namespace
 
 std::string_view NativeProvider::name() const noexcept
@@ -275,7 +310,7 @@ Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<cons
 		return Result<ByteBuffer>::failure(encoded_message.error());
 	}
 
-	return internal::rsa_private_crt_operation(key.value(), encoded_message.value().bytes());
+	return rsa_private_crt_blinded_with_rng(*this, key.value(), encoded_message.value().bytes());
 }
 
 Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept
@@ -412,7 +447,7 @@ Result<ByteBuffer> NativeProvider::asymmetric_decrypt(const AsymmetricDecryptPar
 		return Result<ByteBuffer>::failure(make_error(ErrorCode::authentication_failed, "native_provider", "RSA-OAEP ciphertext is invalid"));
 	}
 
-	auto encoded = internal::rsa_private_crt_operation(key.value(), ciphertext);
+	auto encoded = rsa_private_crt_blinded_with_rng(*this, key.value(), ciphertext);
 	if (!encoded)
 	{
 		if (encoded.error().code() == ErrorCode::invalid_argument)

@@ -107,6 +107,37 @@ void test_rsa_private_crt_operation_matches_private_operation()
 	require_bytes(crt.value().bytes(), plain.value().bytes());
 }
 
+void test_rsa_private_crt_blinded_operation_matches_private_operation()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+
+	const std::array<std::uint8_t, 2> ciphertext{0x0A, 0xE6};
+	const std::array<std::uint8_t, 1> blinding_factor{0x05};
+	auto plain = crypto_core::internal::rsa_private_operation(key.value(), ciphertext);
+	auto blinded = crypto_core::internal::rsa_private_crt_blinded_operation(key.value(), ciphertext, blinding_factor);
+	require(plain.has_value());
+	require(blinded.has_value());
+	require_bytes(blinded.value().bytes(), plain.value().bytes());
+}
+
+void test_rsa_private_crt_blinded_operation_rejects_invalid_blinding_factor()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+
+	const std::array<std::uint8_t, 2> ciphertext{0x0A, 0xE6};
+	const std::array<std::uint8_t, 1> zero_factor{0x00};
+	auto zero = crypto_core::internal::rsa_private_crt_blinded_operation(key.value(), ciphertext, zero_factor);
+	require(!zero.has_value());
+	require(zero.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	const std::array<std::uint8_t, 1> shares_prime_factor{0x3D};
+	auto non_invertible = crypto_core::internal::rsa_private_crt_blinded_operation(key.value(), ciphertext, shares_prime_factor);
+	require(!non_invertible.has_value());
+	require(non_invertible.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_rsa_operation_left_pads_to_modulus_width()
 {
 	auto key = crypto_core::internal::parse_rsa_public_key_der(pkcs1_public_key_der);
@@ -147,6 +178,8 @@ int main()
 	test_rsa_public_operation();
 	test_rsa_private_operation();
 	test_rsa_private_crt_operation_matches_private_operation();
+	test_rsa_private_crt_blinded_operation_matches_private_operation();
+	test_rsa_private_crt_blinded_operation_rejects_invalid_blinding_factor();
 	test_rsa_operation_left_pads_to_modulus_width();
 	test_rsa_operation_rejects_representative_not_less_than_modulus();
 	test_rsa_private_crt_operation_rejects_representative_not_less_than_modulus();

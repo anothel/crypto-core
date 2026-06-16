@@ -130,7 +130,8 @@ Phase 1 default implementation target:
   multiplication, and modular exponentiation.
 - Native internal raw RSA public/private operations are implemented over parsed
   RSA material and `BigInt` modular exponentiation. Native RSA private CRT
-  operation is implemented for parsed PKCS#1/PKCS#8 private key material.
+  operation and RSA blinding are implemented for parsed PKCS#1/PKCS#8 private
+  key material.
 - Native internal EMSA-PSS encode/verify building blocks are implemented with
   MGF1 over native SHA2 and deterministic invalid-encoding rejection.
 - `NativeProvider` signs and verifies RSA-PSS/SHA256 signatures by parsing DER
@@ -356,7 +357,16 @@ Phase 1 default implementation target:
 - `AsymmetricEncryptionAlgorithm::rsa_oaep` uses explicit `RsaOaepParams`
 - OAEP seed bytes are generated through the NativeProvider OS RNG
 - label mismatch and tampered ciphertext return `ErrorCode::authentication_failed`
-- RSA blinding and constant-time BigInt hardening are still deferred
+
+### 1.1 Native RSA Blinding
+
+- internal RSA private CRT blinding operation
+- caller-provided blinding factor for deterministic primitive tests
+- branch-local unblinding before CRT recombination
+- NativeProvider RSA-PSS signing uses OS RNG blinding
+- NativeProvider RSA-OAEP decryption uses OS RNG blinding
+- invalid or non-invertible blinding factors fail deterministically
+- constant-time BigInt hardening is still deferred
 
 ## Build
 

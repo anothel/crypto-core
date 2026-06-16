@@ -3,6 +3,7 @@
 #include "crypto_core/error.hpp"
 #include "crypto_core/internal/bigint.hpp"
 
+#include <array>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -85,6 +86,39 @@ namespace
 	return value;
 }
 
+[[nodiscard]] Result<ByteBuffer> crt_recombine(
+    const BigInt &message1,
+    const BigInt &message2,
+    const BigInt &prime1,
+    const BigInt &prime2,
+    const BigInt &coefficient,
+    const BigInt &modulus,
+    std::size_t width)
+{
+	auto difference = BigInt::mod_subtract(message1, message2, prime1);
+	if (!difference)
+	{
+		return Result<ByteBuffer>::failure(difference.error());
+	}
+	auto h = BigInt::mod_multiply(coefficient, difference.value(), prime1);
+	if (!h)
+	{
+		return Result<ByteBuffer>::failure(h.error());
+	}
+	auto qh = BigInt::mod_multiply(prime2, h.value(), modulus);
+	if (!qh)
+	{
+		return Result<ByteBuffer>::failure(qh.error());
+	}
+	auto output = BigInt::mod_add(message2, qh.value(), modulus);
+	if (!output)
+	{
+		return Result<ByteBuffer>::failure(output.error());
+	}
+
+	return left_pad_to_width(output.value(), width);
+}
+
 } // namespace
 
 Result<ByteBuffer> rsa_public_operation(const RsaPublicKeyMaterial &key, std::span<const std::uint8_t> input)
@@ -150,28 +184,145 @@ Result<ByteBuffer> rsa_private_crt_operation(const RsaPrivateKeyMaterial &key, s
 		return Result<ByteBuffer>::failure(message2.error());
 	}
 
-	auto difference = BigInt::mod_subtract(message1.value(), message2.value(), prime1.value());
-	if (!difference)
+	return crt_recombine(message1.value(), message2.value(), prime1.value(), prime2.value(), coefficient.value(), modulus.value(), key.modulus.size());
+}
+
+Result<ByteBuffer> rsa_private_crt_blinded_operation(const RsaPrivateKeyMaterial &key, std::span<const std::uint8_t> input, std::span<const std::uint8_t> blinding_factor)
+{
+	auto modulus = import_non_zero(key.modulus.bytes(), "RSA modulus must be non-zero");
+	auto public_exponent = import_non_zero(key.public_exponent.bytes(), "RSA public exponent must be non-zero");
+	auto representative = BigInt::from_be_bytes(input);
+	auto blinding = BigInt::from_be_bytes(blinding_factor);
+	auto prime1 = import_non_zero(key.prime1.bytes(), "RSA prime1 must be non-zero");
+	auto prime2 = import_non_zero(key.prime2.bytes(), "RSA prime2 must be non-zero");
+	auto exponent1 = import_non_zero(key.exponent1.bytes(), "RSA exponent1 must be non-zero");
+	auto exponent2 = import_non_zero(key.exponent2.bytes(), "RSA exponent2 must be non-zero");
+	auto coefficient = import_non_zero(key.coefficient.bytes(), "RSA coefficient must be non-zero");
+	if (!modulus)
 	{
-		return Result<ByteBuffer>::failure(difference.error());
+		return Result<ByteBuffer>::failure(modulus.error());
 	}
-	auto h = BigInt::mod_multiply(coefficient.value(), difference.value(), prime1.value());
-	if (!h)
+	if (!public_exponent)
 	{
-		return Result<ByteBuffer>::failure(h.error());
+		return Result<ByteBuffer>::failure(public_exponent.error());
 	}
-	auto qh = BigInt::mod_multiply(prime2.value(), h.value(), modulus.value());
-	if (!qh)
+	if (!representative)
 	{
-		return Result<ByteBuffer>::failure(qh.error());
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::invalid_key, "RSA integer import failed"));
 	}
-	auto output = BigInt::mod_add(message2.value(), qh.value(), modulus.value());
-	if (!output)
+	if (!blinding)
 	{
-		return Result<ByteBuffer>::failure(output.error());
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::invalid_key, "RSA integer import failed"));
+	}
+	if (!prime1)
+	{
+		return Result<ByteBuffer>::failure(prime1.error());
+	}
+	if (!prime2)
+	{
+		return Result<ByteBuffer>::failure(prime2.error());
+	}
+	if (!exponent1)
+	{
+		return Result<ByteBuffer>::failure(exponent1.error());
+	}
+	if (!exponent2)
+	{
+		return Result<ByteBuffer>::failure(exponent2.error());
+	}
+	if (!coefficient)
+	{
+		return Result<ByteBuffer>::failure(coefficient.error());
+	}
+	if (representative.value().compare(modulus.value()) >= 0)
+	{
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::invalid_argument, "RSA representative must be less than modulus"));
+	}
+	if (blinding.value().is_zero())
+	{
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::invalid_argument, "RSA blinding factor must be non-zero"));
 	}
 
-	return left_pad_to_width(output.value(), key.modulus.size());
+	const std::array<std::uint8_t, 1> one_bytes{0x01};
+	const std::array<std::uint8_t, 1> two_bytes{0x02};
+	auto one = BigInt::from_be_bytes(one_bytes);
+	auto two = BigInt::from_be_bytes(two_bytes);
+	if (!one || !two)
+	{
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::internal_error, "RSA constant import failed"));
+	}
+
+	auto blinding_mod_prime1 = BigInt::mod_multiply(blinding.value(), one.value(), prime1.value());
+	auto blinding_mod_prime2 = BigInt::mod_multiply(blinding.value(), one.value(), prime2.value());
+	if (!blinding_mod_prime1)
+	{
+		return Result<ByteBuffer>::failure(blinding_mod_prime1.error());
+	}
+	if (!blinding_mod_prime2)
+	{
+		return Result<ByteBuffer>::failure(blinding_mod_prime2.error());
+	}
+	if (blinding_mod_prime1.value().is_zero() || blinding_mod_prime2.value().is_zero())
+	{
+		return Result<ByteBuffer>::failure(rsa_error(ErrorCode::invalid_argument, "RSA blinding factor must be invertible"));
+	}
+
+	auto blinding_power = BigInt::mod_exp(blinding.value(), public_exponent.value(), modulus.value());
+	if (!blinding_power)
+	{
+		return Result<ByteBuffer>::failure(blinding_power.error());
+	}
+	auto blinded_representative = BigInt::mod_multiply(representative.value(), blinding_power.value(), modulus.value());
+	if (!blinded_representative)
+	{
+		return Result<ByteBuffer>::failure(blinded_representative.error());
+	}
+
+	auto blinded_message1 = BigInt::mod_exp(blinded_representative.value(), exponent1.value(), prime1.value());
+	auto blinded_message2 = BigInt::mod_exp(blinded_representative.value(), exponent2.value(), prime2.value());
+	if (!blinded_message1)
+	{
+		return Result<ByteBuffer>::failure(blinded_message1.error());
+	}
+	if (!blinded_message2)
+	{
+		return Result<ByteBuffer>::failure(blinded_message2.error());
+	}
+
+	auto prime1_minus_two = BigInt::mod_subtract(prime1.value(), two.value(), prime1.value());
+	auto prime2_minus_two = BigInt::mod_subtract(prime2.value(), two.value(), prime2.value());
+	if (!prime1_minus_two)
+	{
+		return Result<ByteBuffer>::failure(prime1_minus_two.error());
+	}
+	if (!prime2_minus_two)
+	{
+		return Result<ByteBuffer>::failure(prime2_minus_two.error());
+	}
+
+	auto inverse1 = BigInt::mod_exp(blinding_mod_prime1.value(), prime1_minus_two.value(), prime1.value());
+	auto inverse2 = BigInt::mod_exp(blinding_mod_prime2.value(), prime2_minus_two.value(), prime2.value());
+	if (!inverse1)
+	{
+		return Result<ByteBuffer>::failure(inverse1.error());
+	}
+	if (!inverse2)
+	{
+		return Result<ByteBuffer>::failure(inverse2.error());
+	}
+
+	auto message1 = BigInt::mod_multiply(blinded_message1.value(), inverse1.value(), prime1.value());
+	auto message2 = BigInt::mod_multiply(blinded_message2.value(), inverse2.value(), prime2.value());
+	if (!message1)
+	{
+		return Result<ByteBuffer>::failure(message1.error());
+	}
+	if (!message2)
+	{
+		return Result<ByteBuffer>::failure(message2.error());
+	}
+
+	return crt_recombine(message1.value(), message2.value(), prime1.value(), prime2.value(), coefficient.value(), modulus.value(), key.modulus.size());
 }
 
 } // namespace crypto_core::internal
