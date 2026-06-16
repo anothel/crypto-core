@@ -111,8 +111,9 @@ Phase 1 default implementation target:
   move-only `SecretKey` backed by `SecureBuffer` with raw import/export.
 - Asymmetric API base is implemented: `AsymmetricKeyAlgorithm`,
   `SignatureAlgorithm`, `PublicKey`, move-only `PrivateKey`, `KeyPair`,
-  provider sign/verify hooks, asymmetric encrypt/decrypt hooks, shared-secret
-  derivation hook, and deterministic invalid-signature result modeling.
+  provider key generation hook, provider sign/verify hooks, asymmetric
+  encrypt/decrypt hooks, shared-secret derivation hook, and deterministic
+  invalid-signature result modeling.
 - RSA parameter API base is implemented: generic `RSA-PSS` and `RSA-OAEP`
   algorithm selectors plus explicit `RsaPssParams` and `RsaOaepParams` for
   message hash, MGF1 hash, salt length, and OAEP label ownership.
@@ -122,6 +123,8 @@ Phase 1 default implementation target:
 - `OpenSSLProvider` supports RSA-OAEP encrypt/decrypt for DER RSA keys when
   OpenSSL is enabled. Invalid OAEP ciphertexts return
   `ErrorCode::authentication_failed`.
+- `OpenSSLProvider` supports RSA key pair generation with 2048-bit minimum
+  modulus validation when OpenSSL is enabled.
 - Native internal RSA DER parsing boundary is implemented for PKCS#1 public
   keys, SubjectPublicKeyInfo public keys, PKCS#1 private keys, and PKCS#8
   private keys.
@@ -249,7 +252,10 @@ Phase 1 default implementation target:
 - `PublicKey`
 - move-only `PrivateKey`
 - `KeyPair`
+- `GenerateKeyPairParams`
+- `RsaKeyGenerationParams`
 - `SignatureAlgorithm`
+- provider key generation interface
 - provider sign/verify interfaces
 - provider-neutral parameter structs for sign, verify, encrypt, decrypt, and
   shared-secret derivation
@@ -274,6 +280,10 @@ Phase 1 default implementation target:
 - `OpenSSLProvider` supports legacy `SignatureAlgorithm::rsa_pss_sha256`
 - `OpenSSLProvider` supports `AsymmetricEncryptionAlgorithm::rsa_oaep`
 - `OpenSSLProvider` supports legacy `AsymmetricEncryptionAlgorithm::rsa_oaep_sha256`
+- `OpenSSLProvider` supports RSA key pair generation
+- generated RSA key pairs export DER public/private keys into `PublicKey` and
+  move-only `PrivateKey`
+- weak RSA key generation parameters below 2048 bits are rejected
 - DER RSA private keys are parsed inside the provider for signing
 - DER RSA public keys are parsed inside the provider for verification
 - DER RSA public keys are parsed inside the provider for encryption

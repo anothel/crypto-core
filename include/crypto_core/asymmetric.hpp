@@ -254,6 +254,20 @@ struct KeyPair final
 	PrivateKey private_key;
 };
 
+struct RsaKeyGenerationParams final
+{
+	std::size_t modulus_bits{2048};
+	std::uint32_t public_exponent{65537};
+	KeyUsageMask public_usages{KeyUsage::verify | KeyUsage::encrypt};
+	KeyUsageMask private_usages{KeyUsage::sign | KeyUsage::decrypt};
+};
+
+struct GenerateKeyPairParams final
+{
+	AsymmetricKeyAlgorithm algorithm;
+	RsaKeyGenerationParams rsa{};
+};
+
 struct VerifyResult final
 {
 	VerifyStatus status{VerifyStatus::invalid};
@@ -344,6 +358,9 @@ struct SharedSecretParams final
 
 [[nodiscard]] Result<VerifyResult> verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
 [[nodiscard]] Result<VerifyResult> verify(ICryptoProvider &provider, const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
+
+[[nodiscard]] Result<KeyPair> generate_key_pair(const GenerateKeyPairParams &params) noexcept;
+[[nodiscard]] Result<KeyPair> generate_key_pair(ICryptoProvider &provider, const GenerateKeyPairParams &params) noexcept;
 
 [[nodiscard]] Result<ByteBuffer> asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
 [[nodiscard]] Result<ByteBuffer> asymmetric_encrypt(ICryptoProvider &provider, const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;

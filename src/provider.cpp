@@ -78,6 +78,11 @@ Result<VerifyResult> ICryptoProvider::verify(const VerifyParams &, std::span<con
 	return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "signature algorithm is not supported"));
 }
 
+Result<KeyPair> ICryptoProvider::generate_key_pair(const GenerateKeyPairParams &) noexcept
+{
+	return Result<KeyPair>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "key generation algorithm is not supported"));
+}
+
 bool ICryptoProvider::supports(AsymmetricEncryptionAlgorithm) const noexcept
 {
 	return false;

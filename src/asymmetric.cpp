@@ -91,6 +91,16 @@ Result<VerifyResult> verify(ICryptoProvider &provider, const VerifyParams &param
 	return provider.verify(params, message);
 }
 
+Result<KeyPair> generate_key_pair(const GenerateKeyPairParams &params) noexcept
+{
+	return generate_key_pair(default_provider(), params);
+}
+
+Result<KeyPair> generate_key_pair(ICryptoProvider &provider, const GenerateKeyPairParams &params) noexcept
+{
+	return provider.generate_key_pair(params);
+}
+
 Result<ByteBuffer> asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept
 {
 	return asymmetric_encrypt(default_provider(), params, plaintext);

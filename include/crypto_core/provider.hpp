@@ -76,6 +76,7 @@ public:
 	[[nodiscard]] virtual Result<ByteBuffer> aead_decrypt(const AeadDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept;
 	[[nodiscard]] virtual Result<VerifyResult> verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept;
+	[[nodiscard]] virtual Result<KeyPair> generate_key_pair(const GenerateKeyPairParams &params) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept;
 	[[nodiscard]] virtual Result<ByteBuffer> asymmetric_decrypt(const AsymmetricDecryptParams &params, std::span<const std::uint8_t> ciphertext) noexcept;
 	[[nodiscard]] virtual Result<SecureBuffer> derive_shared_secret(const SharedSecretParams &params) noexcept;

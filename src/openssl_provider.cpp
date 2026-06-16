@@ -209,6 +209,61 @@ Result<void> configure_rsa_oaep(EVP_PKEY_CTX *context, const RsaOaepParams &para
 	return Result<void>::success();
 }
 
+Result<ByteBuffer> export_public_key_der(EVP_PKEY *key) noexcept
+{
+	const int size = i2d_PUBKEY(key, nullptr);
+	if (size <= 0)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "i2d_PUBKEY size query failed"));
+	}
+
+	std::vector<std::uint8_t> der(static_cast<std::size_t>(size));
+	auto *output = der.data();
+	if (i2d_PUBKEY(key, &output) != size)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "i2d_PUBKEY failed"));
+	}
+
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(der)));
+}
+
+Result<SecureBuffer> export_private_key_der(EVP_PKEY *key) noexcept
+{
+	const int size = i2d_PrivateKey(key, nullptr);
+	if (size <= 0)
+	{
+		return Result<SecureBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "i2d_PrivateKey size query failed"));
+	}
+
+	std::vector<std::uint8_t> der(static_cast<std::size_t>(size));
+	auto *output = der.data();
+	if (i2d_PrivateKey(key, &output) != size)
+	{
+		return Result<SecureBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "i2d_PrivateKey failed"));
+	}
+
+	return Result<SecureBuffer>::success(SecureBuffer(std::move(der)));
+}
+
+std::vector<std::uint8_t> uint32_to_minimal_be(std::uint32_t value)
+{
+	std::vector<std::uint8_t> output;
+	for (int shift = 24; shift >= 0; shift -= 8)
+	{
+		const auto byte = static_cast<std::uint8_t>((value >> static_cast<std::uint32_t>(shift)) & 0xFFU);
+		if (!output.empty() || byte != 0)
+		{
+			output.push_back(byte);
+		}
+	}
+	if (output.empty())
+	{
+		output.push_back(0);
+	}
+
+	return output;
+}
+
 const char *evp_mac_digest(MacAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
@@ -583,6 +638,70 @@ Result<VerifyResult> OpenSSLProvider::verify(const VerifyParams &params, std::sp
 	}
 
 	return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyFinal failed"));
+}
+
+Result<KeyPair> OpenSSLProvider::generate_key_pair(const GenerateKeyPairParams &params) noexcept
+{
+	if (params.algorithm != AsymmetricKeyAlgorithm::rsa)
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "key generation algorithm is not supported by OpenSSLProvider"));
+	}
+	if (params.rsa.modulus_bits < 2048 || params.rsa.modulus_bits > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "RSA modulus size must be at least 2048 bits"));
+	}
+	if (params.rsa.public_exponent < 3 || (params.rsa.public_exponent % 2U) == 0U)
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "RSA public exponent must be an odd integer greater than one"));
+	}
+
+	EvpPkeyCtxPtr context(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr), EVP_PKEY_CTX_free);
+	if (context == nullptr || EVP_PKEY_keygen_init(context.get()) != 1)
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_keygen_init failed"));
+	}
+	auto modulus_bits = params.rsa.modulus_bits;
+	auto exponent_bytes = uint32_to_minimal_be(params.rsa.public_exponent);
+	OSSL_PARAM keygen_params[] = {
+	    OSSL_PARAM_construct_size_t(OSSL_PKEY_PARAM_RSA_BITS, &modulus_bits),
+	    OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E, exponent_bytes.data(), exponent_bytes.size()),
+	    OSSL_PARAM_construct_end(),
+	};
+	if (EVP_PKEY_CTX_set_params(context.get(), keygen_params) != 1)
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "RSA keygen parameter configuration failed"));
+	}
+
+	EVP_PKEY *raw_key = nullptr;
+	if (EVP_PKEY_keygen(context.get(), &raw_key) != 1 || raw_key == nullptr)
+	{
+		return Result<KeyPair>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_keygen failed"));
+	}
+	EvpPkeyPtr key(raw_key, EVP_PKEY_free);
+
+	auto public_der = export_public_key_der(key.get());
+	if (!public_der)
+	{
+		return Result<KeyPair>::failure(public_der.error());
+	}
+	auto private_der = export_private_key_der(key.get());
+	if (!private_der)
+	{
+		return Result<KeyPair>::failure(private_der.error());
+	}
+
+	auto public_key = PublicKey::import_der(AsymmetricKeyAlgorithm::rsa, public_der.value().bytes(), params.rsa.public_usages);
+	if (!public_key)
+	{
+		return Result<KeyPair>::failure(public_key.error());
+	}
+	auto private_key = PrivateKey::import_der(AsymmetricKeyAlgorithm::rsa, std::move(private_der.value()), params.rsa.private_usages);
+	if (!private_key)
+	{
+		return Result<KeyPair>::failure(private_key.error());
+	}
+
+	return Result<KeyPair>::success(KeyPair{public_key.value(), std::move(private_key.value())});
 }
 
 Result<ByteBuffer> OpenSSLProvider::asymmetric_encrypt(const AsymmetricEncryptParams &params, std::span<const std::uint8_t> plaintext) noexcept

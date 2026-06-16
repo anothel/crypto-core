@@ -194,6 +194,17 @@ void test_private_key_and_key_pair_are_move_only()
 	static_assert(std::is_move_assignable_v<crypto_core::KeyPair>);
 }
 
+void test_rsa_key_generation_params_have_safe_defaults()
+{
+	const crypto_core::RsaKeyGenerationParams params{};
+	require(params.modulus_bits == 2048);
+	require(params.public_exponent == 65537);
+	require(crypto_core::has_key_usage(params.public_usages, crypto_core::KeyUsage::verify));
+	require(crypto_core::has_key_usage(params.public_usages, crypto_core::KeyUsage::encrypt));
+	require(crypto_core::has_key_usage(params.private_usages, crypto_core::KeyUsage::sign));
+	require(crypto_core::has_key_usage(params.private_usages, crypto_core::KeyUsage::decrypt));
+}
+
 void test_default_provider_reports_rsa_pss_signature_support()
 {
 	crypto_core::NativeProvider provider;
@@ -238,6 +249,10 @@ void test_asymmetric_provider_defaults_return_unsupported_algorithm()
 	auto secret_result = crypto_core::derive_shared_secret(provider, {crypto_core::KeyAgreementAlgorithm::ecdh_p256, &private_key.value(), &public_key.value()});
 	require(!secret_result.has_value());
 	require(secret_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+
+	auto key_pair_result = crypto_core::generate_key_pair(provider, {crypto_core::AsymmetricKeyAlgorithm::rsa});
+	require(!key_pair_result.has_value());
+	require(key_pair_result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 }
 
 void test_invalid_signature_is_successful_verify_result()
@@ -265,6 +280,7 @@ int main()
 	test_public_and_private_key_import_export();
 	test_asymmetric_keys_reject_empty_der();
 	test_private_key_and_key_pair_are_move_only();
+	test_rsa_key_generation_params_have_safe_defaults();
 	test_default_provider_reports_rsa_pss_signature_support();
 	test_asymmetric_provider_defaults_return_unsupported_algorithm();
 	test_invalid_signature_is_successful_verify_result();

@@ -565,6 +565,47 @@ void test_openssl_rsa_pss_sign_verify_round_trip()
 	require(valid.value().is_valid());
 }
 
+void test_openssl_generates_usable_rsa_key_pair()
+{
+	crypto_core::OpenSSLProvider provider;
+
+	auto key_pair = crypto_core::generate_key_pair(provider, {crypto_core::AsymmetricKeyAlgorithm::rsa});
+	require(key_pair.has_value());
+	require(key_pair.value().public_key.algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+	require(key_pair.value().private_key.algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+	require(key_pair.value().public_key.allows(crypto_core::KeyUsage::verify));
+	require(key_pair.value().public_key.allows(crypto_core::KeyUsage::encrypt));
+	require(key_pair.value().private_key.allows(crypto_core::KeyUsage::sign));
+	require(key_pair.value().private_key.allows(crypto_core::KeyUsage::decrypt));
+
+	const auto message = bytes("generated rsa key pair");
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &key_pair.value().private_key}, message.bytes());
+	require(signature.has_value());
+
+	auto verified = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &key_pair.value().public_key, signature.value().bytes()}, message.bytes());
+	require(verified.has_value());
+	require(verified.value().is_valid());
+
+	const auto plaintext = bytes("generated rsa oaep");
+	auto ciphertext = crypto_core::asymmetric_encrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &key_pair.value().public_key}, plaintext.bytes());
+	require(ciphertext.has_value());
+
+	auto decrypted = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &key_pair.value().private_key}, ciphertext.value().bytes());
+	require(decrypted.has_value());
+	require(decrypted.value() == plaintext);
+}
+
+void test_openssl_rsa_key_generation_rejects_weak_parameters()
+{
+	crypto_core::OpenSSLProvider provider;
+	crypto_core::GenerateKeyPairParams params{crypto_core::AsymmetricKeyAlgorithm::rsa};
+	params.rsa.modulus_bits = 1024;
+
+	auto key_pair = crypto_core::generate_key_pair(provider, params);
+	require(!key_pair.has_value());
+	require(key_pair.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs()
 {
 	crypto_core::OpenSSLProvider provider;
@@ -682,6 +723,8 @@ int main()
 	test_openssl_matches_native_aes_cbc();
 	test_openssl_matches_native_aes_gcm();
 	test_openssl_rsa_pss_sign_verify_round_trip();
+	test_openssl_generates_usable_rsa_key_pair();
+	test_openssl_rsa_key_generation_rejects_weak_parameters();
 	test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs();
 	test_openssl_rsa_oaep_encrypt_decrypt_round_trip();
 	test_openssl_rsa_oaep_rejects_bad_inputs();
