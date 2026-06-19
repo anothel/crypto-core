@@ -28,6 +28,10 @@ constexpr std::string_view message_hex =
     "6E617469766520656364736120703235362066697874757265";
 constexpr std::string_view off_curve_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D030107034200040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+constexpr std::string_view basepoint_public_key_spki_der_hex =
+    "3059301306072A8648CE3D020106082A8648CE3D030107034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
+constexpr std::string_view scalar_one_private_key_der_hex =
+    "303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107";
 
 constexpr std::array<std::uint8_t, 162> rsa_pss_public_key_der{
     0x30, 0x81, 0x9F, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
@@ -63,6 +67,24 @@ crypto_core::PublicKey import_ecdsa_verify_key()
 	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
 	require(key.has_value());
 	return key.value();
+}
+
+crypto_core::PublicKey import_basepoint_ecdsa_verify_key()
+{
+	auto public_key_der = bytes(basepoint_public_key_spki_der_hex);
+	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
+	require(key.has_value());
+	return key.value();
+}
+
+crypto_core::PrivateKey import_scalar_one_ecdsa_sign_key(crypto_core::KeyUsage usage = crypto_core::KeyUsage::sign)
+{
+	auto private_key_der = bytes(scalar_one_private_key_der_hex);
+	auto buffer = crypto_core::SecureBuffer::copy_from(private_key_der);
+	require(buffer.has_value());
+	auto key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, std::move(buffer.value()), usage);
+	require(key.has_value());
+	return std::move(key.value());
 }
 
 crypto_core::PublicKey import_ecdsa_key_without_verify_usage()
@@ -201,6 +223,32 @@ void test_ecdsa_helper_rejects_non_sha256_digest_size_as_error()
 	require(result.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_ecdsa_helper_signs_and_verifies_digest()
+{
+	auto private_key_der = bytes(scalar_one_private_key_der_hex);
+	auto public_key_der = bytes(basepoint_public_key_spki_der_hex);
+	auto digest = bytes(digest_sha256_hex);
+
+	auto signature = crypto_core::internal::sign_ecdsa_p256_sha256_digest(private_key_der, digest);
+	require(signature.has_value());
+
+	auto valid = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, signature.value().bytes(), digest);
+	require(valid.has_value());
+	require(valid.value());
+}
+
+void test_ecdsa_helper_signing_is_deterministic()
+{
+	auto private_key_der = bytes(scalar_one_private_key_der_hex);
+	auto digest = bytes(digest_sha256_hex);
+
+	auto first = crypto_core::internal::sign_ecdsa_p256_sha256_digest(private_key_der, digest);
+	auto second = crypto_core::internal::sign_ecdsa_p256_sha256_digest(private_key_der, digest);
+	require(first.has_value());
+	require(second.has_value());
+	require(first.value() == second.value());
+}
+
 void test_native_provider_reports_ecdsa_verify_support()
 {
 	crypto_core::NativeProvider provider;
@@ -208,14 +256,53 @@ void test_native_provider_reports_ecdsa_verify_support()
 	require(provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
 }
 
-void test_native_provider_keeps_ecdsa_sign_unsupported()
+void test_native_provider_signs_and_verifies_ecdsa_signature()
+{
+	crypto_core::NativeProvider provider;
+	auto private_key = import_scalar_one_ecdsa_sign_key();
+	auto public_key = import_basepoint_ecdsa_verify_key();
+	auto message = bytes(message_hex);
+
+	auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+	require(signature.has_value());
+
+	auto result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature.value().bytes()}, message);
+	require(result.has_value());
+	require(result.value().is_valid());
+}
+
+void test_native_provider_ecdsa_signing_is_deterministic()
+{
+	crypto_core::NativeProvider provider;
+	auto private_key = import_scalar_one_ecdsa_sign_key();
+	auto message = bytes(message_hex);
+
+	auto first = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+	auto second = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+	require(first.has_value());
+	require(second.has_value());
+	require(first.value() == second.value());
+}
+
+void test_native_provider_rejects_ecdsa_sign_without_private_key()
 {
 	crypto_core::NativeProvider provider;
 	auto message = bytes(message_hex);
 
 	auto result = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, nullptr}, message);
 	require(!result.has_value());
-	require(result.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+	require(result.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
+void test_native_provider_rejects_ecdsa_sign_key_without_sign_usage()
+{
+	crypto_core::NativeProvider provider;
+	auto private_key = import_scalar_one_ecdsa_sign_key(crypto_core::KeyUsage::verify);
+	auto message = bytes(message_hex);
+
+	auto result = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+	require(!result.has_value());
+	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_native_provider_verifies_static_openssl_ecdsa_signature()
@@ -315,6 +402,20 @@ void test_default_provider_verifies_static_ecdsa_signature()
 	require(result.value().is_valid());
 }
 
+void test_default_provider_signs_ecdsa_signature()
+{
+	auto private_key = import_scalar_one_ecdsa_sign_key();
+	auto public_key = import_basepoint_ecdsa_verify_key();
+	auto message = bytes(message_hex);
+
+	auto signature = crypto_core::sign({crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+	require(signature.has_value());
+
+	auto result = crypto_core::verify({crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature.value().bytes()}, message);
+	require(result.has_value());
+	require(result.value().is_valid());
+}
+
 } // namespace
 
 int main()
@@ -328,8 +429,13 @@ int main()
 	test_ecdsa_helper_rejects_bad_public_key_as_error();
 	test_ecdsa_helper_rejects_off_curve_public_key_as_error();
 	test_ecdsa_helper_rejects_non_sha256_digest_size_as_error();
+	test_ecdsa_helper_signs_and_verifies_digest();
+	test_ecdsa_helper_signing_is_deterministic();
 	test_native_provider_reports_ecdsa_verify_support();
-	test_native_provider_keeps_ecdsa_sign_unsupported();
+	test_native_provider_signs_and_verifies_ecdsa_signature();
+	test_native_provider_ecdsa_signing_is_deterministic();
+	test_native_provider_rejects_ecdsa_sign_without_private_key();
+	test_native_provider_rejects_ecdsa_sign_key_without_sign_usage();
 	test_native_provider_verifies_static_openssl_ecdsa_signature();
 	test_native_provider_rejects_tampered_ecdsa_message();
 	test_native_provider_rejects_tampered_ecdsa_signature();
@@ -338,5 +444,6 @@ int main()
 	test_native_provider_rejects_ecdsa_key_without_verify_usage();
 	test_native_provider_rejects_malformed_ecdsa_public_key();
 	test_default_provider_verifies_static_ecdsa_signature();
+	test_default_provider_signs_ecdsa_signature();
 	return 0;
 }

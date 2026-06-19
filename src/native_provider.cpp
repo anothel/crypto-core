@@ -263,6 +263,25 @@ Result<ByteBuffer> NativeProvider::aead_decrypt(const AeadDecryptParams &params,
 
 Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept
 {
+	if (is_ecdsa_algorithm(params.algorithm))
+	{
+		if (params.private_key == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "private key is required"));
+		}
+		if (params.private_key->algorithm() != AsymmetricKeyAlgorithm::ecdsa_p256 || !params.private_key->allows(KeyUsage::sign))
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "ECDSA P-256 signing key is required"));
+		}
+
+		auto message_hash = hash(*this, HashAlgorithm::sha256, message);
+		if (!message_hash)
+		{
+			return Result<ByteBuffer>::failure(message_hash.error());
+		}
+
+		return internal::sign_ecdsa_p256_sha256_digest(params.private_key->bytes(), message_hash.value().bytes());
+	}
 	if (!is_rsa_pss_algorithm(params.algorithm))
 	{
 		return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "signature algorithm is not supported by NativeProvider"));

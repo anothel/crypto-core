@@ -104,6 +104,31 @@ void test_rejects_signature_trailing_data()
 	require_invalid_key(crypto_core::internal::parse_ecdsa_signature_der(der));
 }
 
+void test_parses_sec1_p256_private_key()
+{
+	auto der = bytes("303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	auto key = crypto_core::internal::parse_p256_private_key_der(der);
+	require(key.has_value());
+	require_bytes(key.value().private_scalar.bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000001"));
+}
+
+void test_parses_pkcs8_p256_private_key()
+{
+	auto der = bytes("304D020100301306072A8648CE3D020106082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	auto key = crypto_core::internal::parse_p256_private_key_der(der);
+	require(key.has_value());
+	require_bytes(key.value().private_scalar.bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000001"));
+}
+
+void test_encodes_ecdsa_signature_der()
+{
+	auto encoded = crypto_core::internal::encode_ecdsa_signature_der(
+	    bytes("80"),
+	    bytes("01"));
+	require(encoded.has_value());
+	require_bytes(encoded.value().bytes(), bytes("300702020080020101"));
+}
+
 } // namespace
 
 int main()
@@ -117,5 +142,8 @@ int main()
 	test_rejects_negative_signature_integer();
 	test_rejects_overlong_signature_integer();
 	test_rejects_signature_trailing_data();
+	test_parses_sec1_p256_private_key();
+	test_parses_pkcs8_p256_private_key();
+	test_encodes_ecdsa_signature_der();
 	return 0;
 }
