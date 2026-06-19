@@ -622,6 +622,31 @@ void test_openssl_generates_usable_ecdsa_p256_key_pair()
 	require(verified.value().is_valid());
 }
 
+void test_native_verifies_openssl_ecdsa_p256_signature()
+{
+	crypto_core::OpenSSLProvider openssl;
+	crypto_core::NativeProvider native;
+	crypto_core::GenerateKeyPairParams params{crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256};
+	params.ec.public_usages = crypto_core::key_usage_value(crypto_core::KeyUsage::verify);
+	params.ec.private_usages = crypto_core::key_usage_value(crypto_core::KeyUsage::sign);
+
+	auto key_pair = crypto_core::generate_key_pair(openssl, params);
+	require(key_pair.has_value());
+
+	const auto message = bytes("openssl to native ecdsa p256");
+	auto signature = crypto_core::sign(openssl, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().private_key}, message.bytes());
+	require(signature.has_value());
+
+	auto verified = crypto_core::verify(native, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, signature.value().bytes()}, message.bytes());
+	require(verified.has_value());
+	require(verified.value().is_valid());
+
+	const auto tampered = bytes("openssl to native ecdsa tampered");
+	auto invalid = crypto_core::verify(native, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &key_pair.value().public_key, signature.value().bytes()}, tampered.bytes());
+	require(invalid.has_value());
+	require(!invalid.value().is_valid());
+}
+
 void test_openssl_ecdsa_p256_verify_returns_invalid_for_bad_inputs()
 {
 	crypto_core::OpenSSLProvider provider;
@@ -796,6 +821,7 @@ int main()
 	test_openssl_rsa_pss_sign_verify_round_trip();
 	test_openssl_generates_usable_rsa_key_pair();
 	test_openssl_generates_usable_ecdsa_p256_key_pair();
+	test_native_verifies_openssl_ecdsa_p256_signature();
 	test_openssl_ecdsa_p256_verify_returns_invalid_for_bad_inputs();
 	test_openssl_ecdsa_p256_rejects_rsa_keys();
 	test_openssl_rsa_key_generation_rejects_weak_parameters();

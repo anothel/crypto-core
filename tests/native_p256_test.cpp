@@ -1,0 +1,178 @@
+#include "crypto_core/internal/p256.hpp"
+
+#include "test_vectors.hpp"
+
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <span>
+#include <string_view>
+#include <vector>
+
+namespace
+{
+
+void require(bool condition)
+{
+	if (!condition)
+	{
+		std::exit(1);
+	}
+}
+
+void require_bytes(std::span<const std::uint8_t> actual, std::span<const std::uint8_t> expected)
+{
+	require(actual.size() == expected.size());
+	for (std::size_t i = 0; i < actual.size(); ++i)
+	{
+		require(actual[i] == expected[i]);
+	}
+}
+
+std::vector<std::uint8_t> bytes(std::string_view hex)
+{
+	auto decoded = crypto_core::test_support::decode_hex(hex);
+	require(decoded.has_value());
+	return std::move(decoded.value());
+}
+
+void require_point(const crypto_core::internal::P256Point &point, std::span<const std::uint8_t> x, std::span<const std::uint8_t> y)
+{
+	require(!point.infinity);
+	require_bytes(point.x.bytes(), x);
+	require_bytes(point.y.bytes(), y);
+}
+
+crypto_core::internal::P256Point unchecked_point(std::span<const std::uint8_t> x, std::span<const std::uint8_t> y)
+{
+	return crypto_core::internal::P256Point{crypto_core::ByteBuffer::copy_from(x), crypto_core::ByteBuffer::copy_from(y), false};
+}
+
+void require_invalid_key(auto result)
+{
+	require(!result.has_value());
+	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
+void test_base_point_is_on_curve()
+{
+	auto point = crypto_core::internal::p256_base_point();
+	require(point.has_value());
+
+	auto on_curve = crypto_core::internal::p256_is_on_curve(point.value());
+	require(on_curve.has_value());
+	require(on_curve.value());
+}
+
+void test_point_double_matches_known_two_g()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+
+	auto doubled = crypto_core::internal::p256_point_add(base.value(), base.value());
+	require(doubled.has_value());
+	require_point(
+	    doubled.value(),
+	    bytes("7CF27B188D034F7E8A52380304B51AC3C08969E277F21B35A60B48FC47669978"),
+	    bytes("07775510DB8ED040293D9AC69F7430DBBA7DADE63CE982299E04B79D227873D1"));
+}
+
+void test_point_add_matches_point_double_for_base_point()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+
+	auto added = crypto_core::internal::p256_point_add(base.value(), base.value());
+	auto doubled = crypto_core::internal::p256_scalar_multiply(std::array<std::uint8_t, 1>{0x02}, base.value());
+	require(added.has_value());
+	require(doubled.has_value());
+	require_point(doubled.value(), added.value().x.bytes(), added.value().y.bytes());
+}
+
+void test_scalar_multiply_by_two_matches_known_two_g()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+
+	auto doubled = crypto_core::internal::p256_scalar_multiply(std::array<std::uint8_t, 1>{0x02}, base.value());
+	require(doubled.has_value());
+	require_point(
+	    doubled.value(),
+	    bytes("7CF27B188D034F7E8A52380304B51AC3C08969E277F21B35A60B48FC47669978"),
+	    bytes("07775510DB8ED040293D9AC69F7430DBBA7DADE63CE982299E04B79D227873D1"));
+}
+
+void test_scalar_multiply_by_group_order_returns_infinity()
+{
+	auto result = crypto_core::internal::p256_base_point_multiply(crypto_core::internal::p256_group_order());
+	require(result.has_value());
+	require(result.value().infinity);
+}
+
+void test_scalar_inverse_satisfies_multiply_to_one()
+{
+	const std::array<std::uint8_t, 1> three{0x03};
+	auto inverse = crypto_core::internal::p256_scalar_inverse(three);
+	require(inverse.has_value());
+
+	auto product = crypto_core::internal::p256_scalar_multiply_mod(three, inverse.value().bytes());
+	require(product.has_value());
+	require_bytes(product.value().bytes(), std::array<std::uint8_t, 1>{0x01});
+}
+
+void test_rejects_point_not_on_curve()
+{
+	auto x = bytes("6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296");
+	auto y = bytes("4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F6");
+
+	auto point = crypto_core::internal::p256_point_from_coordinates(x, y);
+	require_invalid_key(point);
+}
+
+void test_point_add_rejects_off_curve_lhs()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+	auto off_curve = unchecked_point(
+	    bytes("6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296"),
+	    bytes("4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F6"));
+
+	require_invalid_key(crypto_core::internal::p256_point_add(off_curve, base.value()));
+}
+
+void test_point_add_rejects_off_curve_rhs()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+	auto off_curve = unchecked_point(
+	    bytes("6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296"),
+	    bytes("4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F6"));
+
+	require_invalid_key(crypto_core::internal::p256_point_add(base.value(), off_curve));
+}
+
+void test_x_mod_order_rejects_off_curve_point()
+{
+	auto off_curve = unchecked_point(
+	    bytes("0000000000000000000000000000000000000000000000000000000000000001"),
+	    bytes("0000000000000000000000000000000000000000000000000000000000000001"));
+
+	require_invalid_key(crypto_core::internal::p256_x_mod_order(off_curve));
+}
+
+} // namespace
+
+int main()
+{
+	test_base_point_is_on_curve();
+	test_point_double_matches_known_two_g();
+	test_point_add_matches_point_double_for_base_point();
+	test_scalar_multiply_by_two_matches_known_two_g();
+	test_scalar_multiply_by_group_order_returns_infinity();
+	test_scalar_inverse_satisfies_multiply_to_one();
+	test_rejects_point_not_on_curve();
+	test_point_add_rejects_off_curve_lhs();
+	test_point_add_rejects_off_curve_rhs();
+	test_x_mod_order_rejects_off_curve_point();
+	return 0;
+}

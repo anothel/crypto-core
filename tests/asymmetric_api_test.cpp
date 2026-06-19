@@ -214,12 +214,12 @@ void test_ec_key_generation_params_have_sign_verify_defaults()
 	require(!crypto_core::has_key_usage(params.private_usages, crypto_core::KeyUsage::decrypt));
 }
 
-void test_default_provider_reports_rsa_pss_signature_support()
+void test_default_provider_reports_signature_support()
 {
 	crypto_core::NativeProvider provider;
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
-	require(!provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
+	require(provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
 	require(!provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p384_sha384));
 	require(!provider.supports(crypto_core::SignatureAlgorithm::ed25519));
 	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep));
@@ -293,7 +293,7 @@ int main()
 	test_private_key_and_key_pair_are_move_only();
 	test_rsa_key_generation_params_have_safe_defaults();
 	test_ec_key_generation_params_have_sign_verify_defaults();
-	test_default_provider_reports_rsa_pss_signature_support();
+	test_default_provider_reports_signature_support();
 	test_asymmetric_provider_defaults_return_unsupported_algorithm();
 	test_invalid_signature_is_successful_verify_result();
 	return 0;

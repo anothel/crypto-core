@@ -2,6 +2,7 @@
 
 #include "crypto_core/internal/aes_cbc.hpp"
 #include "crypto_core/internal/aes_gcm.hpp"
+#include "crypto_core/internal/ecdsa.hpp"
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/kdf.hpp"
 #include "crypto_core/internal/os_rng.hpp"
@@ -32,6 +33,11 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 	}
 
 	return false;
+}
+
+bool is_ecdsa_algorithm(SignatureAlgorithm algorithm) noexcept
+{
+	return algorithm == SignatureAlgorithm::ecdsa_p256_sha256;
 }
 
 bool is_rsa_oaep_algorithm(AsymmetricEncryptionAlgorithm algorithm) noexcept
@@ -185,7 +191,7 @@ bool NativeProvider::supports(AeadAlgorithm algorithm) const noexcept
 
 bool NativeProvider::supports(SignatureAlgorithm algorithm) const noexcept
 {
-	return is_rsa_pss_algorithm(algorithm);
+	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
 }
 
 bool NativeProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
@@ -315,6 +321,31 @@ Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<cons
 
 Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept
 {
+	if (is_ecdsa_algorithm(params.algorithm))
+	{
+		if (params.public_key == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "public key is required"));
+		}
+		if (params.public_key->algorithm() != AsymmetricKeyAlgorithm::ecdsa_p256 || !params.public_key->allows(KeyUsage::verify))
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_key, "native_provider", "ECDSA P-256 verification key is required"));
+		}
+
+		auto message_hash = hash(*this, HashAlgorithm::sha256, message);
+		if (!message_hash)
+		{
+			return Result<VerifyResult>::failure(message_hash.error());
+		}
+
+		auto valid = internal::verify_ecdsa_p256_sha256_digest(params.public_key->bytes(), params.signature, message_hash.value().bytes());
+		if (!valid)
+		{
+			return Result<VerifyResult>::failure(valid.error());
+		}
+
+		return Result<VerifyResult>::success(valid.value() ? VerifyResult::valid() : VerifyResult::invalid());
+	}
 	if (!is_rsa_pss_algorithm(params.algorithm))
 	{
 		return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "native_provider", "signature algorithm is not supported by NativeProvider"));

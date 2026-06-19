@@ -18,6 +18,8 @@ add_library(crypto_core
     src/asymmetric.cpp
     src/bigint.cpp
     src/cipher.cpp
+    src/ecdsa.cpp
+    src/ec_der.cpp
     src/encoding.cpp
     src/hash.cpp
     src/hmac.cpp
@@ -30,6 +32,7 @@ add_library(crypto_core
     src/native_provider.cpp
     src/os_rng.cpp
     src/provider.cpp
+    src/p256.cpp
     src/rng.cpp
     src/rsa.cpp
     src/rsa_der.cpp
@@ -265,6 +268,39 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_rsa_der COMMAND crypto_core_native_rsa_der_tests)
+
+    add_executable(crypto_core_native_ecdsa_der_tests
+        tests/native_ecdsa_der_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_ecdsa_der_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_ecdsa_der COMMAND crypto_core_native_ecdsa_der_tests)
+
+    add_executable(crypto_core_native_p256_tests
+        tests/native_p256_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_p256_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_p256 COMMAND crypto_core_native_p256_tests)
+
+    add_executable(crypto_core_native_ecdsa_verify_tests
+        tests/native_ecdsa_verify_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_ecdsa_verify_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_ecdsa_verify COMMAND crypto_core_native_ecdsa_verify_tests)
 
     add_executable(crypto_core_native_rsa_primitive_tests
         tests/native_rsa_primitive_test.cpp
