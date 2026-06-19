@@ -19,6 +19,8 @@ public:
 	[[nodiscard]] static Result<BigInt> mod_subtract(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus);
 	[[nodiscard]] static Result<BigInt> mod_multiply(const BigInt &lhs, const BigInt &rhs, const BigInt &modulus);
 	[[nodiscard]] static Result<BigInt> mod_exp(const BigInt &base, const BigInt &exponent, const BigInt &modulus);
+	// Fixed operation-count ladder over exponent_bits; full constant-time requires fixed-limb BigInt.
+	[[nodiscard]] static Result<BigInt> mod_exp_secret(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits);
 
 	[[nodiscard]] ByteBuffer to_be_bytes() const;
 	[[nodiscard]] bool is_zero() const noexcept;

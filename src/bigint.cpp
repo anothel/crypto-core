@@ -101,6 +101,39 @@ Result<BigInt> BigInt::mod_exp(const BigInt &base, const BigInt &exponent, const
 	return Result<BigInt>::success(std::move(result));
 }
 
+Result<BigInt> BigInt::mod_exp_secret(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits)
+{
+	if (modulus.is_zero())
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "modulus must be non-zero"));
+	}
+	if (exponent.bit_length() > exponent_bits)
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "exponent bit width is too small"));
+	}
+
+	auto r0 = mod(one(), modulus);
+	auto r1 = mod(base, modulus);
+	for (std::size_t i = exponent_bits; i > 0; --i)
+	{
+		auto product = mod(multiply(r0, r1), modulus);
+		auto r0_squared = mod(multiply(r0, r0), modulus);
+		auto r1_squared = mod(multiply(r1, r1), modulus);
+		if (exponent.bit(i - 1U))
+		{
+			r0 = std::move(product);
+			r1 = std::move(r1_squared);
+		}
+		else
+		{
+			r0 = std::move(r0_squared);
+			r1 = std::move(product);
+		}
+	}
+
+	return Result<BigInt>::success(std::move(r0));
+}
+
 ByteBuffer BigInt::to_be_bytes() const
 {
 	if (is_zero())

@@ -121,6 +121,19 @@ void test_mod_exp_handles_values_larger_than_uint64()
 	require_bytes(result.value().to_be_bytes().bytes(), base);
 }
 
+void test_mod_exp_secret_matches_public_mod_exp()
+{
+	const std::array<std::uint8_t, 2> base{0x12, 0x34};
+	const std::array<std::uint8_t, 2> exponent{0x01, 0x01};
+	const std::array<std::uint8_t, 2> modulus{0x13, 0x57};
+
+	auto public_result = crypto_core::internal::BigInt::mod_exp(bigint(base), bigint(exponent), bigint(modulus));
+	auto secret_result = crypto_core::internal::BigInt::mod_exp_secret(bigint(base), bigint(exponent), bigint(modulus), exponent.size() * 8U);
+	require(public_result.has_value());
+	require(secret_result.has_value());
+	require_bytes(secret_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
+}
+
 void test_mod_operations_reject_zero_modulus()
 {
 	const std::array<std::uint8_t, 1> one{0x01};
@@ -141,6 +154,10 @@ void test_mod_operations_reject_zero_modulus()
 	auto exponent = crypto_core::internal::BigInt::mod_exp(bigint(one), bigint(one), bigint(zero));
 	require(!exponent.has_value());
 	require(exponent.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	auto secret_exponent = crypto_core::internal::BigInt::mod_exp_secret(bigint(one), bigint(one), bigint(zero), one.size() * 8U);
+	require(!secret_exponent.has_value());
+	require(secret_exponent.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
 } // namespace
@@ -154,6 +171,7 @@ int main()
 	test_mod_multiply_handles_values_larger_than_uint64();
 	test_mod_exp_small_values();
 	test_mod_exp_handles_values_larger_than_uint64();
+	test_mod_exp_secret_matches_public_mod_exp();
 	test_mod_operations_reject_zero_modulus();
 	return 0;
 }
