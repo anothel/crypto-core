@@ -21,6 +21,7 @@ public:
 	[[nodiscard]] static Result<BigInt> mod_exp(const BigInt &base, const BigInt &exponent, const BigInt &modulus);
 	// Fixed operation-count ladder over exponent_bits; full constant-time requires fixed-limb BigInt.
 	[[nodiscard]] static Result<BigInt> mod_exp_secret(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits);
+	[[nodiscard]] static Result<BigInt> mod_exp_secret_montgomery(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits);
 
 	[[nodiscard]] ByteBuffer to_be_bytes() const;
 	[[nodiscard]] bool is_zero() const noexcept;

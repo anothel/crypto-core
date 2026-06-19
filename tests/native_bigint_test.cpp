@@ -134,6 +134,41 @@ void test_mod_exp_secret_matches_public_mod_exp()
 	require_bytes(secret_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
 }
 
+void test_mod_exp_secret_keeps_even_modulus_ladder_fallback()
+{
+	const std::array<std::uint8_t, 1> base{0x03};
+	const std::array<std::uint8_t, 1> exponent{0x05};
+	const std::array<std::uint8_t, 1> even_modulus{0x10};
+
+	auto result = crypto_core::internal::BigInt::mod_exp_secret(bigint(base), bigint(exponent), bigint(even_modulus), exponent.size() * 8U);
+	require(result.has_value());
+	require_bytes(result.value().to_be_bytes().bytes(), std::array<std::uint8_t, 1>{0x03});
+}
+
+void test_mod_exp_secret_montgomery_matches_public_mod_exp()
+{
+	const std::array<std::uint8_t, 8> base{0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0};
+	const std::array<std::uint8_t, 4> exponent{0x01, 0x00, 0x01, 0x01};
+	const std::array<std::uint8_t, 8> odd_modulus{0xF1, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+
+	auto public_result = crypto_core::internal::BigInt::mod_exp(bigint(base), bigint(exponent), bigint(odd_modulus));
+	auto montgomery_result = crypto_core::internal::BigInt::mod_exp_secret_montgomery(bigint(base), bigint(exponent), bigint(odd_modulus), exponent.size() * 8U);
+	require(public_result.has_value());
+	require(montgomery_result.has_value());
+	require_bytes(montgomery_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
+}
+
+void test_mod_exp_secret_montgomery_rejects_even_modulus()
+{
+	const std::array<std::uint8_t, 1> base{0x03};
+	const std::array<std::uint8_t, 1> exponent{0x05};
+	const std::array<std::uint8_t, 1> even_modulus{0x10};
+
+	auto result = crypto_core::internal::BigInt::mod_exp_secret_montgomery(bigint(base), bigint(exponent), bigint(even_modulus), exponent.size() * 8U);
+	require(!result.has_value());
+	require(result.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_mod_operations_reject_zero_modulus()
 {
 	const std::array<std::uint8_t, 1> one{0x01};
@@ -172,6 +207,9 @@ int main()
 	test_mod_exp_small_values();
 	test_mod_exp_handles_values_larger_than_uint64();
 	test_mod_exp_secret_matches_public_mod_exp();
+	test_mod_exp_secret_keeps_even_modulus_ladder_fallback();
+	test_mod_exp_secret_montgomery_matches_public_mod_exp();
+	test_mod_exp_secret_montgomery_rejects_even_modulus();
 	test_mod_operations_reject_zero_modulus();
 	return 0;
 }

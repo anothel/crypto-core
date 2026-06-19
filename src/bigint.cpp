@@ -111,6 +111,10 @@ Result<BigInt> BigInt::mod_exp_secret(const BigInt &base, const BigInt &exponent
 	{
 		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "exponent bit width is too small"));
 	}
+	if (!modulus.limbs_.empty() && (modulus.limbs_.front() & 1U) != 0U)
+	{
+		return mod_exp_secret_montgomery(base, exponent, modulus, exponent_bits);
+	}
 
 	auto r0 = mod(one(), modulus);
 	auto r1 = mod(base, modulus);
@@ -132,6 +136,115 @@ Result<BigInt> BigInt::mod_exp_secret(const BigInt &base, const BigInt &exponent
 	}
 
 	return Result<BigInt>::success(std::move(r0));
+}
+
+Result<BigInt> BigInt::mod_exp_secret_montgomery(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits)
+{
+	if (modulus.is_zero())
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "modulus must be non-zero"));
+	}
+	if (exponent.bit_length() > exponent_bits)
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "exponent bit width is too small"));
+	}
+	if ((modulus.limbs_.front() & 1U) == 0U)
+	{
+		return Result<BigInt>::failure(make_error(ErrorCode::invalid_argument, "bigint", "Montgomery exponentiation requires an odd modulus"));
+	}
+
+	const auto width = modulus.limbs_.size();
+	auto fixed_limbs = [](const BigInt &value, std::size_t size) {
+		std::vector<std::uint32_t> output(size);
+		const auto take = std::min(value.limbs_.size(), size);
+		std::copy(value.limbs_.begin(), value.limbs_.begin() + static_cast<std::ptrdiff_t>(take), output.begin());
+		return output;
+	};
+	auto add_carry = [](std::vector<std::uint32_t> &limbs, std::size_t index, std::uint64_t carry) {
+		while (carry != 0)
+		{
+			const auto sum = static_cast<std::uint64_t>(limbs[index]) + carry;
+			limbs[index] = static_cast<std::uint32_t>(sum);
+			carry = sum >> 32U;
+			++index;
+		}
+	};
+	auto low_inverse = [](std::uint32_t value) {
+		std::uint32_t inverse = 1;
+		for (int i = 0; i < 5; ++i)
+		{
+			inverse *= 2U - (value * inverse);
+		}
+		return static_cast<std::uint32_t>(0U - inverse);
+	};
+
+	const auto n0_inverse = low_inverse(modulus.limbs_.front());
+	auto montgomery_multiply = [&](const BigInt &lhs, const BigInt &rhs) {
+		const auto left = fixed_limbs(mod(lhs, modulus), width);
+		const auto right = fixed_limbs(mod(rhs, modulus), width);
+		std::vector<std::uint32_t> accumulator((2U * width) + 2U);
+
+		for (std::size_t i = 0; i < width; ++i)
+		{
+			std::uint64_t carry = 0;
+			for (std::size_t j = 0; j < width; ++j)
+			{
+				const auto index = i + j;
+				const auto product = static_cast<std::uint64_t>(left[i]) * right[j] + accumulator[index] + carry;
+				accumulator[index] = static_cast<std::uint32_t>(product);
+				carry = product >> 32U;
+			}
+			add_carry(accumulator, i + width, carry);
+		}
+
+		for (std::size_t i = 0; i < width; ++i)
+		{
+			const auto factor = static_cast<std::uint32_t>(accumulator[i] * n0_inverse);
+			std::uint64_t carry = 0;
+			for (std::size_t j = 0; j < width; ++j)
+			{
+				const auto index = i + j;
+				const auto product = static_cast<std::uint64_t>(factor) * modulus.limbs_[j] + accumulator[index] + carry;
+				accumulator[index] = static_cast<std::uint32_t>(product);
+				carry = product >> 32U;
+			}
+			add_carry(accumulator, i + width, carry);
+		}
+
+		std::vector<std::uint32_t> reduced(width + 1U);
+		std::copy(accumulator.begin() + static_cast<std::ptrdiff_t>(width), accumulator.begin() + static_cast<std::ptrdiff_t>((2U * width) + 1U), reduced.begin());
+		auto result = BigInt(std::move(reduced));
+		if (result.compare(modulus) >= 0)
+		{
+			result = subtract(result, modulus);
+		}
+		return result;
+	};
+
+	const auto one_reduced = mod(one(), modulus);
+	const auto base_reduced = mod(base, modulus);
+	const auto r = mod(shift_left_bits(one(), width * 32U), modulus);
+	const auto r_squared = mod(multiply(r, r), modulus);
+	auto r0 = montgomery_multiply(one_reduced, r_squared);
+	auto r1 = montgomery_multiply(base_reduced, r_squared);
+	for (std::size_t i = exponent_bits; i > 0; --i)
+	{
+		auto product = montgomery_multiply(r0, r1);
+		auto r0_squared = montgomery_multiply(r0, r0);
+		auto r1_squared = montgomery_multiply(r1, r1);
+		if (exponent.bit(i - 1U))
+		{
+			r0 = std::move(product);
+			r1 = std::move(r1_squared);
+		}
+		else
+		{
+			r0 = std::move(r0_squared);
+			r1 = std::move(product);
+		}
+	}
+
+	return Result<BigInt>::success(montgomery_multiply(r0, one_reduced));
 }
 
 ByteBuffer BigInt::to_be_bytes() const
