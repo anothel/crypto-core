@@ -109,6 +109,27 @@ void test_scalar_multiply_by_group_order_returns_infinity()
 	require(result.value().infinity);
 }
 
+void test_scalar_multiply_by_group_order_plus_one_returns_base_point()
+{
+	auto scalar = std::vector<std::uint8_t>(
+	    crypto_core::internal::p256_group_order().begin(),
+	    crypto_core::internal::p256_group_order().end());
+	for (std::size_t i = scalar.size(); i > 0; --i)
+	{
+		++scalar[i - 1U];
+		if (scalar[i - 1U] != 0)
+		{
+			break;
+		}
+	}
+
+	auto base = crypto_core::internal::p256_base_point();
+	auto result = crypto_core::internal::p256_base_point_multiply(scalar);
+	require(base.has_value());
+	require(result.has_value());
+	require_point(result.value(), base.value().x.bytes(), base.value().y.bytes());
+}
+
 void test_scalar_inverse_satisfies_multiply_to_one()
 {
 	const std::array<std::uint8_t, 1> three{0x03};
@@ -118,6 +139,14 @@ void test_scalar_inverse_satisfies_multiply_to_one()
 	auto product = crypto_core::internal::p256_scalar_multiply_mod(three, inverse.value().bytes());
 	require(product.has_value());
 	require_bytes(product.value().bytes(), std::array<std::uint8_t, 1>{0x01});
+}
+
+void test_scalar_inverse_rejects_zero()
+{
+	const std::array<std::uint8_t, 1> zero{0x00};
+	auto inverse = crypto_core::internal::p256_scalar_inverse(zero);
+	require(!inverse.has_value());
+	require(inverse.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
 void test_rejects_point_not_on_curve()
@@ -169,7 +198,9 @@ int main()
 	test_point_add_matches_point_double_for_base_point();
 	test_scalar_multiply_by_two_matches_known_two_g();
 	test_scalar_multiply_by_group_order_returns_infinity();
+	test_scalar_multiply_by_group_order_plus_one_returns_base_point();
 	test_scalar_inverse_satisfies_multiply_to_one();
+	test_scalar_inverse_rejects_zero();
 	test_rejects_point_not_on_curve();
 	test_point_add_rejects_off_curve_lhs();
 	test_point_add_rejects_off_curve_rhs();

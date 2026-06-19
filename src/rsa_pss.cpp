@@ -173,10 +173,7 @@ Result<bool> emsa_pss_verify(std::span<const std::uint8_t> encoded_message, std:
 	{
 		return Result<bool>::success(false);
 	}
-	if (encoded_message.back() != 0xBCU)
-	{
-		return Result<bool>::success(false);
-	}
+	std::uint8_t valid_mask = constant_time_is_zero(static_cast<std::uint8_t>(encoded_message.back() ^ 0xBCU));
 
 	const auto masked_db_size = encoded_message.size() - hash_size - 1U;
 	const auto masked_db = encoded_message.first(masked_db_size);
@@ -185,10 +182,7 @@ Result<bool> emsa_pss_verify(std::span<const std::uint8_t> encoded_message, std:
 	if (unused_bits > 0)
 	{
 		const auto disallowed_mask = static_cast<std::uint8_t>(0xFFU << (8U - unused_bits));
-		if ((masked_db.front() & disallowed_mask) != 0U)
-		{
-			return Result<bool>::success(false);
-		}
+		valid_mask &= constant_time_is_zero(static_cast<std::uint8_t>(masked_db.front() & disallowed_mask));
 	}
 
 	auto db_mask = mgf1(params.mgf1_hash, hash, masked_db_size);
@@ -208,17 +202,13 @@ Result<bool> emsa_pss_verify(std::span<const std::uint8_t> encoded_message, std:
 	}
 
 	const auto padding_size = encoded_message.size() - hash_size - params.salt_length - 2U;
+	std::uint8_t padding_diff = 0;
 	for (std::size_t i = 0; i < padding_size; ++i)
 	{
-		if (db[i] != 0)
-		{
-			return Result<bool>::success(false);
-		}
+		padding_diff |= db[i];
 	}
-	if (db[padding_size] != 0x01U)
-	{
-		return Result<bool>::success(false);
-	}
+	valid_mask &= constant_time_is_zero(padding_diff);
+	valid_mask &= constant_time_is_zero(static_cast<std::uint8_t>(db[padding_size] ^ 0x01U));
 
 	auto expected_hash = pss_hash(params.message_hash, message_hash, std::span<const std::uint8_t>(db.data() + padding_size + 1U, params.salt_length));
 	if (!expected_hash)
@@ -226,7 +216,8 @@ Result<bool> emsa_pss_verify(std::span<const std::uint8_t> encoded_message, std:
 		return Result<bool>::failure(expected_hash.error());
 	}
 
-	return Result<bool>::success(constant_time_equal(hash, expected_hash.value().bytes()));
+	valid_mask &= constant_time_bool_mask(constant_time_equal(hash, expected_hash.value().bytes()));
+	return Result<bool>::success(valid_mask == 0xFFU);
 }
 
 } // namespace crypto_core::internal

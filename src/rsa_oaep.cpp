@@ -195,27 +195,25 @@ Result<ByteBuffer> eme_oaep_decode(std::span<const std::uint8_t> encoded_message
 	}
 
 	const auto label_hash_bytes = label_hash.value().bytes();
-	const bool label_matches = constant_time_equal(std::span<const std::uint8_t>(db.data(), hash_size), label_hash_bytes);
-	bool valid = encoded_message[0] == 0;
-	valid = valid && label_matches;
+	std::uint8_t valid_mask = constant_time_bool_mask(encoded_message[0] == 0);
+	valid_mask &= constant_time_bool_mask(constant_time_equal(std::span<const std::uint8_t>(db.data(), hash_size), label_hash_bytes));
 
 	std::size_t separator = db.size();
+	std::uint8_t scanning_mask = 0xFFU;
+	std::uint8_t invalid_padding_mask = 0x00U;
 	for (std::size_t i = hash_size; i < db.size(); ++i)
 	{
-		if (separator == db.size() && db[i] == 0x01U)
-		{
-			separator = i;
-		}
-		else if (separator == db.size() && db[i] != 0)
-		{
-			valid = false;
-		}
+		const auto is_zero = constant_time_is_zero(db[i]);
+		const auto is_one = constant_time_is_zero(static_cast<std::uint8_t>(db[i] ^ 0x01U));
+		const auto take_separator_mask = static_cast<std::uint8_t>(scanning_mask & is_one);
+		separator = constant_time_select_size(take_separator_mask, i, separator);
+		invalid_padding_mask |= static_cast<std::uint8_t>(scanning_mask & static_cast<std::uint8_t>(~static_cast<std::uint8_t>(is_zero | is_one)));
+		scanning_mask = static_cast<std::uint8_t>(scanning_mask & static_cast<std::uint8_t>(~is_one));
 	}
-	if (separator == db.size())
-	{
-		valid = false;
-	}
-	if (!valid)
+	valid_mask &= static_cast<std::uint8_t>(~invalid_padding_mask);
+	valid_mask &= static_cast<std::uint8_t>(~scanning_mask);
+
+	if (valid_mask != 0xFFU)
 	{
 		return Result<ByteBuffer>::failure(oaep_error(ErrorCode::authentication_failed, "RSA-OAEP encoded message is invalid"));
 	}

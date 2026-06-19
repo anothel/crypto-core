@@ -69,6 +69,16 @@ void test_memory_helpers()
 	assert(crypto_core::constant_time_equal(lhs, same));
 	assert(!crypto_core::constant_time_equal(lhs, different));
 	assert(!crypto_core::constant_time_equal(lhs, shorter));
+
+	assert(crypto_core::constant_time_bool_mask(false) == 0x00U);
+	assert(crypto_core::constant_time_bool_mask(true) == 0xFFU);
+	assert(crypto_core::constant_time_is_zero(0x00U) == 0xFFU);
+	assert(crypto_core::constant_time_is_zero(0x01U) == 0x00U);
+	assert(crypto_core::constant_time_is_zero(0x80U) == 0x00U);
+	assert(crypto_core::constant_time_select(0xFFU, 0xA5U, 0x5AU) == 0xA5U);
+	assert(crypto_core::constant_time_select(0x00U, 0xA5U, 0x5AU) == 0x5AU);
+	assert(crypto_core::constant_time_select_size(0xFFU, std::size_t{17}, std::size_t{23}) == std::size_t{17});
+	assert(crypto_core::constant_time_select_size(0x00U, std::size_t{17}, std::size_t{23}) == std::size_t{23});
 }
 
 void test_byte_buffer()

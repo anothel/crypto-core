@@ -81,6 +81,21 @@ void test_eme_oaep_rejects_tampered_encoding()
 	require(decoded.error().code() == crypto_core::ErrorCode::authentication_failed);
 }
 
+void test_eme_oaep_rejects_non_zero_leading_byte()
+{
+	const auto params = crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	const auto message = bytes("oaep leading byte");
+
+	auto encoded = crypto_core::internal::eme_oaep_encode(128, message.bytes(), fixed_seed, params);
+	require(encoded.has_value());
+
+	auto tampered = encoded.value();
+	tampered.bytes()[0] = 0x01U;
+	auto decoded = crypto_core::internal::eme_oaep_decode(tampered.bytes(), params);
+	require(!decoded.has_value());
+	require(decoded.error().code() == crypto_core::ErrorCode::authentication_failed);
+}
+
 void test_eme_oaep_rejects_too_large_message()
 {
 	const auto params = crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256);
@@ -98,6 +113,7 @@ int main()
 	test_eme_oaep_encode_decode_round_trip();
 	test_eme_oaep_honors_label();
 	test_eme_oaep_rejects_tampered_encoding();
+	test_eme_oaep_rejects_non_zero_leading_byte();
 	test_eme_oaep_rejects_too_large_message();
 	return 0;
 }

@@ -55,6 +55,12 @@ void test_emsa_pss_verify_rejects_tampered_encoding()
 	auto hash_result = crypto_core::internal::emsa_pss_verify(tampered_hash, 1023, sha256_abc, params);
 	require(hash_result.has_value());
 	require(!hash_result.value());
+
+	auto tampered_unused_bit = pss_sha256_encoded_message;
+	tampered_unused_bit[0] |= 0x80U;
+	auto unused_bit_result = crypto_core::internal::emsa_pss_verify(tampered_unused_bit, 1023, sha256_abc, params);
+	require(unused_bit_result.has_value());
+	require(!unused_bit_result.value());
 }
 
 void test_emsa_pss_verify_rejects_too_short_encoding()
