@@ -14,6 +14,7 @@ namespace crypto_core::internal
 [[nodiscard]] Result<bool> p256_fixed_is_on_curve(const P256Point &point);
 [[nodiscard]] Result<P256Point> p256_fixed_point_add(const P256Point &lhs, const P256Point &rhs);
 [[nodiscard]] Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scalar, const P256Point &point);
+[[nodiscard]] Result<P256Point> p256_fixed_base_point_select_window(std::uint8_t nibble);
 [[nodiscard]] Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::uint8_t> scalar);
 [[nodiscard]] Result<P256Point> p256_fixed_base_point_multiply(std::span<const std::uint8_t> scalar);
 [[nodiscard]] Result<ByteBuffer> p256_fixed_scalar_inverse(std::span<const std::uint8_t> scalar);

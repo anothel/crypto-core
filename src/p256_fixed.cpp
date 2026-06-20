@@ -1,6 +1,7 @@
 #include "crypto_core/internal/p256_fixed.hpp"
 
 #include "crypto_core/error.hpp"
+#include "crypto_core/memory.hpp"
 
 #include <algorithm>
 #include <array>
@@ -572,6 +573,16 @@ constexpr U256 n_minus_two_value{{0xFC63254FU, 0xF3B9CAC2U, 0xA7179E84U, 0xBCE6F
 	return table;
 }
 
+[[nodiscard]] std::uint8_t point_coordinate_byte(const P256Point &point, bool x_coordinate, std::size_t index) noexcept
+{
+	if (point.infinity)
+	{
+		return 0;
+	}
+	const auto bytes = x_coordinate ? point.x.bytes() : point.y.bytes();
+	return bytes[index];
+}
+
 } // namespace
 
 Result<P256Point> p256_fixed_point_from_coordinates(std::span<const std::uint8_t> x, std::span<const std::uint8_t> y)
@@ -680,6 +691,33 @@ Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scala
 	return jacobian_to_affine(result.value());
 }
 
+Result<P256Point> p256_fixed_base_point_select_window(std::uint8_t nibble)
+{
+	const auto selected_nibble = static_cast<std::uint8_t>(nibble & 0x0FU);
+	const auto &table = base_point_window_table();
+
+	std::vector<std::uint8_t> x(coordinate_size, 0);
+	std::vector<std::uint8_t> y(coordinate_size, 0);
+	std::uint8_t infinity = 0;
+
+	for (std::size_t i = 0; i < table.size(); ++i)
+	{
+		const auto mask = constant_time_is_zero(static_cast<std::uint8_t>(selected_nibble ^ static_cast<std::uint8_t>(i)));
+		infinity = constant_time_select(mask, constant_time_bool_mask(table[i].infinity), infinity);
+		for (std::size_t byte_index = 0; byte_index < coordinate_size; ++byte_index)
+		{
+			x[byte_index] = constant_time_select(mask, point_coordinate_byte(table[i], true, byte_index), x[byte_index]);
+			y[byte_index] = constant_time_select(mask, point_coordinate_byte(table[i], false, byte_index), y[byte_index]);
+		}
+	}
+
+	if (infinity != 0)
+	{
+		return Result<P256Point>::success(p256_point_at_infinity());
+	}
+	return Result<P256Point>::success(P256Point{ByteBuffer(std::move(x)), ByteBuffer(std::move(y)), false});
+}
+
 Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::uint8_t> scalar)
 {
 	auto result = jacobian_infinity();
@@ -688,7 +726,6 @@ Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::u
 		return Result<P256Point>::failure(result.error());
 	}
 
-	const auto &table = base_point_window_table();
 	for (const auto byte : scalar)
 	{
 		const std::array<std::uint8_t, 2> nibbles{
@@ -706,20 +743,22 @@ Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::u
 				result = std::move(doubled);
 			}
 
-			if (nibble != 0)
+			auto selected = p256_fixed_base_point_select_window(nibble);
+			if (!selected)
 			{
-				auto affine = load_affine(table[nibble]);
-				if (!affine)
-				{
-					return Result<P256Point>::failure(affine.error());
-				}
-				auto added = jacobian_add_affine(result.value(), affine.value());
-				if (!added)
-				{
-					return Result<P256Point>::failure(added.error());
-				}
-				result = std::move(added);
+				return Result<P256Point>::failure(selected.error());
 			}
+			auto affine = load_affine(selected.value());
+			if (!affine)
+			{
+				return Result<P256Point>::failure(affine.error());
+			}
+			auto added = jacobian_add_affine(result.value(), affine.value());
+			if (!added)
+			{
+				return Result<P256Point>::failure(added.error());
+			}
+			result = std::move(added);
 		}
 	}
 
