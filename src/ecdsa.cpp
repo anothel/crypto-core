@@ -1,14 +1,10 @@
 #include "crypto_core/internal/ecdsa.hpp"
 
 #include "crypto_core/error.hpp"
-#include "crypto_core/internal/bigint.hpp"
 #include "crypto_core/internal/ec_der.hpp"
 #include "crypto_core/internal/hmac.hpp"
-#include "crypto_core/internal/p256.hpp"
 #include "crypto_core/internal/p256_fixed.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -28,24 +24,6 @@ constexpr std::size_t sha256_digest_size = 32;
 	return make_error(code, "ecdsa", message);
 }
 
-[[nodiscard]] Result<BigInt> bigint(std::span<const std::uint8_t> bytes)
-{
-	return BigInt::from_be_bytes(bytes);
-}
-
-[[nodiscard]] Result<ByteBuffer> fixed_32_bytes(const BigInt &value)
-{
-	auto minimal = value.to_be_bytes();
-	if (minimal.size() > sha256_digest_size)
-	{
-		return Result<ByteBuffer>::failure(ecdsa_error(ErrorCode::internal_error, "scalar is too large"));
-	}
-
-	std::vector<std::uint8_t> output(sha256_digest_size);
-	std::copy(minimal.bytes().begin(), minimal.bytes().end(), output.begin() + static_cast<std::ptrdiff_t>(sha256_digest_size - minimal.size()));
-	return Result<ByteBuffer>::success(ByteBuffer(std::move(output)));
-}
-
 [[nodiscard]] Result<ByteBuffer> hmac_sha256(std::span<const std::uint8_t> key, std::span<const std::uint8_t> input)
 {
 	HmacContext context(HashAlgorithm::sha256, key);
@@ -63,22 +41,7 @@ constexpr std::size_t sha256_digest_size = 32;
 
 [[nodiscard]] Result<ByteBuffer> bits_to_octets(std::span<const std::uint8_t> digest)
 {
-	auto z = bigint(digest);
-	auto order = bigint(p256_group_order());
-	if (!z)
-	{
-		return Result<ByteBuffer>::failure(z.error());
-	}
-	if (!order)
-	{
-		return Result<ByteBuffer>::failure(order.error());
-	}
-	auto reduced = BigInt::mod_add(z.value(), BigInt::from_be_bytes(std::array<std::uint8_t, 1>{0x00}).value(), order.value());
-	if (!reduced)
-	{
-		return Result<ByteBuffer>::failure(reduced.error());
-	}
-	return fixed_32_bytes(reduced.value());
+	return p256_fixed_scalar_reduce_fixed_32(digest);
 }
 
 class Rfc6979P256Sha256 final

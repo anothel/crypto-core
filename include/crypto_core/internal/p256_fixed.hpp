@@ -18,6 +18,7 @@ namespace crypto_core::internal
 [[nodiscard]] Result<ByteBuffer> p256_fixed_scalar_inverse(std::span<const std::uint8_t> scalar);
 [[nodiscard]] Result<ByteBuffer> p256_fixed_scalar_add_mod(std::span<const std::uint8_t> lhs, std::span<const std::uint8_t> rhs);
 [[nodiscard]] Result<ByteBuffer> p256_fixed_scalar_multiply_mod(std::span<const std::uint8_t> lhs, std::span<const std::uint8_t> rhs);
+[[nodiscard]] Result<ByteBuffer> p256_fixed_scalar_reduce_fixed_32(std::span<const std::uint8_t> scalar);
 [[nodiscard]] Result<ByteBuffer> p256_fixed_x_mod_order(const P256Point &point);
 [[nodiscard]] Result<bool> p256_fixed_scalar_is_valid_nonzero(std::span<const std::uint8_t> scalar);
 

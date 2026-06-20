@@ -276,6 +276,30 @@ void test_fixed_scalar_add_mod_matches_reference_for_ecdsa_values()
 	require_bytes(fixed.value().bytes(), expected);
 }
 
+void test_fixed_scalar_reduce_fixed_32_matches_rfc6979_octets()
+{
+	auto digest = bytes("2458A32EE9865404E73CE768CE4B4F9945B9AFB819404BE4DB3EA45EA479F4D3");
+	auto order = bytes("FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551");
+	auto order_plus_one = bytes("FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632552");
+	auto leading_zero_order_plus_one = bytes("00FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632552");
+
+	auto reduced_digest = crypto_core::internal::p256_fixed_scalar_reduce_fixed_32(digest);
+	require(reduced_digest.has_value());
+	require_bytes(reduced_digest.value().bytes(), digest);
+
+	auto reduced_order = crypto_core::internal::p256_fixed_scalar_reduce_fixed_32(order);
+	require(reduced_order.has_value());
+	require_bytes(reduced_order.value().bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000000"));
+
+	auto reduced_order_plus_one = crypto_core::internal::p256_fixed_scalar_reduce_fixed_32(order_plus_one);
+	require(reduced_order_plus_one.has_value());
+	require_bytes(reduced_order_plus_one.value().bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000001"));
+
+	auto reduced_leading_zero = crypto_core::internal::p256_fixed_scalar_reduce_fixed_32(leading_zero_order_plus_one);
+	require(reduced_leading_zero.has_value());
+	require_bytes(reduced_leading_zero.value().bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000001"));
+}
+
 void test_fixed_x_mod_order_matches_reference()
 {
 	auto scalar = bytes("3141592653589793238462643383279502884197169399375105820974944592");
@@ -347,6 +371,7 @@ int main()
 	test_fixed_scalar_inverse_satisfies_multiply_to_one();
 	test_fixed_scalar_helpers_match_reference_for_ecdsa_values();
 	test_fixed_scalar_add_mod_matches_reference_for_ecdsa_values();
+	test_fixed_scalar_reduce_fixed_32_matches_rfc6979_octets();
 	test_fixed_x_mod_order_matches_reference();
 	test_fixed_ecdsa_recombination_matches_reference();
 	return 0;

@@ -709,6 +709,16 @@ Result<ByteBuffer> p256_fixed_scalar_multiply_mod(std::span<const std::uint8_t> 
 	return Result<ByteBuffer>::success(to_be_bytes_minimal(mod_multiply(left.value(), right.value(), n_value)));
 }
 
+Result<ByteBuffer> p256_fixed_scalar_reduce_fixed_32(std::span<const std::uint8_t> scalar)
+{
+	auto reduced = scalar_from_be_reduced(scalar);
+	if (!reduced)
+	{
+		return Result<ByteBuffer>::failure(reduced.error());
+	}
+	return Result<ByteBuffer>::success(to_be_bytes_fixed(reduced.value()));
+}
+
 Result<ByteBuffer> p256_fixed_x_mod_order(const P256Point &point)
 {
 	auto affine = require_affine_on_curve(point);
