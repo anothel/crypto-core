@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <iostream>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -13,6 +14,8 @@
 
 namespace
 {
+
+const char *current_test = "";
 
 constexpr std::string_view public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D03010703420004507A822E9DA764244CCE994EF0BB4ADEE4FD71B66585C56954BBAFC7BBD2FAA45424E4C9C7A95082E8AE73482CE33DAAB6C27530E728B3B8473A38D99704E480";
@@ -50,9 +53,17 @@ void require(bool condition)
 {
 	if (!condition)
 	{
+		std::cerr << current_test << '\n';
 		std::exit(1);
 	}
 }
+
+#define RUN_TEST(test_name) \
+	do \
+	{ \
+		current_test = #test_name; \
+		test_name(); \
+	} while (false)
 
 std::vector<std::uint8_t> bytes(std::string_view hex)
 {
@@ -420,30 +431,30 @@ void test_default_provider_signs_ecdsa_signature()
 
 int main()
 {
-	test_ecdsa_helper_verifies_static_openssl_vector();
-	test_ecdsa_helper_rejects_tampered_message_digest();
-	test_ecdsa_helper_rejects_tampered_signature();
-	test_ecdsa_helper_rejects_zero_r_or_s();
-	test_ecdsa_helper_rejects_out_of_range_r_or_s();
-	test_ecdsa_helper_rejects_malformed_signature_as_invalid();
-	test_ecdsa_helper_rejects_bad_public_key_as_error();
-	test_ecdsa_helper_rejects_off_curve_public_key_as_error();
-	test_ecdsa_helper_rejects_non_sha256_digest_size_as_error();
-	test_ecdsa_helper_signs_and_verifies_digest();
-	test_ecdsa_helper_signing_is_deterministic();
-	test_native_provider_reports_ecdsa_verify_support();
-	test_native_provider_signs_and_verifies_ecdsa_signature();
-	test_native_provider_ecdsa_signing_is_deterministic();
-	test_native_provider_rejects_ecdsa_sign_without_private_key();
-	test_native_provider_rejects_ecdsa_sign_key_without_sign_usage();
-	test_native_provider_verifies_static_openssl_ecdsa_signature();
-	test_native_provider_rejects_tampered_ecdsa_message();
-	test_native_provider_rejects_tampered_ecdsa_signature();
-	test_native_provider_rejects_empty_ecdsa_signature();
-	test_native_provider_rejects_rsa_key_for_ecdsa_verify();
-	test_native_provider_rejects_ecdsa_key_without_verify_usage();
-	test_native_provider_rejects_malformed_ecdsa_public_key();
-	test_default_provider_verifies_static_ecdsa_signature();
-	test_default_provider_signs_ecdsa_signature();
+	RUN_TEST(test_ecdsa_helper_verifies_static_openssl_vector);
+	RUN_TEST(test_ecdsa_helper_rejects_tampered_message_digest);
+	RUN_TEST(test_ecdsa_helper_rejects_tampered_signature);
+	RUN_TEST(test_ecdsa_helper_rejects_zero_r_or_s);
+	RUN_TEST(test_ecdsa_helper_rejects_out_of_range_r_or_s);
+	RUN_TEST(test_ecdsa_helper_rejects_malformed_signature_as_invalid);
+	RUN_TEST(test_ecdsa_helper_rejects_bad_public_key_as_error);
+	RUN_TEST(test_ecdsa_helper_rejects_off_curve_public_key_as_error);
+	RUN_TEST(test_ecdsa_helper_rejects_non_sha256_digest_size_as_error);
+	RUN_TEST(test_ecdsa_helper_signs_and_verifies_digest);
+	RUN_TEST(test_ecdsa_helper_signing_is_deterministic);
+	RUN_TEST(test_native_provider_reports_ecdsa_verify_support);
+	RUN_TEST(test_native_provider_signs_and_verifies_ecdsa_signature);
+	RUN_TEST(test_native_provider_ecdsa_signing_is_deterministic);
+	RUN_TEST(test_native_provider_rejects_ecdsa_sign_without_private_key);
+	RUN_TEST(test_native_provider_rejects_ecdsa_sign_key_without_sign_usage);
+	RUN_TEST(test_native_provider_verifies_static_openssl_ecdsa_signature);
+	RUN_TEST(test_native_provider_rejects_tampered_ecdsa_message);
+	RUN_TEST(test_native_provider_rejects_tampered_ecdsa_signature);
+	RUN_TEST(test_native_provider_rejects_empty_ecdsa_signature);
+	RUN_TEST(test_native_provider_rejects_rsa_key_for_ecdsa_verify);
+	RUN_TEST(test_native_provider_rejects_ecdsa_key_without_verify_usage);
+	RUN_TEST(test_native_provider_rejects_malformed_ecdsa_public_key);
+	RUN_TEST(test_default_provider_verifies_static_ecdsa_signature);
+	RUN_TEST(test_default_provider_signs_ecdsa_signature);
 	return 0;
 }

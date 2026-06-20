@@ -33,6 +33,7 @@ add_library(crypto_core
     src/os_rng.cpp
     src/provider.cpp
     src/p256.cpp
+    src/p256_fixed.cpp
     src/rng.cpp
     src/rsa.cpp
     src/rsa_der.cpp
