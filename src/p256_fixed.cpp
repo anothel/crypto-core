@@ -547,6 +547,31 @@ constexpr U256 n_minus_two_value{{0xFC63254FU, 0xF3B9CAC2U, 0xA7179E84U, 0xBCE6F
 	return make_point(field_multiply(point.x, z_inverse_squared), field_multiply(point.y, z_inverse_cubed));
 }
 
+[[nodiscard]] const std::array<P256Point, 16> &base_point_window_table()
+{
+	static const auto table = [] {
+		std::array<P256Point, 16> output{};
+		output[0] = p256_point_at_infinity();
+		auto base = make_point(gx_value, gy_value);
+		if (!base)
+		{
+			return output;
+		}
+		output[1] = base.value();
+		for (std::size_t i = 2; i < output.size(); ++i)
+		{
+			auto next = p256_fixed_point_add(output[i - 1U], output[1]);
+			if (!next)
+			{
+				return output;
+			}
+			output[i] = std::move(next.value());
+		}
+		return output;
+	}();
+	return table;
+}
+
 } // namespace
 
 Result<P256Point> p256_fixed_point_from_coordinates(std::span<const std::uint8_t> x, std::span<const std::uint8_t> y)
@@ -655,14 +680,55 @@ Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scala
 	return jacobian_to_affine(result.value());
 }
 
+Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::uint8_t> scalar)
+{
+	auto result = jacobian_infinity();
+	if (!result)
+	{
+		return Result<P256Point>::failure(result.error());
+	}
+
+	const auto &table = base_point_window_table();
+	for (const auto byte : scalar)
+	{
+		const std::array<std::uint8_t, 2> nibbles{
+		    static_cast<std::uint8_t>((byte >> 4U) & 0x0FU),
+		    static_cast<std::uint8_t>(byte & 0x0FU)};
+		for (const auto nibble : nibbles)
+		{
+			for (int i = 0; i < 4; ++i)
+			{
+				auto doubled = jacobian_double(result.value());
+				if (!doubled)
+				{
+					return Result<P256Point>::failure(doubled.error());
+				}
+				result = std::move(doubled);
+			}
+
+			if (nibble != 0)
+			{
+				auto affine = load_affine(table[nibble]);
+				if (!affine)
+				{
+					return Result<P256Point>::failure(affine.error());
+				}
+				auto added = jacobian_add_affine(result.value(), affine.value());
+				if (!added)
+				{
+					return Result<P256Point>::failure(added.error());
+				}
+				result = std::move(added);
+			}
+		}
+	}
+
+	return jacobian_to_affine(result.value());
+}
+
 Result<P256Point> p256_fixed_base_point_multiply(std::span<const std::uint8_t> scalar)
 {
-	auto base = make_point(gx_value, gy_value);
-	if (!base)
-	{
-		return Result<P256Point>::failure(base.error());
-	}
-	return p256_fixed_scalar_multiply(scalar, base.value());
+	return p256_fixed_base_point_multiply_windowed(scalar);
 }
 
 Result<ByteBuffer> p256_fixed_scalar_inverse(std::span<const std::uint8_t> scalar)

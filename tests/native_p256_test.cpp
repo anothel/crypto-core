@@ -201,6 +201,32 @@ void test_fixed_base_point_multiply_matches_reference()
 	require_point(fixed.value(), reference.value().x.bytes(), reference.value().y.bytes());
 }
 
+void test_fixed_windowed_base_point_multiply_matches_reference()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+
+	const auto scalars = std::array{
+	    bytes("00"),
+	    bytes("01"),
+	    bytes("02"),
+	    bytes("11223344556677889900AABBCCDDEEFF0102030405060708090A0B0C0D0E0F10"),
+	    std::vector<std::uint8_t>(crypto_core::internal::p256_group_order().begin(), crypto_core::internal::p256_group_order().end())};
+
+	for (const auto &scalar : scalars)
+	{
+		auto reference = crypto_core::internal::p256_fixed_scalar_multiply(scalar, base.value());
+		auto windowed = crypto_core::internal::p256_fixed_base_point_multiply_windowed(scalar);
+		require(reference.has_value());
+		require(windowed.has_value());
+		require(windowed.value().infinity == reference.value().infinity);
+		if (!reference.value().infinity)
+		{
+			require_point(windowed.value(), reference.value().x.bytes(), reference.value().y.bytes());
+		}
+	}
+}
+
 void test_fixed_scalar_multiply_matches_reference()
 {
 	auto scalar = bytes("0102030405060708090A0B0C0D0E0F1011223344556677889900AABBCCDDEEFF");
@@ -366,6 +392,7 @@ int main()
 	test_point_add_rejects_off_curve_rhs();
 	test_x_mod_order_rejects_off_curve_point();
 	test_fixed_base_point_multiply_matches_reference();
+	test_fixed_windowed_base_point_multiply_matches_reference();
 	test_fixed_scalar_multiply_matches_reference();
 	test_fixed_scalar_multiply_arbitrary_point_matches_reference();
 	test_fixed_scalar_inverse_satisfies_multiply_to_one();
