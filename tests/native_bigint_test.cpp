@@ -85,6 +85,18 @@ void test_mod_add_and_subtract_wrap_values()
 	require_bytes(subtract.value().to_be_bytes().bytes(), std::array<std::uint8_t, 1>{0x08});
 }
 
+void test_constant_time_select_chooses_requested_bigint()
+{
+	const std::array<std::uint8_t, 3> left{0x12, 0x34, 0x56};
+	const std::array<std::uint8_t, 2> right{0xAB, 0xCD};
+
+	auto selected_left = crypto_core::internal::BigInt::constant_time_select(0xFFU, bigint(left), bigint(right), 4U);
+	require_bytes(selected_left.to_be_bytes().bytes(), left);
+
+	auto selected_right = crypto_core::internal::BigInt::constant_time_select(0x00U, bigint(left), bigint(right), 4U);
+	require_bytes(selected_right.to_be_bytes().bytes(), right);
+}
+
 void test_mod_multiply_handles_values_larger_than_uint64()
 {
 	const std::array<std::uint8_t, 9> almost_modulus{
@@ -158,6 +170,24 @@ void test_mod_exp_secret_montgomery_matches_public_mod_exp()
 	require_bytes(montgomery_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
 }
 
+void test_mod_exp_secret_accepts_wider_exponent_bit_width()
+{
+	const std::array<std::uint8_t, 3> base{0x12, 0x34, 0x56};
+	const std::array<std::uint8_t, 1> exponent{0xA5};
+	const std::array<std::uint8_t, 3> odd_modulus{0xFE, 0xDC, 0xBB};
+	const auto wider_bits = std::size_t{16};
+
+	auto public_result = crypto_core::internal::BigInt::mod_exp(bigint(base), bigint(exponent), bigint(odd_modulus));
+	auto secret_result = crypto_core::internal::BigInt::mod_exp_secret(bigint(base), bigint(exponent), bigint(odd_modulus), wider_bits);
+	auto montgomery_result = crypto_core::internal::BigInt::mod_exp_secret_montgomery(bigint(base), bigint(exponent), bigint(odd_modulus), wider_bits);
+
+	require(public_result.has_value());
+	require(secret_result.has_value());
+	require(montgomery_result.has_value());
+	require_bytes(secret_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
+	require_bytes(montgomery_result.value().to_be_bytes().bytes(), public_result.value().to_be_bytes().bytes());
+}
+
 void test_mod_exp_secret_montgomery_rejects_even_modulus()
 {
 	const std::array<std::uint8_t, 1> base{0x03};
@@ -203,12 +233,14 @@ int main()
 	test_bigint_compare_ignores_leading_zeroes();
 	test_mod_multiply_small_values();
 	test_mod_add_and_subtract_wrap_values();
+	test_constant_time_select_chooses_requested_bigint();
 	test_mod_multiply_handles_values_larger_than_uint64();
 	test_mod_exp_small_values();
 	test_mod_exp_handles_values_larger_than_uint64();
 	test_mod_exp_secret_matches_public_mod_exp();
 	test_mod_exp_secret_keeps_even_modulus_ladder_fallback();
 	test_mod_exp_secret_montgomery_matches_public_mod_exp();
+	test_mod_exp_secret_accepts_wider_exponent_bit_width();
 	test_mod_exp_secret_montgomery_rejects_even_modulus();
 	test_mod_operations_reject_zero_modulus();
 	return 0;

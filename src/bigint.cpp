@@ -123,16 +123,9 @@ Result<BigInt> BigInt::mod_exp_secret(const BigInt &base, const BigInt &exponent
 		auto product = mod(multiply(r0, r1), modulus);
 		auto r0_squared = mod(multiply(r0, r0), modulus);
 		auto r1_squared = mod(multiply(r1, r1), modulus);
-		if (exponent.bit(i - 1U))
-		{
-			r0 = std::move(product);
-			r1 = std::move(r1_squared);
-		}
-		else
-		{
-			r0 = std::move(r0_squared);
-			r1 = std::move(product);
-		}
+		const auto mask = static_cast<std::uint8_t>(0U - static_cast<std::uint8_t>(exponent.bit(i - 1U)));
+		r0 = constant_time_select(mask, product, r0_squared, modulus.limbs_.size());
+		r1 = constant_time_select(mask, r1_squared, product, modulus.limbs_.size());
 	}
 
 	return Result<BigInt>::success(std::move(r0));
@@ -232,19 +225,26 @@ Result<BigInt> BigInt::mod_exp_secret_montgomery(const BigInt &base, const BigIn
 		auto product = montgomery_multiply(r0, r1);
 		auto r0_squared = montgomery_multiply(r0, r0);
 		auto r1_squared = montgomery_multiply(r1, r1);
-		if (exponent.bit(i - 1U))
-		{
-			r0 = std::move(product);
-			r1 = std::move(r1_squared);
-		}
-		else
-		{
-			r0 = std::move(r0_squared);
-			r1 = std::move(product);
-		}
+		const auto mask = static_cast<std::uint8_t>(0U - static_cast<std::uint8_t>(exponent.bit(i - 1U)));
+		r0 = constant_time_select(mask, product, r0_squared, width);
+		r1 = constant_time_select(mask, r1_squared, product, width);
 	}
 
 	return Result<BigInt>::success(montgomery_multiply(r0, one_reduced));
+}
+
+BigInt BigInt::constant_time_select(std::uint8_t mask, const BigInt &if_set, const BigInt &if_clear, std::size_t width)
+{
+	const auto word_mask = std::uint32_t{0} - static_cast<std::uint32_t>((mask >> 7U) & 1U);
+	std::vector<std::uint32_t> output(width);
+	for (std::size_t i = 0; i < width; ++i)
+	{
+		const auto set_limb = i < if_set.limbs_.size() ? if_set.limbs_[i] : 0U;
+		const auto clear_limb = i < if_clear.limbs_.size() ? if_clear.limbs_[i] : 0U;
+		output[i] = (set_limb & word_mask) | (clear_limb & ~word_mask);
+	}
+
+	return BigInt(std::move(output));
 }
 
 ByteBuffer BigInt::to_be_bytes() const
