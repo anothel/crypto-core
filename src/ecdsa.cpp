@@ -7,8 +7,8 @@
 #include "crypto_core/internal/p256.hpp"
 #include "crypto_core/internal/p256_fixed.hpp"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -79,11 +79,6 @@ constexpr std::size_t sha256_digest_size = 32;
 		return Result<ByteBuffer>::failure(reduced.error());
 	}
 	return fixed_32_bytes(reduced.value());
-}
-
-[[nodiscard]] bool valid_scalar(const BigInt &value, const BigInt &order) noexcept
-{
-	return !value.is_zero() && value.compare(order) < 0;
 }
 
 class Rfc6979P256Sha256 final
@@ -233,17 +228,12 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 		return Result<ByteBuffer>::failure(private_key.error());
 	}
 
-	auto order = bigint(p256_group_order());
-	if (!order)
+	auto private_scalar_valid = p256_fixed_scalar_is_valid_nonzero(private_key.value().private_scalar.bytes());
+	if (!private_scalar_valid)
 	{
-		return Result<ByteBuffer>::failure(order.error());
+		return Result<ByteBuffer>::failure(private_scalar_valid.error());
 	}
-	auto private_scalar = bigint(private_key.value().private_scalar.bytes());
-	if (!private_scalar)
-	{
-		return Result<ByteBuffer>::failure(private_scalar.error());
-	}
-	if (!valid_scalar(private_scalar.value(), order.value()))
+	if (!private_scalar_valid.value())
 	{
 		return Result<ByteBuffer>::failure(ecdsa_error(ErrorCode::invalid_key, "invalid P-256 private scalar"));
 	}
@@ -262,12 +252,12 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 		{
 			return Result<ByteBuffer>::failure(k_bytes.error());
 		}
-		auto k = bigint(k_bytes.value().bytes());
-		if (!k)
+		auto k_valid = p256_fixed_scalar_is_valid_nonzero(k_bytes.value().bytes());
+		if (!k_valid)
 		{
-			return Result<ByteBuffer>::failure(k.error());
+			return Result<ByteBuffer>::failure(k_valid.error());
 		}
-		if (!valid_scalar(k.value(), order.value()))
+		if (!k_valid.value())
 		{
 			auto rejected = nonce.value().reject();
 			if (!rejected)
@@ -277,7 +267,7 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 			continue;
 		}
 
-		auto point = p256_base_point_multiply(k_bytes.value().bytes());
+		auto point = p256_fixed_base_point_multiply(k_bytes.value().bytes());
 		if (!point)
 		{
 			return Result<ByteBuffer>::failure(point.error());
@@ -292,17 +282,17 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 			continue;
 		}
 
-		auto r = p256_x_mod_order(point.value());
+		auto r = p256_fixed_x_mod_order(point.value());
 		if (!r)
 		{
 			return Result<ByteBuffer>::failure(r.error());
 		}
-		auto r_int = bigint(r.value().bytes());
-		if (!r_int)
+		auto r_valid = p256_fixed_scalar_is_valid_nonzero(r.value().bytes());
+		if (!r_valid)
 		{
-			return Result<ByteBuffer>::failure(r_int.error());
+			return Result<ByteBuffer>::failure(r_valid.error());
 		}
-		if (r_int.value().is_zero())
+		if (!r_valid.value())
 		{
 			auto rejected = nonce.value().reject();
 			if (!rejected)
@@ -312,39 +302,33 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 			continue;
 		}
 
-		auto rd = BigInt::mod_multiply(r_int.value(), private_scalar.value(), order.value());
-		auto z = bigint(digest);
+		auto rd = p256_fixed_scalar_multiply_mod(r.value().bytes(), private_key.value().private_scalar.bytes());
 		if (!rd)
 		{
 			return Result<ByteBuffer>::failure(rd.error());
 		}
-		if (!z)
-		{
-			return Result<ByteBuffer>::failure(z.error());
-		}
-		auto sum = BigInt::mod_add(z.value(), rd.value(), order.value());
+		auto sum = p256_fixed_scalar_add_mod(digest, rd.value().bytes());
 		if (!sum)
 		{
 			return Result<ByteBuffer>::failure(sum.error());
 		}
 
-		auto k_inverse = p256_scalar_inverse(k_bytes.value().bytes());
+		auto k_inverse = p256_fixed_scalar_inverse(k_bytes.value().bytes());
 		if (!k_inverse)
 		{
 			return Result<ByteBuffer>::failure(k_inverse.error());
 		}
-		auto sum_bytes = sum.value().to_be_bytes();
-		auto s = p256_scalar_multiply_mod(k_inverse.value().bytes(), sum_bytes.bytes());
+		auto s = p256_fixed_scalar_multiply_mod(k_inverse.value().bytes(), sum.value().bytes());
 		if (!s)
 		{
 			return Result<ByteBuffer>::failure(s.error());
 		}
-		auto s_int = bigint(s.value().bytes());
-		if (!s_int)
+		auto s_valid = p256_fixed_scalar_is_valid_nonzero(s.value().bytes());
+		if (!s_valid)
 		{
-			return Result<ByteBuffer>::failure(s_int.error());
+			return Result<ByteBuffer>::failure(s_valid.error());
 		}
-		if (s_int.value().is_zero())
+		if (!s_valid.value())
 		{
 			auto rejected = nonce.value().reject();
 			if (!rejected)

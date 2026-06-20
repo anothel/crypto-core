@@ -679,6 +679,21 @@ Result<ByteBuffer> p256_fixed_scalar_inverse(std::span<const std::uint8_t> scala
 	return Result<ByteBuffer>::success(to_be_bytes_minimal(mod_exp(reduced.value(), n_minus_two_value, n_value)));
 }
 
+Result<ByteBuffer> p256_fixed_scalar_add_mod(std::span<const std::uint8_t> lhs, std::span<const std::uint8_t> rhs)
+{
+	auto left = scalar_from_be_reduced(lhs);
+	if (!left)
+	{
+		return Result<ByteBuffer>::failure(left.error());
+	}
+	auto right = scalar_from_be_reduced(rhs);
+	if (!right)
+	{
+		return Result<ByteBuffer>::failure(right.error());
+	}
+	return Result<ByteBuffer>::success(to_be_bytes_minimal(mod_add(left.value(), right.value(), n_value)));
+}
+
 Result<ByteBuffer> p256_fixed_scalar_multiply_mod(std::span<const std::uint8_t> lhs, std::span<const std::uint8_t> rhs)
 {
 	auto left = scalar_from_be_reduced(lhs);

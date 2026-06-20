@@ -265,6 +265,17 @@ void test_fixed_scalar_helpers_match_reference_for_ecdsa_values()
 	require_bytes(fixed_u2.value().bytes(), reference_u2.value().bytes());
 }
 
+void test_fixed_scalar_add_mod_matches_reference_for_ecdsa_values()
+{
+	auto digest = bytes("2458A32EE9865404E73CE768CE4B4F9945B9AFB819404BE4DB3EA45EA479F4D3");
+	auto rd = bytes("32867704082A2019E5C357816D85382C34F0790063B6A045025486B974B69944");
+	auto expected = bytes("56DF1A32F1B0741ECD003EEA3BD087C57AAA28B87CF6EC29DD932B1819308E17");
+
+	auto fixed = crypto_core::internal::p256_fixed_scalar_add_mod(digest, rd);
+	require(fixed.has_value());
+	require_bytes(fixed.value().bytes(), expected);
+}
+
 void test_fixed_x_mod_order_matches_reference()
 {
 	auto scalar = bytes("3141592653589793238462643383279502884197169399375105820974944592");
@@ -335,6 +346,7 @@ int main()
 	test_fixed_scalar_multiply_arbitrary_point_matches_reference();
 	test_fixed_scalar_inverse_satisfies_multiply_to_one();
 	test_fixed_scalar_helpers_match_reference_for_ecdsa_values();
+	test_fixed_scalar_add_mod_matches_reference_for_ecdsa_values();
 	test_fixed_x_mod_order_matches_reference();
 	test_fixed_ecdsa_recombination_matches_reference();
 	return 0;
