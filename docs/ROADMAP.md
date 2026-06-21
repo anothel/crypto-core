@@ -45,10 +45,12 @@ Remaining slices:
    - output: spec + implementation plan
 
 2. `M` RSA-2048 fixed-width arithmetic core
-   - add fixed-width import/export
-   - add fixed-width compare/select/add/sub
+   - fixed-width import/export delivered
+   - fixed-width compare/select/add/sub delivered
    - add fixed-width Montgomery multiply/reduce
-   - minimum tests: 20+ arithmetic vectors
+   - current tests: import/export, zero, oversize rejection, equality,
+     less-than, select, add, subtract, width mismatch
+   - remaining minimum tests: Montgomery multiply/reduce vectors
 
 3. `M` RSA-2048 fixed-width private exponent path
    - route one private CRT branch through fixed-width Montgomery exponentiation

@@ -37,6 +37,7 @@ add_library(crypto_core
     src/rng.cpp
     src/rsa.cpp
     src/rsa_der.cpp
+    src/rsa_fixed_bigint.cpp
     src/rsa_oaep.cpp
     src/rsa_pss.cpp
     src/sha2.cpp
@@ -148,6 +149,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_bigint COMMAND crypto_core_native_bigint_tests)
+
+    add_executable(crypto_core_native_rsa_fixed_bigint_tests
+        tests/native_rsa_fixed_bigint_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_rsa_fixed_bigint_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_rsa_fixed_bigint COMMAND crypto_core_native_rsa_fixed_bigint_tests)
 
     add_executable(crypto_core_mac_tests
         tests/mac_test.cpp
