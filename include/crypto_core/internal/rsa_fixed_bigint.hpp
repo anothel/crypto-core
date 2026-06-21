@@ -18,6 +18,7 @@ public:
 
 	[[nodiscard]] static Result<RsaFixedBigInt> zero(std::size_t width);
 	[[nodiscard]] static Result<RsaFixedBigInt> from_be_bytes(std::span<const std::uint8_t> bytes, std::size_t width);
+	[[nodiscard]] static Result<RsaFixedBigInt> from_be_bytes_mod(std::span<const std::uint8_t> bytes, const RsaFixedBigInt &modulus);
 
 	[[nodiscard]] ByteBuffer to_be_bytes() const;
 	[[nodiscard]] bool is_zero() const noexcept;
@@ -33,6 +34,7 @@ public:
 	[[nodiscard]] static Result<RsaFixedBigInt> montgomery_multiply(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs, const RsaFixedBigInt &modulus);
 	[[nodiscard]] static Result<RsaFixedBigInt> to_montgomery(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
 	[[nodiscard]] static Result<RsaFixedBigInt> from_montgomery(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<RsaFixedBigInt> montgomery_mod_exp_secret(const RsaFixedBigInt &base, std::span<const std::uint8_t> exponent, const RsaFixedBigInt &modulus, std::size_t exponent_bits);
 
 private:
 	explicit RsaFixedBigInt(std::size_t width) noexcept;
@@ -41,6 +43,8 @@ private:
 	[[nodiscard]] static Result<void> require_matching_widths(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs);
 	[[nodiscard]] static Result<void> require_montgomery_modulus(const RsaFixedBigInt &modulus);
 	[[nodiscard]] static Result<void> require_reduced_value(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static bool exponent_bit(std::span<const std::uint8_t> exponent, std::size_t bit_index) noexcept;
+	[[nodiscard]] static RsaFixedBigInt add_one_mod(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
 	[[nodiscard]] static RsaFixedBigInt double_mod(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
 	[[nodiscard]] static RsaFixedBigInt subtract_modulus_if_needed(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus, std::uint32_t high_limb);
 

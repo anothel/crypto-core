@@ -28,7 +28,7 @@ Every implementation slice must pass:
 ### 1.1 RSA Hardening and Completion
 
 Status: active  
-Size: `M` remaining  
+Size: `S` remaining
 Priority: P0
 
 Goal:
@@ -38,26 +38,7 @@ Goal:
 
 Remaining slices:
 
-1. `M` RSA fixed-width BigInt design
-   - decide runtime fixed-width buffer shape
-   - define supported first target: RSA-2048
-   - document rejected scope: native RSA key generation, formal CT proof
-   - output: spec + implementation plan
-
-2. `M` RSA-2048 fixed-width arithmetic core
-   - fixed-width import/export delivered
-   - fixed-width compare/select/add/sub delivered
-   - add fixed-width Montgomery multiply/reduce
-   - current tests: import/export, zero, oversize rejection, equality,
-     less-than, select, add, subtract, width mismatch
-   - remaining minimum tests: Montgomery multiply/reduce vectors
-
-3. `M` RSA-2048 fixed-width private exponent path
-   - route one private CRT branch through fixed-width Montgomery exponentiation
-   - compare against existing variable BigInt path
-   - minimum tests: RSA primitive, RSA provider, RSA reference-vector targets
-
-4. `S` RSA private-operation audit note
+1. `S` RSA private-operation audit note
    - document which private paths use fixed-width arithmetic
    - document remaining variable-limb fallback boundary
    - update this roadmap if RSA hardening leaves active P0 status
@@ -66,11 +47,7 @@ Exit criteria:
 
 - RSA-PSS sign/verify fixed reference vectors pass
 - RSA-OAEP decrypt fixed reference vectors pass
-- `crypto_core.native_bigint` or successor fixed-width test target has 20+
-  arithmetic cases
-- native full suite passes
-- OpenSSL-enabled full suite passes
-- roadmap no longer lists RSA hardening as active P0
+- audit note confirms whether RSA hardening can leave active P0
 
 Deferred:
 

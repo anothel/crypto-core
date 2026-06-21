@@ -265,6 +265,33 @@ void test_montgomery_domain_multiply_round_trip()
 	require_bytes(normal_product.value().to_be_bytes().bytes(), expected);
 }
 
+void test_from_be_bytes_mod_reduces_wide_input()
+{
+	const std::array<std::uint8_t, 2> input{0x0A, 0xE6};
+	const std::array<std::uint8_t, 1> modulus_bytes{0x3D};
+	const std::array<std::uint8_t, 4> expected{0x00, 0x00, 0x00, 0x2D};
+
+	auto reduced = crypto_core::internal::RsaFixedBigInt::from_be_bytes_mod(input, fixed(modulus_bytes, 1));
+	require(reduced.has_value());
+	require_bytes(reduced.value().to_be_bytes().bytes(), expected);
+}
+
+void test_montgomery_mod_exp_secret_matches_crt_branch_value()
+{
+	const std::array<std::uint8_t, 2> input{0x0A, 0xE6};
+	const std::array<std::uint8_t, 1> exponent{0x35};
+	const std::array<std::uint8_t, 1> modulus_bytes{0x3D};
+	const std::array<std::uint8_t, 4> expected{0x00, 0x00, 0x00, 0x04};
+
+	auto modulus = fixed(modulus_bytes, 1);
+	auto base = crypto_core::internal::RsaFixedBigInt::from_be_bytes_mod(input, modulus);
+	require(base.has_value());
+
+	auto output = crypto_core::internal::RsaFixedBigInt::montgomery_mod_exp_secret(base.value(), exponent, modulus, 8U);
+	require(output.has_value());
+	require_bytes(output.value().to_be_bytes().bytes(), expected);
+}
+
 void test_montgomery_rejects_invalid_modulus_and_width()
 {
 	const std::array<std::uint8_t, 1> value_bytes{0x05};
@@ -403,6 +430,8 @@ int main()
 	test_montgomery_r_squared_matches_expected();
 	test_montgomery_round_trip();
 	test_montgomery_domain_multiply_round_trip();
+	test_from_be_bytes_mod_reduces_wide_input();
+	test_montgomery_mod_exp_secret_matches_crt_branch_value();
 	test_montgomery_rejects_invalid_modulus_and_width();
 	test_montgomery_rejects_non_reduced_values();
 	test_montgomery_handles_max_width_smoke();

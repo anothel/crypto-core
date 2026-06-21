@@ -101,6 +101,34 @@ Result<RsaFixedBigInt> RsaFixedBigInt::from_be_bytes(std::span<const std::uint8_
 	return Result<RsaFixedBigInt>::success(output);
 }
 
+Result<RsaFixedBigInt> RsaFixedBigInt::from_be_bytes_mod(std::span<const std::uint8_t> bytes, const RsaFixedBigInt &modulus)
+{
+	auto valid_modulus = require_montgomery_modulus(modulus);
+	if (!valid_modulus)
+	{
+		return Result<RsaFixedBigInt>::failure(valid_modulus.error());
+	}
+
+	RsaFixedBigInt output(modulus.width_);
+	for (const auto byte : bytes)
+	{
+		for (std::size_t bit = 8U; bit > 0; --bit)
+		{
+			output = double_mod(output, modulus);
+			const auto incremented = add_one_mod(output, modulus);
+			const auto mask = static_cast<std::uint8_t>(0U - static_cast<std::uint8_t>((byte >> (bit - 1U)) & 1U));
+			auto selected = select(mask, incremented, output);
+			if (!selected)
+			{
+				return Result<RsaFixedBigInt>::failure(selected.error());
+			}
+			output = std::move(selected.value());
+		}
+	}
+
+	return Result<RsaFixedBigInt>::success(output);
+}
+
 ByteBuffer RsaFixedBigInt::to_be_bytes() const
 {
 	std::vector<std::uint8_t> bytes(width_ * 4U);
@@ -388,6 +416,73 @@ Result<RsaFixedBigInt> RsaFixedBigInt::from_montgomery(const RsaFixedBigInt &val
 	return montgomery_multiply(value, one, modulus);
 }
 
+Result<RsaFixedBigInt> RsaFixedBigInt::montgomery_mod_exp_secret(const RsaFixedBigInt &base, std::span<const std::uint8_t> exponent, const RsaFixedBigInt &modulus, std::size_t exponent_bits)
+{
+	auto widths = require_matching_widths(base, modulus);
+	if (!widths)
+	{
+		return Result<RsaFixedBigInt>::failure(widths.error());
+	}
+	auto valid_modulus = require_montgomery_modulus(modulus);
+	if (!valid_modulus)
+	{
+		return Result<RsaFixedBigInt>::failure(valid_modulus.error());
+	}
+	auto reduced = require_reduced_value(base, modulus);
+	if (!reduced)
+	{
+		return Result<RsaFixedBigInt>::failure(reduced.error());
+	}
+
+	RsaFixedBigInt one(base.width_);
+	one.limbs_[0] = 1;
+	auto r0 = to_montgomery(one, modulus);
+	auto r1 = to_montgomery(base, modulus);
+	if (!r0)
+	{
+		return Result<RsaFixedBigInt>::failure(r0.error());
+	}
+	if (!r1)
+	{
+		return Result<RsaFixedBigInt>::failure(r1.error());
+	}
+
+	for (std::size_t i = exponent_bits; i > 0; --i)
+	{
+		auto product = montgomery_multiply(r0.value(), r1.value(), modulus);
+		auto r0_squared = montgomery_multiply(r0.value(), r0.value(), modulus);
+		auto r1_squared = montgomery_multiply(r1.value(), r1.value(), modulus);
+		if (!product)
+		{
+			return Result<RsaFixedBigInt>::failure(product.error());
+		}
+		if (!r0_squared)
+		{
+			return Result<RsaFixedBigInt>::failure(r0_squared.error());
+		}
+		if (!r1_squared)
+		{
+			return Result<RsaFixedBigInt>::failure(r1_squared.error());
+		}
+
+		const auto mask = static_cast<std::uint8_t>(0U - static_cast<std::uint8_t>(exponent_bit(exponent, i - 1U)));
+		auto selected_r0 = select(mask, product.value(), r0_squared.value());
+		auto selected_r1 = select(mask, r1_squared.value(), product.value());
+		if (!selected_r0)
+		{
+			return Result<RsaFixedBigInt>::failure(selected_r0.error());
+		}
+		if (!selected_r1)
+		{
+			return Result<RsaFixedBigInt>::failure(selected_r1.error());
+		}
+		r0 = std::move(selected_r0);
+		r1 = std::move(selected_r1);
+	}
+
+	return from_montgomery(r0.value(), modulus);
+}
+
 bool RsaFixedBigInt::valid_width(std::size_t width) noexcept
 {
 	return width > 0 && width <= kMaxLimbs;
@@ -441,6 +536,31 @@ Result<void> RsaFixedBigInt::require_reduced_value(const RsaFixedBigInt &value, 
 	}
 
 	return Result<void>::success();
+}
+
+bool RsaFixedBigInt::exponent_bit(std::span<const std::uint8_t> exponent, std::size_t bit_index) noexcept
+{
+	const auto byte_from_end = bit_index / 8U;
+	if (byte_from_end >= exponent.size())
+	{
+		return false;
+	}
+	const auto byte = exponent[exponent.size() - byte_from_end - 1U];
+	return ((byte >> (bit_index % 8U)) & 1U) != 0U;
+}
+
+RsaFixedBigInt RsaFixedBigInt::add_one_mod(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus)
+{
+	RsaFixedBigInt output(value.width_);
+	std::uint64_t carry = 1;
+	for (std::size_t i = 0; i < value.width_; ++i)
+	{
+		const auto sum = static_cast<std::uint64_t>(value.limbs_[i]) + carry;
+		output.limbs_[i] = static_cast<std::uint32_t>(sum);
+		carry = sum >> 32U;
+	}
+
+	return subtract_modulus_if_needed(output, modulus, static_cast<std::uint32_t>(carry));
 }
 
 RsaFixedBigInt RsaFixedBigInt::double_mod(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus)
