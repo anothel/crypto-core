@@ -25,62 +25,24 @@ Every implementation slice must pass:
 
 ## Current Focus
 
-### 1.1 RSA Hardening and Completion
+### 1.2 ECDSA P-256 Hardening
 
-Status: active  
-Size: `S` remaining
+Status: active
+Size: `M`
 Priority: P0
 
 Goal:
 
-- reduce native RSA private-operation timing risk while keeping public provider
-  APIs stable.
+- finish native P-256 hardening now that RSA private-operation P0 is closed.
 
 Remaining slices:
 
-1. `S` RSA private-operation audit note
-   - document which private paths use fixed-width arithmetic
-   - document remaining variable-limb fallback boundary
-   - update this roadmap if RSA hardening leaves active P0 status
-
-Exit criteria:
-
-- RSA-PSS sign/verify fixed reference vectors pass
-- RSA-OAEP decrypt fixed reference vectors pass
-- audit note confirms whether RSA hardening can leave active P0
-
-Deferred:
-
-- RSA-3072/RSA-4096 fixed-width support
-- native RSA key generation
-- formal constant-time certification
-- PKCS#11-backed RSA keys
-
-## Next Queue
-
-### 1.2 ECDSA P-256 Hardening
-
-Status: queued  
-Size: `M`  
-Priority: P1
-
-Goal:
-
-- finish native P-256 hardening after RSA timing boundary is cleaner.
-
-Remaining slices:
-
-1. `S` external P-256 ECDSA reference vectors
-   - import or embed reviewed vectors
-   - cover valid and invalid signatures
-   - minimum tests: 6 valid, 6 invalid
-
-2. `M` branch-free generic point/scalar multiplication
+1. `M` branch-free generic point/scalar multiplication
    - remove secret scalar dependent branches/table access from generic path
    - preserve current fixed-base window path
    - minimum tests: scalar edge cases `0`, `1`, `n`, `n+1`, mixed scalar
 
-3. `M` point addition/doubling audit
+2. `M` point addition/doubling audit
    - identify remaining exceptional-case branches
    - route secret-dependent choices through selectors where practical
    - document remaining timing boundary
@@ -99,7 +61,41 @@ Deferred:
 - raw fixed-width signature public format
 - ECDH, unless key agreement becomes a project goal
 
-### 1.3 Ed25519
+## Next Queue
+
+### 1.3 RSA Deferred Hardening
+
+Status: deferred
+Size: `M`
+Priority: P2
+
+Goal:
+
+- continue RSA timing-risk reduction beyond the P0 NativeProvider private
+  exponent path.
+
+Remaining slices:
+
+1. `M` CRT recombination fixed-width path
+   - replace variable-limb CRT recombination with fixed-width arithmetic
+   - preserve existing provider behavior
+   - minimum tests: RSA primitive, provider, reference vectors
+
+2. `M` RSA blinding setup hardening
+   - assess public-exponent blinding and inverse setup
+   - move private-sensitive pieces away from variable-limb arithmetic where
+     practical
+
+3. `L` additional RSA support
+   - RSA-3072/RSA-4096 fixed-width support
+   - native RSA key generation
+   - PKCS#11-backed RSA keys
+
+Deferred:
+
+- formal constant-time certification
+
+### 1.4 Ed25519
 
 Status: queued  
 Size: `M`  
@@ -132,7 +128,7 @@ Exit criteria:
 - invalid signatures return `VerifyResult::invalid()`
 - API does not expose irrelevant RSA/ECDSA parameters
 
-### 1.4 KeyStore Evolution
+### 1.5 KeyStore Evolution
 
 Status: queued  
 Size: `L`  
@@ -164,7 +160,7 @@ Exit criteria:
 - private key export restrictions are representable
 - current in-memory `KeyStore` behavior stays green
 
-### 1.5 Self-Test and Validated Mode
+### 1.6 Self-Test and Validated Mode
 
 Status: optional  
 Size: `M`  

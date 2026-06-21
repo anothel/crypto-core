@@ -35,6 +35,13 @@ constexpr std::string_view basepoint_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D030107034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
 constexpr std::string_view scalar_one_private_key_der_hex =
     "303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107";
+// RFC 6979 Appendix A.2.5, ECDSA P-256 with SHA-256.
+constexpr std::string_view rfc6979_public_key_spki_der_hex =
+    "3059301306072A8648CE3D020106082A8648CE3D0301070342000460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8BC99A41AE9E95628BC64F2F1B20C2D7E9F5177A3C294D4462299";
+constexpr std::string_view rfc6979_sample_sha256_signature_der_hex =
+    "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
+constexpr std::string_view rfc6979_test_sha256_signature_der_hex =
+    "3045022100F1ABB023518351CD71D881567B1EA663ED3EFCF6C5132B354F28D3B0B7D383670220019F4113742A2B14BD25926B49C649155F267E60D3814B4C0CC84250E46F0083";
 
 constexpr std::array<std::uint8_t, 162> rsa_pss_public_key_der{
     0x30, 0x81, 0x9F, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
@@ -58,11 +65,11 @@ void require(bool condition)
 	}
 }
 
-#define RUN_TEST(test_name) \
-	do \
-	{ \
+#define RUN_TEST(test_name)        \
+	do                             \
+	{                              \
 		current_test = #test_name; \
-		test_name(); \
+		test_name();               \
 	} while (false)
 
 std::vector<std::uint8_t> bytes(std::string_view hex)
@@ -72,12 +79,29 @@ std::vector<std::uint8_t> bytes(std::string_view hex)
 	return std::move(decoded.value());
 }
 
-crypto_core::PublicKey import_ecdsa_verify_key()
+std::vector<std::uint8_t> ascii_bytes(std::string_view value)
 {
-	auto public_key_der = bytes(public_key_spki_der_hex);
+	return std::vector<std::uint8_t>(value.begin(), value.end());
+}
+
+std::vector<std::uint8_t> sha256(std::span<const std::uint8_t> message)
+{
+	auto digest = crypto_core::hash(crypto_core::HashAlgorithm::sha256, message);
+	require(digest.has_value());
+	return std::vector<std::uint8_t>(digest.value().bytes().begin(), digest.value().bytes().end());
+}
+
+crypto_core::PublicKey import_ecdsa_verify_key(std::string_view public_key_der_hex)
+{
+	auto public_key_der = bytes(public_key_der_hex);
 	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
 	require(key.has_value());
 	return key.value();
+}
+
+crypto_core::PublicKey import_ecdsa_verify_key()
+{
+	return import_ecdsa_verify_key(public_key_spki_der_hex);
 }
 
 crypto_core::PublicKey import_basepoint_ecdsa_verify_key()
@@ -131,6 +155,94 @@ void test_ecdsa_helper_verifies_static_openssl_vector()
 	auto valid = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, signature_der, digest);
 	require(valid.has_value());
 	require(valid.value());
+}
+
+void test_ecdsa_verifies_static_sha256_vector_table()
+{
+	struct Vector final
+	{
+		std::string_view public_key_der;
+		std::string_view signature_der;
+		std::vector<std::uint8_t> message;
+	};
+
+	std::array<Vector, 3> vectors{
+	    Vector{public_key_spki_der_hex, signature_der_hex, bytes(message_hex)},
+	    Vector{rfc6979_public_key_spki_der_hex, rfc6979_sample_sha256_signature_der_hex, ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, rfc6979_test_sha256_signature_der_hex, ascii_bytes("test")}};
+
+	crypto_core::NativeProvider provider;
+	for (const auto &vector : vectors)
+	{
+		auto public_key_der = bytes(vector.public_key_der);
+		auto signature_der = bytes(vector.signature_der);
+		auto digest = sha256(vector.message);
+		auto helper_valid = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, signature_der, digest);
+		require(helper_valid.has_value());
+		require(helper_valid.value());
+
+		auto public_key = import_ecdsa_verify_key(vector.public_key_der);
+		auto provider_valid = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature_der}, vector.message);
+		require(provider_valid.has_value());
+		require(provider_valid.value().is_valid());
+	}
+}
+
+void test_native_provider_verifies_generated_ecdsa_vector_table()
+{
+	crypto_core::NativeProvider provider;
+	auto private_key = import_scalar_one_ecdsa_sign_key();
+	auto public_key = import_basepoint_ecdsa_verify_key();
+	const std::array<std::vector<std::uint8_t>, 4> messages{
+	    ascii_bytes(""),
+	    ascii_bytes("sample"),
+	    ascii_bytes("test"),
+	    bytes("000102030405060708090A0B0C0D0E0F")};
+
+	for (const auto &message : messages)
+	{
+		auto signature = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &private_key}, message);
+		require(signature.has_value());
+
+		auto result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature.value().bytes()}, message);
+		require(result.has_value());
+		require(result.value().is_valid());
+	}
+}
+
+void test_ecdsa_rejects_invalid_sha256_vector_table()
+{
+	struct Vector final
+	{
+		std::string_view public_key_der;
+		std::string_view signature_der;
+		std::vector<std::uint8_t> message;
+	};
+
+	std::array<Vector, 7> vectors{
+	    Vector{rfc6979_public_key_spki_der_hex, rfc6979_sample_sha256_signature_der_hex, ascii_bytes("test")},
+	    Vector{rfc6979_public_key_spki_der_hex, rfc6979_test_sha256_signature_der_hex, ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, "3006020100020101", ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, "3006020101020100", ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, signature_r_n_der_hex, ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, signature_s_plus_n_der_hex, ascii_bytes("sample")},
+	    Vector{rfc6979_public_key_spki_der_hex, "300602010102010200", ascii_bytes("sample")}};
+
+	crypto_core::NativeProvider provider;
+	for (const auto &vector : vectors)
+	{
+		auto public_key_der = bytes(vector.public_key_der);
+		auto signature_der = bytes(vector.signature_der);
+		auto digest = sha256(vector.message);
+		auto helper_valid = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, signature_der, digest);
+		require(helper_valid.has_value());
+		require(!helper_valid.value());
+
+		auto public_key = import_ecdsa_verify_key(vector.public_key_der);
+		auto provider_valid = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature_der}, vector.message);
+		require(provider_valid.has_value());
+		require(!provider_valid.value().is_valid());
+	}
 }
 
 void test_ecdsa_helper_rejects_tampered_message_digest()
@@ -432,6 +544,9 @@ void test_default_provider_signs_ecdsa_signature()
 int main()
 {
 	RUN_TEST(test_ecdsa_helper_verifies_static_openssl_vector);
+	RUN_TEST(test_ecdsa_verifies_static_sha256_vector_table);
+	RUN_TEST(test_native_provider_verifies_generated_ecdsa_vector_table);
+	RUN_TEST(test_ecdsa_rejects_invalid_sha256_vector_table);
 	RUN_TEST(test_ecdsa_helper_rejects_tampered_message_digest);
 	RUN_TEST(test_ecdsa_helper_rejects_tampered_signature);
 	RUN_TEST(test_ecdsa_helper_rejects_zero_r_or_s);
