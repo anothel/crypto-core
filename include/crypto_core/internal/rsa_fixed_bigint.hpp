@@ -28,12 +28,21 @@ public:
 	[[nodiscard]] static Result<RsaFixedBigInt> select(std::uint8_t mask, const RsaFixedBigInt &if_set, const RsaFixedBigInt &if_clear);
 	[[nodiscard]] static Result<RsaFixedBigInt> add(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs);
 	[[nodiscard]] static Result<RsaFixedBigInt> subtract(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs);
+	[[nodiscard]] static Result<std::uint32_t> montgomery_n0_inverse(const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<RsaFixedBigInt> montgomery_r_squared(const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<RsaFixedBigInt> montgomery_multiply(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<RsaFixedBigInt> to_montgomery(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<RsaFixedBigInt> from_montgomery(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
 
 private:
 	explicit RsaFixedBigInt(std::size_t width) noexcept;
 
 	[[nodiscard]] static bool valid_width(std::size_t width) noexcept;
 	[[nodiscard]] static Result<void> require_matching_widths(const RsaFixedBigInt &lhs, const RsaFixedBigInt &rhs);
+	[[nodiscard]] static Result<void> require_montgomery_modulus(const RsaFixedBigInt &modulus);
+	[[nodiscard]] static Result<void> require_reduced_value(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static RsaFixedBigInt double_mod(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus);
+	[[nodiscard]] static RsaFixedBigInt subtract_modulus_if_needed(const RsaFixedBigInt &value, const RsaFixedBigInt &modulus, std::uint32_t high_limb);
 
 	std::array<std::uint32_t, kMaxLimbs> limbs_{};
 	std::size_t width_{};

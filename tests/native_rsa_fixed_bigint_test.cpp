@@ -1,6 +1,7 @@
 #include "crypto_core/internal/rsa_fixed_bigint.hpp"
 
 #include "crypto_core/error.hpp"
+#include "crypto_core/internal/bigint.hpp"
 
 #include <array>
 #include <cstdint>
@@ -25,6 +26,20 @@ void require_bytes(std::span<const std::uint8_t> actual, std::span<const std::ui
 	for (std::size_t i = 0; i < actual.size(); ++i)
 	{
 		require(actual[i] == expected[i]);
+	}
+}
+
+void require_tail_bytes(std::span<const std::uint8_t> actual, std::span<const std::uint8_t> expected_tail)
+{
+	require(actual.size() >= expected_tail.size());
+	const auto prefix_size = actual.size() - expected_tail.size();
+	for (std::size_t i = 0; i < prefix_size; ++i)
+	{
+		require(actual[i] == 0U);
+	}
+	for (std::size_t i = 0; i < expected_tail.size(); ++i)
+	{
+		require(actual[prefix_size + i] == expected_tail[i]);
 	}
 }
 
@@ -177,6 +192,198 @@ void test_binary_operations_reject_width_mismatch()
 	require(select.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_montgomery_n0_inverse_matches_known_value()
+{
+	const std::array<std::uint8_t, 1> modulus{0x03};
+
+	auto inverse = crypto_core::internal::RsaFixedBigInt::montgomery_n0_inverse(fixed(modulus, 1));
+	require(inverse.has_value());
+	require(inverse.value() == 0x55555555U);
+}
+
+void test_montgomery_multiply_raw_matches_expected()
+{
+	const std::array<std::uint8_t, 1> lhs{0x05};
+	const std::array<std::uint8_t, 1> rhs{0x07};
+	const std::array<std::uint8_t, 1> modulus{0x13};
+	const std::array<std::uint8_t, 4> expected{0x00, 0x00, 0x00, 0x09};
+
+	auto product =
+	    crypto_core::internal::RsaFixedBigInt::montgomery_multiply(fixed(lhs, 1), fixed(rhs, 1), fixed(modulus, 1));
+	require(product.has_value());
+	require_bytes(product.value().to_be_bytes().bytes(), expected);
+}
+
+void test_montgomery_r_squared_matches_expected()
+{
+	const std::array<std::uint8_t, 1> modulus{0x13};
+	const std::array<std::uint8_t, 4> expected{0x00, 0x00, 0x00, 0x11};
+
+	auto r_squared = crypto_core::internal::RsaFixedBigInt::montgomery_r_squared(fixed(modulus, 1));
+	require(r_squared.has_value());
+	require_bytes(r_squared.value().to_be_bytes().bytes(), expected);
+}
+
+void test_montgomery_round_trip()
+{
+	const std::array<std::uint8_t, 1> value_bytes{0x05};
+	const std::array<std::uint8_t, 1> modulus_bytes{0x13};
+	const std::array<std::uint8_t, 4> expected_montgomery{0x00, 0x00, 0x00, 0x0B};
+	const std::array<std::uint8_t, 4> expected_normal{0x00, 0x00, 0x00, 0x05};
+
+	auto value = fixed(value_bytes, 1);
+	auto modulus = fixed(modulus_bytes, 1);
+	auto montgomery = crypto_core::internal::RsaFixedBigInt::to_montgomery(value, modulus);
+	require(montgomery.has_value());
+	require_bytes(montgomery.value().to_be_bytes().bytes(), expected_montgomery);
+
+	auto normal = crypto_core::internal::RsaFixedBigInt::from_montgomery(montgomery.value(), modulus);
+	require(normal.has_value());
+	require_bytes(normal.value().to_be_bytes().bytes(), expected_normal);
+}
+
+void test_montgomery_domain_multiply_round_trip()
+{
+	const std::array<std::uint8_t, 1> lhs_bytes{0x05};
+	const std::array<std::uint8_t, 1> rhs_bytes{0x07};
+	const std::array<std::uint8_t, 1> modulus_bytes{0x13};
+	const std::array<std::uint8_t, 4> expected{0x00, 0x00, 0x00, 0x10};
+
+	auto modulus = fixed(modulus_bytes, 1);
+	auto montgomery_lhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(fixed(lhs_bytes, 1), modulus);
+	auto montgomery_rhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(fixed(rhs_bytes, 1), modulus);
+	require(montgomery_lhs.has_value());
+	require(montgomery_rhs.has_value());
+
+	auto montgomery_product = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(montgomery_lhs.value(),
+	    montgomery_rhs.value(),
+	    modulus);
+	require(montgomery_product.has_value());
+
+	auto normal_product = crypto_core::internal::RsaFixedBigInt::from_montgomery(montgomery_product.value(), modulus);
+	require(normal_product.has_value());
+	require_bytes(normal_product.value().to_be_bytes().bytes(), expected);
+}
+
+void test_montgomery_rejects_invalid_modulus_and_width()
+{
+	const std::array<std::uint8_t, 1> value_bytes{0x05};
+	const std::array<std::uint8_t, 1> one_modulus_bytes{0x01};
+	const std::array<std::uint8_t, 1> even_modulus_bytes{0x12};
+	const std::array<std::uint8_t, 1> odd_modulus_bytes{0x13};
+
+	auto value = fixed(value_bytes, 1);
+	auto one_modulus = fixed(one_modulus_bytes, 1);
+	auto even_modulus = fixed(even_modulus_bytes, 1);
+	auto zero_modulus = crypto_core::internal::RsaFixedBigInt::zero(1);
+	auto wide_modulus = fixed(odd_modulus_bytes, 2);
+	require(zero_modulus.has_value());
+
+	auto one_inverse = crypto_core::internal::RsaFixedBigInt::montgomery_n0_inverse(one_modulus);
+	auto even_inverse = crypto_core::internal::RsaFixedBigInt::montgomery_n0_inverse(even_modulus);
+	auto zero_inverse = crypto_core::internal::RsaFixedBigInt::montgomery_n0_inverse(zero_modulus.value());
+	auto even_product = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(value, value, even_modulus);
+	auto width_mismatch = crypto_core::internal::RsaFixedBigInt::to_montgomery(value, wide_modulus);
+
+	require(!one_inverse.has_value());
+	require(!even_inverse.has_value());
+	require(!zero_inverse.has_value());
+	require(!even_product.has_value());
+	require(!width_mismatch.has_value());
+	require(one_inverse.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(even_inverse.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(zero_inverse.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(even_product.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(width_mismatch.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
+void test_montgomery_rejects_non_reduced_values()
+{
+	const std::array<std::uint8_t, 1> value_bytes{0x13};
+	const std::array<std::uint8_t, 1> reduced_bytes{0x05};
+	const std::array<std::uint8_t, 1> modulus_bytes{0x13};
+
+	auto value = fixed(value_bytes, 1);
+	auto reduced = fixed(reduced_bytes, 1);
+	auto modulus = fixed(modulus_bytes, 1);
+
+	auto convert = crypto_core::internal::RsaFixedBigInt::to_montgomery(value, modulus);
+	auto multiply_lhs = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(value, reduced, modulus);
+	auto multiply_rhs = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(reduced, value, modulus);
+
+	require(!convert.has_value());
+	require(!multiply_lhs.has_value());
+	require(!multiply_rhs.has_value());
+	require(convert.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(multiply_lhs.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(multiply_rhs.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
+void test_montgomery_handles_max_width_smoke()
+{
+	constexpr std::size_t width = crypto_core::internal::RsaFixedBigInt::kMaxLimbs;
+	const std::array<std::uint8_t, 1> lhs_bytes{0x7B};
+	const std::array<std::uint8_t, 2> rhs_bytes{0x01, 0xC8};
+	const std::array<std::uint8_t, 3> modulus_bytes{0x01, 0x00, 0x01};
+	const std::array<std::uint8_t, 2> expected_tail{0xDB, 0x18};
+
+	auto modulus = fixed(modulus_bytes, width);
+	auto montgomery_lhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(fixed(lhs_bytes, width), modulus);
+	auto montgomery_rhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(fixed(rhs_bytes, width), modulus);
+	require(montgomery_lhs.has_value());
+	require(montgomery_rhs.has_value());
+
+	auto montgomery_product = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(montgomery_lhs.value(),
+	    montgomery_rhs.value(),
+	    modulus);
+	require(montgomery_product.has_value());
+
+	auto normal_product = crypto_core::internal::RsaFixedBigInt::from_montgomery(montgomery_product.value(), modulus);
+	require(normal_product.has_value());
+	require_tail_bytes(normal_product.value().to_be_bytes().bytes(), expected_tail);
+}
+
+void test_montgomery_handles_full_width_carry_heavy_smoke()
+{
+	constexpr std::size_t width = crypto_core::internal::RsaFixedBigInt::kMaxLimbs;
+	std::array<std::uint8_t, width * 4U> modulus_bytes{};
+	std::array<std::uint8_t, width * 4U> lhs_bytes{};
+	std::array<std::uint8_t, width * 4U> rhs_bytes{};
+	modulus_bytes.fill(0xFFU);
+	lhs_bytes.fill(0xAAU);
+	rhs_bytes.fill(0x55U);
+	modulus_bytes.back() = 0xFDU;
+
+	auto modulus = fixed(modulus_bytes, width);
+	auto lhs = fixed(lhs_bytes, width);
+	auto rhs = fixed(rhs_bytes, width);
+
+	auto reference_lhs = crypto_core::internal::BigInt::from_be_bytes(lhs_bytes);
+	auto reference_rhs = crypto_core::internal::BigInt::from_be_bytes(rhs_bytes);
+	auto reference_modulus = crypto_core::internal::BigInt::from_be_bytes(modulus_bytes);
+	require(reference_lhs.has_value());
+	require(reference_rhs.has_value());
+	require(reference_modulus.has_value());
+	auto reference_product = crypto_core::internal::BigInt::mod_multiply(reference_lhs.value(),
+	    reference_rhs.value(),
+	    reference_modulus.value());
+	require(reference_product.has_value());
+
+	auto montgomery_lhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(lhs, modulus);
+	auto montgomery_rhs = crypto_core::internal::RsaFixedBigInt::to_montgomery(rhs, modulus);
+	require(montgomery_lhs.has_value());
+	require(montgomery_rhs.has_value());
+
+	auto montgomery_product = crypto_core::internal::RsaFixedBigInt::montgomery_multiply(montgomery_lhs.value(),
+	    montgomery_rhs.value(),
+	    modulus);
+	require(montgomery_product.has_value());
+
+	auto normal_product = crypto_core::internal::RsaFixedBigInt::from_montgomery(montgomery_product.value(), modulus);
+	require(normal_product.has_value());
+	require_tail_bytes(normal_product.value().to_be_bytes().bytes(), reference_product.value().to_be_bytes().bytes());
+}
+
 } // namespace
 
 int main()
@@ -191,5 +398,14 @@ int main()
 	test_add_wraps_to_width();
 	test_subtract_wraps_to_width();
 	test_binary_operations_reject_width_mismatch();
+	test_montgomery_n0_inverse_matches_known_value();
+	test_montgomery_multiply_raw_matches_expected();
+	test_montgomery_r_squared_matches_expected();
+	test_montgomery_round_trip();
+	test_montgomery_domain_multiply_round_trip();
+	test_montgomery_rejects_invalid_modulus_and_width();
+	test_montgomery_rejects_non_reduced_values();
+	test_montgomery_handles_max_width_smoke();
+	test_montgomery_handles_full_width_carry_heavy_smoke();
 	return 0;
 }
