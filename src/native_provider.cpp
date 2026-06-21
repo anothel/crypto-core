@@ -3,6 +3,7 @@
 #include "crypto_core/internal/aes_cbc.hpp"
 #include "crypto_core/internal/aes_gcm.hpp"
 #include "crypto_core/internal/ecdsa.hpp"
+#include "crypto_core/internal/ed25519.hpp"
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/kdf.hpp"
 #include "crypto_core/internal/os_rng.hpp"
@@ -38,6 +39,11 @@ bool is_rsa_pss_algorithm(SignatureAlgorithm algorithm) noexcept
 bool is_ecdsa_algorithm(SignatureAlgorithm algorithm) noexcept
 {
 	return algorithm == SignatureAlgorithm::ecdsa_p256_sha256;
+}
+
+bool is_ed25519_algorithm(SignatureAlgorithm algorithm) noexcept
+{
+	return algorithm == SignatureAlgorithm::ed25519;
 }
 
 bool is_rsa_oaep_algorithm(AsymmetricEncryptionAlgorithm algorithm) noexcept
@@ -191,7 +197,7 @@ bool NativeProvider::supports(AeadAlgorithm algorithm) const noexcept
 
 bool NativeProvider::supports(SignatureAlgorithm algorithm) const noexcept
 {
-	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 }
 
 bool NativeProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
@@ -340,6 +346,25 @@ Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<cons
 
 Result<VerifyResult> NativeProvider::verify(const VerifyParams &params, std::span<const std::uint8_t> message) noexcept
 {
+	if (is_ed25519_algorithm(params.algorithm))
+	{
+		if (params.public_key == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "public key is required"));
+		}
+		if (params.public_key->algorithm() != AsymmetricKeyAlgorithm::ed25519 || !params.public_key->allows(KeyUsage::verify))
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_key, "native_provider", "Ed25519 verification key is required"));
+		}
+
+		auto valid = internal::verify_ed25519(params.public_key->bytes(), params.signature, message);
+		if (!valid)
+		{
+			return Result<VerifyResult>::failure(valid.error());
+		}
+
+		return Result<VerifyResult>::success(valid.value() ? VerifyResult::valid() : VerifyResult::invalid());
+	}
 	if (is_ecdsa_algorithm(params.algorithm))
 	{
 		if (params.public_key == nullptr)

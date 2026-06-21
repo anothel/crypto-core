@@ -20,6 +20,7 @@ add_library(crypto_core
     src/cipher.cpp
     src/ecdsa.cpp
     src/ec_der.cpp
+    src/ed25519.cpp
     src/encoding.cpp
     src/hash.cpp
     src/hmac.cpp
@@ -314,6 +315,17 @@ if(CRYPTO_CORE_BUILD_TESTS)
     )
 
     add_test(NAME crypto_core.native_ecdsa_verify COMMAND crypto_core_native_ecdsa_verify_tests)
+
+    add_executable(crypto_core_native_ed25519_tests
+        tests/native_ed25519_test.cpp
+    )
+
+    target_link_libraries(crypto_core_native_ed25519_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    add_test(NAME crypto_core.native_ed25519 COMMAND crypto_core_native_ed25519_tests)
 
     add_executable(crypto_core_native_rsa_primitive_tests
         tests/native_rsa_primitive_test.cpp

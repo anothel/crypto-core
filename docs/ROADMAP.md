@@ -38,19 +38,18 @@ Goal:
 
 Remaining slices:
 
-1. `S` API fit check
-   - key algorithm enum
-   - signature algorithm enum
-   - no hash/prehash knobs unless deliberately added
+1. `M` NativeProvider Ed25519 sign
+   - import private key material
+   - sign through provider API
+   - minimum tests: RFC 8032 signing vectors, deterministic repeatability
 
-2. `M` NativeProvider Ed25519 sign/verify
-   - import public/private key material
-   - sign and verify through provider API
-   - minimum tests: RFC 8032 vectors, invalid signature vectors
-
-3. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
+2. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
    - sign OpenSSL -> verify Native
    - sign Native -> verify OpenSSL
+
+3. `S` Ed25519 key generation, if needed before KeyStore evolution
+   - import public/private key material
+   - export public/private material in the current thin key shape
 
 Exit criteria:
 
