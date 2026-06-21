@@ -25,40 +25,42 @@ Every implementation slice must pass:
 
 ## Current Focus
 
-### 1.2 ECDSA P-256 Hardening
+### 1.3 Ed25519
 
 Status: active
 Size: `M`
-Priority: P0
+Priority: P1
 
 Goal:
 
-- finish native P-256 hardening now that RSA private-operation P0 is closed.
+- add deterministic modern signatures with simpler parameter surface than
+  RSA/ECDSA.
 
 Remaining slices:
 
-1. `M` point addition/doubling audit
-   - identify remaining exceptional-case branches
-   - route secret-dependent choices through selectors where practical
-   - document remaining timing boundary
+1. `S` API fit check
+   - key algorithm enum
+   - signature algorithm enum
+   - no hash/prehash knobs unless deliberately added
+
+2. `M` NativeProvider Ed25519 sign/verify
+   - import public/private key material
+   - sign and verify through provider API
+   - minimum tests: RFC 8032 vectors, invalid signature vectors
+
+3. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
+   - sign OpenSSL -> verify Native
+   - sign Native -> verify OpenSSL
 
 Exit criteria:
 
-- native ECDSA sign/verify vectors pass
-- OpenSSL interop stays green
-- DER signature behavior remains documented and tested
-- remaining timing-risk boundary is explicit
-
-Deferred:
-
-- P-384
-- compressed point support
-- raw fixed-width signature public format
-- ECDH, unless key agreement becomes a project goal
+- RFC 8032 vectors pass
+- invalid signatures return `VerifyResult::invalid()`
+- API does not expose irrelevant RSA/ECDSA parameters
 
 ## Next Queue
 
-### 1.3 RSA Deferred Hardening
+### 1.4 RSA Deferred Hardening
 
 Status: deferred
 Size: `M`
@@ -90,40 +92,35 @@ Deferred:
 
 - formal constant-time certification
 
-### 1.4 Ed25519
+### 1.5 P-256 Deferred Hardening
 
-Status: queued  
-Size: `M`  
-Priority: P1
+Status: deferred
+Size: `M`
+Priority: P2
 
 Goal:
 
-- add deterministic modern signatures with simpler parameter surface than
-  RSA/ECDSA.
+- continue P-256 timing-risk reduction beyond the current fixed-limb backend.
 
 Remaining slices:
 
-1. `S` API fit check
-   - key algorithm enum
-   - signature algorithm enum
-   - no hash/prehash knobs unless deliberately added
+1. `M` complete point formulas
+   - replace exceptional-case point add/double paths where practical
+   - preserve existing ECDSA sign/verify behavior
+   - minimum tests: group-law edge cases, RFC 6979 vectors, provider vectors
 
-2. `M` NativeProvider Ed25519 sign/verify
-   - import public/private key material
-   - sign and verify through provider API
-   - minimum tests: RFC 8032 vectors, invalid signature vectors
+2. `M` constant-time audit
+   - review scalar, field, point, and DER-adjacent boundaries
+   - document public-input branches vs private-input branches
 
-3. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
-   - sign OpenSSL -> verify Native
-   - sign Native -> verify OpenSSL
+Deferred:
 
-Exit criteria:
+- P-384
+- compressed point support
+- raw fixed-width signature public format
+- ECDH, unless key agreement becomes a project goal
 
-- RFC 8032 vectors pass
-- invalid signatures return `VerifyResult::invalid()`
-- API does not expose irrelevant RSA/ECDSA parameters
-
-### 1.5 KeyStore Evolution
+### 1.6 KeyStore Evolution
 
 Status: queued  
 Size: `L`  
@@ -155,7 +152,7 @@ Exit criteria:
 - private key export restrictions are representable
 - current in-memory `KeyStore` behavior stays green
 
-### 1.6 Self-Test and Validated Mode
+### 1.7 Self-Test and Validated Mode
 
 Status: optional  
 Size: `M`  

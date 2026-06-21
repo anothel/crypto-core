@@ -90,6 +90,35 @@ void test_point_add_matches_point_double_for_base_point()
 	require_point(doubled.value(), added.value().x.bytes(), added.value().y.bytes());
 }
 
+void test_fixed_point_add_infinity_identity()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	auto infinity = crypto_core::internal::p256_point_at_infinity();
+	require(base.has_value());
+
+	auto left = crypto_core::internal::p256_fixed_point_add(infinity, base.value());
+	auto right = crypto_core::internal::p256_fixed_point_add(base.value(), infinity);
+	require(left.has_value());
+	require(right.has_value());
+	require_point(left.value(), base.value().x.bytes(), base.value().y.bytes());
+	require_point(right.value(), base.value().x.bytes(), base.value().y.bytes());
+}
+
+void test_fixed_point_add_inverse_returns_infinity()
+{
+	auto base = crypto_core::internal::p256_base_point();
+	require(base.has_value());
+
+	auto inverse = crypto_core::internal::p256_fixed_point_from_coordinates(
+	    base.value().x.bytes(),
+	    bytes("B01CBD1C01E58065711814B583F061E9D431CCA994CEA1313449BF97C840AE0A"));
+	require(inverse.has_value());
+
+	auto sum = crypto_core::internal::p256_fixed_point_add(base.value(), inverse.value());
+	require(sum.has_value());
+	require(sum.value().infinity);
+}
+
 void test_scalar_multiply_by_two_matches_known_two_g()
 {
 	auto base = crypto_core::internal::p256_base_point();
@@ -330,6 +359,44 @@ void test_branch_free_scalar_multiply_arbitrary_point_matches_reference()
 	require_point(branch_free.value(), reference.value().x.bytes(), reference.value().y.bytes());
 }
 
+void test_branch_free_scalar_multiply_arbitrary_point_edge_cases()
+{
+	auto point = crypto_core::internal::p256_point_from_coordinates(
+	    bytes("507A822E9DA764244CCE994EF0BB4ADEE4FD71B66585C56954BBAFC7BBD2FAA4"),
+	    bytes("5424E4C9C7A95082E8AE73482CE33DAAB6C27530E728B3B8473A38D99704E480"));
+	require(point.has_value());
+
+	auto order_plus_one = std::vector<std::uint8_t>(
+	    crypto_core::internal::p256_group_order().begin(),
+	    crypto_core::internal::p256_group_order().end());
+	for (std::size_t i = order_plus_one.size(); i > 0; --i)
+	{
+		++order_plus_one[i - 1U];
+		if (order_plus_one[i - 1U] != 0)
+		{
+			break;
+		}
+	}
+
+	const std::vector<std::vector<std::uint8_t>> scalars{
+	    bytes("00"),
+	    bytes("01"),
+	    std::vector<std::uint8_t>(crypto_core::internal::p256_group_order().begin(), crypto_core::internal::p256_group_order().end()),
+	    order_plus_one};
+	const std::array<bool, 4> expect_infinity{true, false, true, false};
+
+	for (std::size_t i = 0; i < scalars.size(); ++i)
+	{
+		auto branch_free = crypto_core::internal::p256_fixed_scalar_multiply_branch_free(scalars[i], point.value());
+		require(branch_free.has_value());
+		require(branch_free.value().infinity == expect_infinity[i]);
+		if (!expect_infinity[i])
+		{
+			require_point(branch_free.value(), point.value().x.bytes(), point.value().y.bytes());
+		}
+	}
+}
+
 void test_fixed_scalar_inverse_satisfies_multiply_to_one()
 {
 	const std::array<std::uint8_t, 1> seven{0x07};
@@ -457,6 +524,8 @@ int main()
 	test_base_point_is_on_curve();
 	test_point_double_matches_known_two_g();
 	test_point_add_matches_point_double_for_base_point();
+	test_fixed_point_add_infinity_identity();
+	test_fixed_point_add_inverse_returns_infinity();
 	test_scalar_multiply_by_two_matches_known_two_g();
 	test_scalar_multiply_by_group_order_returns_infinity();
 	test_scalar_multiply_by_group_order_plus_one_returns_base_point();
@@ -473,6 +542,7 @@ int main()
 	test_fixed_scalar_multiply_arbitrary_point_matches_reference();
 	test_branch_free_scalar_multiply_edge_cases_match_reference();
 	test_branch_free_scalar_multiply_arbitrary_point_matches_reference();
+	test_branch_free_scalar_multiply_arbitrary_point_edge_cases();
 	test_fixed_scalar_inverse_satisfies_multiply_to_one();
 	test_fixed_scalar_helpers_match_reference_for_ecdsa_values();
 	test_fixed_scalar_add_mod_matches_reference_for_ecdsa_values();
