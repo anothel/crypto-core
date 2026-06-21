@@ -37,12 +37,7 @@ Goal:
 
 Remaining slices:
 
-1. `M` branch-free generic point/scalar multiplication
-   - remove secret scalar dependent branches/table access from generic path
-   - preserve current fixed-base window path
-   - minimum tests: scalar edge cases `0`, `1`, `n`, `n+1`, mixed scalar
-
-2. `M` point addition/doubling audit
+1. `M` point addition/doubling audit
    - identify remaining exceptional-case branches
    - route secret-dependent choices through selectors where practical
    - document remaining timing boundary

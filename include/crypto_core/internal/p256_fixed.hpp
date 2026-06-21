@@ -13,6 +13,7 @@ namespace crypto_core::internal
 [[nodiscard]] Result<P256Point> p256_fixed_point_from_coordinates(std::span<const std::uint8_t> x, std::span<const std::uint8_t> y);
 [[nodiscard]] Result<bool> p256_fixed_is_on_curve(const P256Point &point);
 [[nodiscard]] Result<P256Point> p256_fixed_point_add(const P256Point &lhs, const P256Point &rhs);
+[[nodiscard]] Result<P256Point> p256_fixed_scalar_multiply_branch_free(std::span<const std::uint8_t> scalar, const P256Point &point);
 [[nodiscard]] Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scalar, const P256Point &point);
 [[nodiscard]] Result<P256Point> p256_fixed_base_point_select_window(std::uint8_t nibble);
 [[nodiscard]] Result<P256Point> p256_fixed_base_point_multiply_windowed(std::span<const std::uint8_t> scalar);

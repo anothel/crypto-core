@@ -583,6 +583,32 @@ constexpr U256 n_minus_two_value{{0xFC63254FU, 0xF3B9CAC2U, 0xA7179E84U, 0xBCE6F
 	return bytes[index];
 }
 
+[[nodiscard]] std::uint32_t word_mask_from_byte(std::uint8_t mask) noexcept
+{
+	return std::uint32_t{0} - static_cast<std::uint32_t>((mask >> 7U) & 1U);
+}
+
+[[nodiscard]] U256 select_u256(std::uint8_t mask, const U256 &if_set, const U256 &if_clear) noexcept
+{
+	const auto word_mask = word_mask_from_byte(mask);
+	U256 output{};
+	for (std::size_t i = 0; i < limb_count; ++i)
+	{
+		output.limbs[i] = (if_set.limbs[i] & word_mask) | (if_clear.limbs[i] & ~word_mask);
+	}
+	return output;
+}
+
+[[nodiscard]] JacobianPoint select_jacobian(std::uint8_t mask, const JacobianPoint &if_set, const JacobianPoint &if_clear) noexcept
+{
+	const auto infinity_mask = constant_time_select(mask, constant_time_bool_mask(if_set.infinity), constant_time_bool_mask(if_clear.infinity));
+	return JacobianPoint{
+	    select_u256(mask, if_set.x, if_clear.x),
+	    select_u256(mask, if_set.y, if_clear.y),
+	    select_u256(mask, if_set.z, if_clear.z),
+	    infinity_mask != 0};
+}
+
 } // namespace
 
 Result<P256Point> p256_fixed_point_from_coordinates(std::span<const std::uint8_t> x, std::span<const std::uint8_t> y)
@@ -649,7 +675,7 @@ Result<P256Point> p256_fixed_point_add(const P256Point &lhs, const P256Point &rh
 	return make_point(x3, y3);
 }
 
-Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scalar, const P256Point &point)
+Result<P256Point> p256_fixed_scalar_multiply_branch_free(std::span<const std::uint8_t> scalar, const P256Point &point)
 {
 	if (point.infinity)
 	{
@@ -677,18 +703,21 @@ Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scala
 			}
 			result = std::move(doubled);
 
-			if (((byte >> static_cast<std::uint8_t>(bit)) & 0x01U) != 0U)
+			auto added = jacobian_add_affine(result.value(), addend.value());
+			if (!added)
 			{
-				auto added = jacobian_add_affine(result.value(), addend.value());
-				if (!added)
-				{
-					return Result<P256Point>::failure(added.error());
-				}
-				result = std::move(added);
+				return Result<P256Point>::failure(added.error());
 			}
+			const auto mask = static_cast<std::uint8_t>(0U - static_cast<std::uint8_t>((byte >> static_cast<std::uint8_t>(bit)) & 0x01U));
+			result = Result<JacobianPoint>::success(select_jacobian(mask, added.value(), result.value()));
 		}
 	}
 	return jacobian_to_affine(result.value());
+}
+
+Result<P256Point> p256_fixed_scalar_multiply(std::span<const std::uint8_t> scalar, const P256Point &point)
+{
+	return p256_fixed_scalar_multiply_branch_free(scalar, point);
 }
 
 Result<P256Point> p256_fixed_base_point_select_window(std::uint8_t nibble)
