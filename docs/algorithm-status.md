@@ -22,7 +22,7 @@ Status labels:
 | KDF | HKDF-SHA512 | experimental | native |
 | Cipher | AES-CBC | experimental | AES-128/192/256 |
 | AEAD | AES-GCM | experimental | AES-128/192/256 |
-| RNG | OS RNG | experimental | Windows implemented; cross-platform backends queued |
+| RNG | OS RNG | experimental | Windows `BCryptGenRandom`, Linux `getrandom`, Apple `SecRandomCopyBytes`, BSD `arc4random_buf`; cross-platform CI queued |
 | Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |
 | Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; hardening notes tracked |
 | Signature | Ed25519 | verify-only | native verify present; native sign queued |

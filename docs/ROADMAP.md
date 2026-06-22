@@ -158,35 +158,23 @@ Exit criteria:
 ### 1.5 Cross-Platform OS RNG
 
 Status: queued
-Size: `M`
-Priority: P0
+Size: `S`
+Priority: P1
 
 Goal:
 
-- support native OS RNG on Windows, Linux, macOS/iOS, and BSD.
+- prove native OS RNG on Windows, Linux, and macOS in CI.
 
 Remaining slices:
 
-1. `S` RNG behavior policy
-   - define zero-length generation behavior
-   - define large-request chunking policy
-   - document OS error mapping
-
-2. `M` platform backends
-   - Windows: `BCryptGenRandom`
-   - Linux: `getrandom` with `EINTR` retry
-   - Apple: `SecRandomCopyBytes`
-   - BSD: `arc4random_buf`
-
-3. `S` platform smoke tests
-   - zero-length request
-   - repeated-call non-equality smoke
-   - large buffer request
+1. `S` platform CI smoke tests
+   - run native RNG tests on Windows
+   - run native RNG tests on Linux
+   - run native RNG tests on macOS
 
 Exit criteria:
 
-- native-only test suite runs on Windows/Linux/macOS
-- unsupported platforms fail with explicit provider error
+- native RNG tests run in Windows/Linux/macOS CI
 
 ### 1.6 Security and Status Documentation
 

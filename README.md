@@ -56,7 +56,7 @@ Implemented native/default-provider surface:
 - Hash: SHA-256, SHA-512, one-shot and streaming
 - MAC: HMAC-SHA256, HMAC-SHA512, one-shot and streaming
 - KDF: PBKDF2-HMAC-SHA256/SHA512, HKDF-SHA256/SHA512
-- RNG: OS RNG on Windows through `BCryptGenRandom`
+- RNG: OS RNG on Windows, Linux, Apple platforms, and BSD family systems
 - Cipher/AEAD: AES-128/192/256 block, AES-CBC, AES-GCM
 - Keys: symmetric key material, RSA/ECDSA public/private key containers,
   move-only private keys, in-memory `KeyStore`

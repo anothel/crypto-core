@@ -67,6 +67,13 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    target_link_libraries(crypto_core
+        PRIVATE
+            "-framework Security"
+    )
+endif()
+
 if(CRYPTO_CORE_ENABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
 

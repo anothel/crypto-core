@@ -161,12 +161,22 @@ void test_random_fill_uses_explicit_provider()
 	require((output == std::vector<std::uint8_t>{0, 1, 2, 3, 4, 5}));
 }
 
-void test_random_bytes_rejects_zero_size()
+void test_random_bytes_accepts_zero_size()
 {
 	DeterministicRngProvider provider;
 	auto bytes = crypto_core::random_bytes(provider, crypto_core::RngAlgorithm::os_random, 0);
-	require(!bytes.has_value());
-	require(bytes.error().code() == crypto_core::ErrorCode::invalid_argument);
+	require(bytes.has_value());
+	require(bytes.value().empty());
+	require(provider.create_rng_calls == 0);
+}
+
+void test_random_fill_accepts_empty_output_without_creating_rng()
+{
+	DeterministicRngProvider provider;
+	std::vector<std::uint8_t> output;
+	auto result = crypto_core::random_bytes(provider, crypto_core::RngAlgorithm::os_random, output);
+	require(result.has_value());
+	require(provider.create_rng_calls == 0);
 }
 
 void test_random_bytes_propagates_provider_creation_failure()
@@ -193,6 +203,30 @@ void test_default_provider_generates_requested_size()
 	require(bytes.value().size() == 32);
 }
 
+void test_default_provider_accepts_empty_output()
+{
+	std::vector<std::uint8_t> output;
+	auto result = crypto_core::random_bytes(crypto_core::RngAlgorithm::os_random, output);
+	require(result.has_value());
+}
+
+void test_default_provider_large_request_succeeds()
+{
+	constexpr std::size_t large_size = (1024 * 1024) + 1;
+	auto bytes = crypto_core::random_bytes(crypto_core::RngAlgorithm::os_random, large_size);
+	require(bytes.has_value());
+	require(bytes.value().size() == large_size);
+}
+
+void test_default_provider_outputs_change_between_calls()
+{
+	auto first = crypto_core::random_bytes(crypto_core::RngAlgorithm::os_random, 32);
+	auto second = crypto_core::random_bytes(crypto_core::RngAlgorithm::os_random, 32);
+	require(first.has_value());
+	require(second.has_value());
+	require(first.value() != second.value());
+}
+
 } // namespace
 
 int main()
@@ -201,9 +235,13 @@ int main()
 	test_native_provider_supports_rng();
 	test_random_bytes_uses_explicit_provider();
 	test_random_fill_uses_explicit_provider();
-	test_random_bytes_rejects_zero_size();
+	test_random_bytes_accepts_zero_size();
+	test_random_fill_accepts_empty_output_without_creating_rng();
 	test_random_bytes_propagates_provider_creation_failure();
 	test_random_fill_propagates_rng_generation_failure();
 	test_default_provider_generates_requested_size();
+	test_default_provider_accepts_empty_output();
+	test_default_provider_large_request_succeeds();
+	test_default_provider_outputs_change_between_calls();
 	return 0;
 }

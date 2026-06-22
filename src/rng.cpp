@@ -2,6 +2,7 @@
 
 #include "crypto_core/provider.hpp"
 
+#include <utility>
 #include <vector>
 
 namespace crypto_core
@@ -16,10 +17,20 @@ Result<ByteBuffer> random_bytes(ICryptoProvider &provider, RngAlgorithm algorith
 {
 	if (size == 0)
 	{
-		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "rng", "random byte size must be greater than zero"));
+		return Result<ByteBuffer>::success(ByteBuffer{});
 	}
 
-	ByteBuffer bytes{std::vector<std::uint8_t>(size)};
+	std::vector<std::uint8_t> storage;
+	try
+	{
+		storage.resize(size);
+	}
+	catch (...)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::internal_error, "rng", "random byte allocation failed"));
+	}
+
+	ByteBuffer bytes{std::move(storage)};
 	auto result = random_bytes(provider, algorithm, bytes.bytes());
 	if (!result)
 	{
@@ -38,7 +49,7 @@ Result<void> random_bytes(ICryptoProvider &provider, RngAlgorithm algorithm, std
 {
 	if (output.empty())
 	{
-		return Result<void>::failure(make_error(ErrorCode::invalid_argument, "rng", "random output must not be empty"));
+		return Result<void>::success();
 	}
 
 	auto rng = provider.create_rng(algorithm);
