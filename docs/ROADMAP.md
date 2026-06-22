@@ -23,6 +23,81 @@ Every implementation slice must pass:
 - OpenSSL-enabled Debug configure/build/test when OpenSSL surface exists
 - targeted tests for new or changed behavior
 
+## External Analysis Triage: 2026-06-22
+
+Source: `C:/Users/anoth/Downloads/crypto-core-analysis-roadmap.md`.
+
+Accepted now:
+
+- Provider capability truthfulness.
+  - Reason: current `supports(SignatureAlgorithm::ed25519)` can be read as
+    "sign and verify", while only verify exists.
+  - Action: add operation-level capability checks for sign/verify/keygen/
+    encrypt/decrypt/derive. Keep legacy algorithm-level `supports()` for
+    source compatibility.
+
+Accepted into roadmap:
+
+- Ed25519 sign.
+  - Reason: current Ed25519 is verify-only.
+  - Goes under Current Focus.
+- Raw vs DER key material boundary.
+  - Reason: `import_der()` is currently a thin owned key container and does not
+    prove DER parsing for every algorithm.
+  - Goes under Next Queue before KeyStore handle evolution.
+- Cross-platform OS RNG.
+  - Reason: native engine should not be Windows-only.
+  - Goes under Next Queue.
+- Security documentation and algorithm status.
+  - Reason: users need explicit supported/experimental/verify-only status and
+    vulnerability-reporting expectations.
+  - Goes under Next Queue.
+- CMake install/export and CI matrix.
+  - Reason: library usability and repeatable verification matter before alpha.
+  - Goes under Next Queue.
+- NativeProvider key generation status.
+  - Reason: provider API exposes key generation, but NativeProvider support is
+    currently absent and should be test-visible.
+  - Goes into operation-level capability checks and algorithm status docs.
+- Broader negative/vector test backlog.
+  - Reason: Ed25519, RNG, DER, RSA, P-256, provider, memory, and fuzzing gaps
+    are valid, but not all belong in one implementation slice.
+  - Goes into each relevant roadmap section.
+
+Deferred:
+
+- Provider-backed KeyStore, PKCS#11, CSR, PQC.
+  - Reason: already tracked, but depends on key-material and provider-capability
+    cleanup.
+- Formal constant-time certification.
+  - Reason: not credible until RSA/P-256/Ed25519 arithmetic boundaries are
+    documented and narrowed.
+- Validated/restricted provider mode.
+  - Reason: useful later, but premature before algorithm status and self-tests.
+
+Rejected for now:
+
+- Replace operation-level overloads with a fixed `ProviderCapabilities` struct.
+  - Reason: a struct will churn every time an algorithm is added. Operation
+    overloads keep API smaller and extensible.
+- Add many separate docs at once.
+  - Reason: documentation should start with `algorithm-status`, `security-model`,
+    and `constant-time-notes`; more files can split out when content grows.
+- Choose a license without owner decision.
+  - Reason: license is project-owner policy, not an implementation detail.
+
+Alpha gate from the analysis:
+
+- `LICENSE` selected by owner
+- `SECURITY.md` present
+- Windows/Linux/macOS native CI green
+- OpenSSL ON/OFF CI green
+- algorithm status table present
+- Ed25519 sign+verify complete, or verify-only explicitly marked
+- cross-platform OS RNG present
+- raw/DER key material boundary clear
+- CMake install/export works
+
 ## Current Focus
 
 ### 1.3 Ed25519
@@ -59,7 +134,138 @@ Exit criteria:
 
 ## Next Queue
 
-### 1.4 RSA Deferred Hardening
+### 1.4 Key Material Format Boundary
+
+Status: queued
+Size: `M`
+Priority: P0
+
+Goal:
+
+- separate raw key material APIs from DER/ASN.1 key import APIs.
+
+Remaining slices:
+
+1. `S` Ed25519 raw public-key import
+   - add explicit `PublicKey::import_raw_ed25519(...)`
+   - keep current owned key storage semantics
+   - minimum tests: 32-byte accept, wrong length reject, verify path uses raw key
+
+2. `S` Ed25519 raw private seed import
+   - add explicit `PrivateKey::import_raw_ed25519_seed(...)`
+   - enforce 32-byte seed
+   - minimum tests: move-only private key, wrong length reject
+
+3. `M` DER naming migration plan
+   - decide `import_spki_der`, `import_pkcs8_der`, and `import_rsa_pkcs1_der`
+   - keep compatibility wrappers until 1.0 API decision
+
+Exit criteria:
+
+- Ed25519 no longer depends on a misleading `import_der()` name for raw keys
+- DER-specific names map to actual DER parsing behavior
+- existing RSA/ECDSA tests stay green
+
+### 1.5 Cross-Platform OS RNG
+
+Status: queued
+Size: `M`
+Priority: P0
+
+Goal:
+
+- support native OS RNG on Windows, Linux, macOS/iOS, and BSD.
+
+Remaining slices:
+
+1. `S` RNG behavior policy
+   - define zero-length generation behavior
+   - define large-request chunking policy
+   - document OS error mapping
+
+2. `M` platform backends
+   - Windows: `BCryptGenRandom`
+   - Linux: `getrandom` with `EINTR` retry
+   - Apple: `SecRandomCopyBytes`
+   - BSD: `arc4random_buf`
+
+3. `S` platform smoke tests
+   - zero-length request
+   - repeated-call non-equality smoke
+   - large buffer request
+
+Exit criteria:
+
+- native-only test suite runs on Windows/Linux/macOS
+- unsupported platforms fail with explicit provider error
+
+### 1.6 Security and Status Documentation
+
+Status: queued
+Size: `S`
+Priority: P1
+
+Goal:
+
+- make project security boundary and algorithm status explicit.
+
+Remaining slices:
+
+1. `S` `SECURITY.md`
+   - vulnerability reporting policy
+   - supported versions
+   - do-not-file-public-sensitive-issue note
+
+2. `S` `docs/algorithm-status.md`
+   - native sign/verify/encrypt/decrypt/keygen status
+   - OpenSSL oracle status
+   - experimental/verify-only/planned/deferred labels
+
+3. `S` `docs/security-model.md` and `docs/constant-time-notes.md`
+   - protected assets
+   - non-goals for 0.x
+   - known timing-risk register
+
+Exit criteria:
+
+- user can tell which algorithms are complete, verify-only, or deferred
+- known side-channel boundaries are documented, not implied
+
+### 1.7 Build, Package, and CI
+
+Status: queued
+Size: `M`
+Priority: P1
+
+Goal:
+
+- make the library installable and continuously verified.
+
+Remaining slices:
+
+1. `M` CMake install/export
+   - `install(TARGETS)`
+   - `install(EXPORT)`
+   - package config and version config
+   - install-tree smoke test
+
+2. `M` GitHub Actions native CI
+   - Windows/MSVC
+   - Ubuntu/GCC
+   - Ubuntu/Clang
+   - macOS/Clang
+
+3. `M` OpenSSL and sanitizer CI
+   - OpenSSL ON/OFF
+   - ASan/UBSan on Linux Clang Debug
+
+Exit criteria:
+
+- `find_package(crypto_core CONFIG REQUIRED)` works from install tree
+- native CI covers Windows/Linux/macOS
+- OpenSSL oracle path is tested in CI
+
+### 1.8 RSA Deferred Hardening
 
 Status: deferred
 Size: `M`
@@ -91,7 +297,7 @@ Deferred:
 
 - formal constant-time certification
 
-### 1.5 P-256 Deferred Hardening
+### 1.9 P-256 Deferred Hardening
 
 Status: deferred
 Size: `M`
@@ -119,7 +325,7 @@ Deferred:
 - raw fixed-width signature public format
 - ECDH, unless key agreement becomes a project goal
 
-### 1.6 KeyStore Evolution
+### 1.10 KeyStore Evolution
 
 Status: queued  
 Size: `L`  
@@ -151,7 +357,7 @@ Exit criteria:
 - private key export restrictions are representable
 - current in-memory `KeyStore` behavior stays green
 
-### 1.7 Self-Test and Validated Mode
+### 1.11 Self-Test and Validated Mode
 
 Status: optional  
 Size: `M`  

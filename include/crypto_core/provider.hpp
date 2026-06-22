@@ -18,6 +18,16 @@
 namespace crypto_core
 {
 
+enum class CryptoOperation
+{
+	sign,
+	verify,
+	keygen,
+	encrypt,
+	decrypt,
+	derive,
+};
+
 class IHashContext
 {
 public:
@@ -66,8 +76,12 @@ public:
 	[[nodiscard]] virtual bool supports(CipherAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(AeadAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(SignatureAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(CryptoOperation operation, AsymmetricKeyAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(CryptoOperation operation, AsymmetricEncryptionAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual bool supports(KeyAgreementAlgorithm algorithm) const noexcept;
+	[[nodiscard]] virtual bool supports(CryptoOperation operation, KeyAgreementAlgorithm algorithm) const noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept = 0;
 	[[nodiscard]] virtual Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept;
 	[[nodiscard]] virtual Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept;

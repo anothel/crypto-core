@@ -1,0 +1,52 @@
+# Algorithm Status
+
+Status labels:
+
+- `experimental`: implemented and tested, but not production-certified
+- `verify-only`: verification works, signing is not implemented
+- `planned`: tracked but not implemented
+- `deferred`: intentionally later
+- `unsupported`: not planned for 0.x/1.x unless required
+
+## NativeProvider
+
+| Area | Algorithm | Native operation status | Notes |
+|---|---|---|---|
+| Hash | SHA-256 | experimental | one-shot and streaming context |
+| Hash | SHA-512 | experimental | one-shot and streaming context |
+| MAC | HMAC-SHA256 | experimental | streaming context |
+| MAC | HMAC-SHA512 | experimental | streaming context |
+| KDF | PBKDF2-HMAC-SHA256 | experimental | native |
+| KDF | PBKDF2-HMAC-SHA512 | experimental | native |
+| KDF | HKDF-SHA256 | experimental | native |
+| KDF | HKDF-SHA512 | experimental | native |
+| Cipher | AES-CBC | experimental | AES-128/192/256 |
+| AEAD | AES-GCM | experimental | AES-128/192/256 |
+| RNG | OS RNG | experimental | Windows implemented; cross-platform backends queued |
+| Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |
+| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; hardening notes tracked |
+| Signature | Ed25519 | verify-only | native verify present; native sign queued |
+| Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
+| Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
+| Key agreement | ECDH | planned/deferred | no active 0.x goal |
+
+## OpenSSLProvider
+
+| Area | Algorithm | OpenSSL operation status | Notes |
+|---|---|---|---|
+| Hash | SHA-256/SHA-512 | experimental | optional provider |
+| MAC | HMAC-SHA256/HMAC-SHA512 | experimental | optional provider |
+| KDF | PBKDF2/HKDF SHA-2 variants | experimental | optional provider |
+| Signature | RSA-PSS | sign + verify experimental | differential oracle |
+| Signature | ECDSA P-256 | sign + verify experimental | differential oracle |
+| Signature | Ed25519 | planned | differential path queued |
+| Encryption | RSA-OAEP | encrypt + decrypt experimental | optional provider |
+| Keygen | RSA/ECDSA P-256 | experimental | optional provider |
+
+## Explicit Non-Goals For Now
+
+- DES, RC2, RC4, MD5, SHA-1
+- TLS protocol implementation
+- certificate chain validation
+- mutable global provider registry
+- formal constant-time certification

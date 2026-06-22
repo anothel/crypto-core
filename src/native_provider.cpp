@@ -200,9 +200,54 @@ bool NativeProvider::supports(SignatureAlgorithm algorithm) const noexcept
 	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 }
 
+bool NativeProvider::supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept
+{
+	switch (operation)
+	{
+	case CryptoOperation::sign:
+		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+	case CryptoOperation::verify:
+		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
+	case CryptoOperation::keygen:
+	case CryptoOperation::encrypt:
+	case CryptoOperation::decrypt:
+	case CryptoOperation::derive:
+		return false;
+	}
+
+	return false;
+}
+
+bool NativeProvider::supports(CryptoOperation, AsymmetricKeyAlgorithm) const noexcept
+{
+	return false;
+}
+
 bool NativeProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
 {
 	return is_rsa_oaep_algorithm(algorithm);
+}
+
+bool NativeProvider::supports(CryptoOperation operation, AsymmetricEncryptionAlgorithm algorithm) const noexcept
+{
+	switch (operation)
+	{
+	case CryptoOperation::encrypt:
+	case CryptoOperation::decrypt:
+		return is_rsa_oaep_algorithm(algorithm);
+	case CryptoOperation::sign:
+	case CryptoOperation::verify:
+	case CryptoOperation::keygen:
+	case CryptoOperation::derive:
+		return false;
+	}
+
+	return false;
+}
+
+bool NativeProvider::supports(CryptoOperation, KeyAgreementAlgorithm) const noexcept
+{
+	return false;
 }
 
 Result<std::unique_ptr<IHashContext>> NativeProvider::create_hash(HashAlgorithm algorithm) noexcept

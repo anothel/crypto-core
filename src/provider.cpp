@@ -68,6 +68,16 @@ bool ICryptoProvider::supports(SignatureAlgorithm) const noexcept
 	return false;
 }
 
+bool ICryptoProvider::supports(CryptoOperation, SignatureAlgorithm) const noexcept
+{
+	return false;
+}
+
+bool ICryptoProvider::supports(CryptoOperation, AsymmetricKeyAlgorithm) const noexcept
+{
+	return false;
+}
+
 Result<ByteBuffer> ICryptoProvider::sign(const SignParams &, std::span<const std::uint8_t>) noexcept
 {
 	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "signature algorithm is not supported"));
@@ -88,6 +98,11 @@ bool ICryptoProvider::supports(AsymmetricEncryptionAlgorithm) const noexcept
 	return false;
 }
 
+bool ICryptoProvider::supports(CryptoOperation, AsymmetricEncryptionAlgorithm) const noexcept
+{
+	return false;
+}
+
 Result<ByteBuffer> ICryptoProvider::asymmetric_encrypt(const AsymmetricEncryptParams &, std::span<const std::uint8_t>) noexcept
 {
 	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "provider", "asymmetric encryption algorithm is not supported"));
@@ -99,6 +114,11 @@ Result<ByteBuffer> ICryptoProvider::asymmetric_decrypt(const AsymmetricDecryptPa
 }
 
 bool ICryptoProvider::supports(KeyAgreementAlgorithm) const noexcept
+{
+	return false;
+}
+
+bool ICryptoProvider::supports(CryptoOperation, KeyAgreementAlgorithm) const noexcept
 {
 	return false;
 }

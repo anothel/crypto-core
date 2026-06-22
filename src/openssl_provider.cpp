@@ -589,9 +589,52 @@ bool OpenSSLProvider::supports(SignatureAlgorithm algorithm) const noexcept
 	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
 }
 
+bool OpenSSLProvider::supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept
+{
+	switch (operation)
+	{
+	case CryptoOperation::sign:
+	case CryptoOperation::verify:
+		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+	case CryptoOperation::keygen:
+	case CryptoOperation::encrypt:
+	case CryptoOperation::decrypt:
+	case CryptoOperation::derive:
+		return false;
+	}
+
+	return false;
+}
+
+bool OpenSSLProvider::supports(CryptoOperation operation, AsymmetricKeyAlgorithm algorithm) const noexcept
+{
+	if (operation != CryptoOperation::keygen)
+	{
+		return false;
+	}
+	return algorithm == AsymmetricKeyAlgorithm::rsa || algorithm == AsymmetricKeyAlgorithm::ecdsa_p256;
+}
+
 bool OpenSSLProvider::supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept
 {
 	return is_rsa_oaep_algorithm(algorithm);
+}
+
+bool OpenSSLProvider::supports(CryptoOperation operation, AsymmetricEncryptionAlgorithm algorithm) const noexcept
+{
+	switch (operation)
+	{
+	case CryptoOperation::encrypt:
+	case CryptoOperation::decrypt:
+		return is_rsa_oaep_algorithm(algorithm);
+	case CryptoOperation::sign:
+	case CryptoOperation::verify:
+	case CryptoOperation::keygen:
+	case CryptoOperation::derive:
+		return false;
+	}
+
+	return false;
 }
 
 Result<std::unique_ptr<IHashContext>> OpenSSLProvider::create_hash(HashAlgorithm algorithm) noexcept

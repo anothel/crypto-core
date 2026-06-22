@@ -20,7 +20,10 @@ public:
 	[[nodiscard]] bool supports(MacAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(KdfAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(SignatureAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, AsymmetricKeyAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, AsymmetricEncryptionAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept override;
 	[[nodiscard]] Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept override;

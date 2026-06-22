@@ -227,6 +227,21 @@ void test_default_provider_reports_signature_support()
 	require(!provider.supports(crypto_core::KeyAgreementAlgorithm::ecdh_p256));
 }
 
+void test_default_provider_reports_operation_level_asymmetric_support()
+{
+	crypto_core::NativeProvider provider;
+	require(provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::rsa_pss_sha256));
+	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::rsa_pss_sha256));
+	require(provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
+	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
+	require(!provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ed25519));
+	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::ed25519));
+	require(!provider.supports(crypto_core::CryptoOperation::keygen, crypto_core::AsymmetricKeyAlgorithm::ed25519));
+	require(provider.supports(crypto_core::CryptoOperation::encrypt, crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
+	require(provider.supports(crypto_core::CryptoOperation::decrypt, crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
+	require(!provider.supports(crypto_core::CryptoOperation::derive, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+}
+
 void test_asymmetric_provider_defaults_return_unsupported_algorithm()
 {
 	UnsupportedAsymmetricProvider provider;
@@ -294,6 +309,7 @@ int main()
 	test_rsa_key_generation_params_have_safe_defaults();
 	test_ec_key_generation_params_have_sign_verify_defaults();
 	test_default_provider_reports_signature_support();
+	test_default_provider_reports_operation_level_asymmetric_support();
 	test_asymmetric_provider_defaults_return_unsupported_algorithm();
 	test_invalid_signature_is_successful_verify_result();
 	return 0;

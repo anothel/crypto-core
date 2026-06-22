@@ -21,7 +21,11 @@ public:
 	[[nodiscard]] bool supports(CipherAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(AeadAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(SignatureAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, AsymmetricKeyAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] bool supports(AsymmetricEncryptionAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, AsymmetricEncryptionAlgorithm algorithm) const noexcept override;
+	[[nodiscard]] bool supports(CryptoOperation operation, KeyAgreementAlgorithm algorithm) const noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IHashContext>> create_hash(HashAlgorithm algorithm) noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IMacContext>> create_mac(MacAlgorithm algorithm, std::span<const std::uint8_t> key) noexcept override;
 	[[nodiscard]] Result<std::unique_ptr<IRng>> create_rng(RngAlgorithm algorithm) noexcept override;
