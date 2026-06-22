@@ -25,7 +25,7 @@ Status labels:
 | RNG | OS RNG | experimental | Windows `BCryptGenRandom`, Linux `getrandom`, Apple `SecRandomCopyBytes`, BSD `arc4random_buf`; cross-platform CI queued |
 | Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |
 | Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; hardening notes tracked |
-| Signature | Ed25519 | verify-only | native verify present; native sign queued |
+| Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
 | Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte raw keys |
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |

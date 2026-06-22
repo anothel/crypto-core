@@ -202,6 +202,26 @@ struct ExtendedPoint final
 	return BigInt::mod_add(value.value(), z.value(), order.value());
 }
 
+[[nodiscard]] Result<BigInt> multiply_mod_order(const BigInt &lhs, const BigInt &rhs)
+{
+	auto order = group_order();
+	if (!order)
+	{
+		return Result<BigInt>::failure(order.error());
+	}
+	return BigInt::mod_multiply(lhs, rhs, order.value());
+}
+
+[[nodiscard]] Result<BigInt> add_mod_order(const BigInt &lhs, const BigInt &rhs)
+{
+	auto order = group_order();
+	if (!order)
+	{
+		return Result<BigInt>::failure(order.error());
+	}
+	return BigInt::mod_add(lhs, rhs, order.value());
+}
+
 [[nodiscard]] Result<bool> scalar_is_canonical(std::span<const std::uint8_t> little_endian)
 {
 	auto value = from_le_bytes(little_endian);
@@ -540,6 +560,71 @@ struct ExtendedPoint final
 	return make_affine_point(x.value(), y.value());
 }
 
+void clamp_scalar(std::array<std::uint8_t, 32> &scalar) noexcept
+{
+	scalar[0] &= 248U;
+	scalar[31] &= 63U;
+	scalar[31] |= 64U;
+}
+
+[[nodiscard]] Result<ByteBuffer> encode_point(const ExtendedPoint &point)
+{
+	auto z_inverse = field_inverse(point.z);
+	if (!z_inverse)
+	{
+		return Result<ByteBuffer>::failure(z_inverse.error());
+	}
+	auto x = field_multiply(point.x, z_inverse.value());
+	auto y = field_multiply(point.y, z_inverse.value());
+	if (!x)
+	{
+		return Result<ByteBuffer>::failure(x.error());
+	}
+	if (!y)
+	{
+		return Result<ByteBuffer>::failure(y.error());
+	}
+
+	auto encoded = to_fixed_le_bytes(y.value(), encoded_point_size);
+	if (!encoded)
+	{
+		return Result<ByteBuffer>::failure(encoded.error());
+	}
+	if (is_odd(x.value()))
+	{
+		encoded.value().back() |= 0x80U;
+	}
+
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(encoded.value())));
+}
+
+[[nodiscard]] Result<ByteBuffer> sha512(std::span<const std::uint8_t> input)
+{
+	Sha512Context context;
+	auto updated = context.update(input);
+	if (!updated)
+	{
+		return Result<ByteBuffer>::failure(updated.error());
+	}
+	return context.final();
+}
+
+[[nodiscard]] Result<ByteBuffer> sha512(std::span<const std::uint8_t> first, std::span<const std::uint8_t> second)
+{
+	Sha512Context context;
+	auto updated = context.update(first);
+	if (!updated)
+	{
+		return Result<ByteBuffer>::failure(updated.error());
+	}
+	updated = context.update(second);
+	if (!updated)
+	{
+		return Result<ByteBuffer>::failure(updated.error());
+	}
+	return context.final();
+}
+
 [[nodiscard]] Result<ByteBuffer> sha512(std::span<const std::uint8_t> first, std::span<const std::uint8_t> second, std::span<const std::uint8_t> third)
 {
 	Sha512Context context;
@@ -562,6 +647,110 @@ struct ExtendedPoint final
 }
 
 } // namespace
+
+Result<ByteBuffer> sign_ed25519_seed(std::span<const std::uint8_t> seed, std::span<const std::uint8_t> message)
+{
+	if (seed.size() != encoded_point_size)
+	{
+		return Result<ByteBuffer>::failure(ed25519_error(ErrorCode::invalid_key, "Ed25519 private seed must be 32 bytes"));
+	}
+
+	auto digest = sha512(seed);
+	if (!digest)
+	{
+		return Result<ByteBuffer>::failure(digest.error());
+	}
+	if (digest.value().size() != 64)
+	{
+		return Result<ByteBuffer>::failure(ed25519_error(ErrorCode::internal_error, "SHA-512 digest must be 64 bytes"));
+	}
+
+	std::array<std::uint8_t, 32> scalar_bytes{};
+	std::copy(digest.value().bytes().begin(), digest.value().bytes().begin() + static_cast<std::ptrdiff_t>(scalar_bytes.size()), scalar_bytes.begin());
+	clamp_scalar(scalar_bytes);
+
+	auto base = decode_point(base_point_bytes);
+	if (!base)
+	{
+		return Result<ByteBuffer>::failure(base.error());
+	}
+
+	auto public_point = scalar_multiply(scalar_bytes, base.value());
+	if (!public_point)
+	{
+		return Result<ByteBuffer>::failure(public_point.error());
+	}
+	auto public_key = encode_point(public_point.value());
+	if (!public_key)
+	{
+		return Result<ByteBuffer>::failure(public_key.error());
+	}
+
+	auto prefix = digest.value().bytes().subspan(32, 32);
+	auto r_digest = sha512(prefix, message);
+	if (!r_digest)
+	{
+		return Result<ByteBuffer>::failure(r_digest.error());
+	}
+	auto r = reduce_mod_order(r_digest.value().bytes());
+	if (!r)
+	{
+		return Result<ByteBuffer>::failure(r.error());
+	}
+	auto r_bytes = to_fixed_le_bytes(r.value(), 32);
+	if (!r_bytes)
+	{
+		return Result<ByteBuffer>::failure(r_bytes.error());
+	}
+
+	auto r_point = scalar_multiply(r_bytes.value(), base.value());
+	if (!r_point)
+	{
+		return Result<ByteBuffer>::failure(r_point.error());
+	}
+	auto r_encoded = encode_point(r_point.value());
+	if (!r_encoded)
+	{
+		return Result<ByteBuffer>::failure(r_encoded.error());
+	}
+
+	auto k_digest = sha512(r_encoded.value().bytes(), public_key.value().bytes(), message);
+	if (!k_digest)
+	{
+		return Result<ByteBuffer>::failure(k_digest.error());
+	}
+	auto k = reduce_mod_order(k_digest.value().bytes());
+	auto a = from_le_bytes(scalar_bytes);
+	if (!k)
+	{
+		return Result<ByteBuffer>::failure(k.error());
+	}
+	if (!a)
+	{
+		return Result<ByteBuffer>::failure(a.error());
+	}
+	auto k_times_a = multiply_mod_order(k.value(), a.value());
+	if (!k_times_a)
+	{
+		return Result<ByteBuffer>::failure(k_times_a.error());
+	}
+	auto s = add_mod_order(r.value(), k_times_a.value());
+	if (!s)
+	{
+		return Result<ByteBuffer>::failure(s.error());
+	}
+	auto s_bytes = to_fixed_le_bytes(s.value(), 32);
+	if (!s_bytes)
+	{
+		return Result<ByteBuffer>::failure(s_bytes.error());
+	}
+
+	std::vector<std::uint8_t> signature;
+	signature.reserve(signature_size);
+	signature.insert(signature.end(), r_encoded.value().bytes().begin(), r_encoded.value().bytes().end());
+	signature.insert(signature.end(), s_bytes.value().begin(), s_bytes.value().end());
+	return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
+}
 
 Result<bool> verify_ed25519(
     std::span<const std::uint8_t> public_key,

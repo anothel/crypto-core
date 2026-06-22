@@ -65,6 +65,7 @@ Implemented native/default-provider surface:
   provider-level reference-vector tests
 - ECDSA P-256: DER key/signature parsing, native verify, deterministic native
   signing, RFC6979, fixed-limb P-256 backend, base-point windowing
+- Ed25519: raw public key/private seed import, deterministic native sign/verify
 - Encoding: Base64, Base64url, PEM armor shell
 - Optional OpenSSL provider for SHA/HMAC/KDF/AES/RSA/ECDSA reference and
   differential tests where enabled

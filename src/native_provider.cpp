@@ -205,7 +205,7 @@ bool NativeProvider::supports(CryptoOperation operation, SignatureAlgorithm algo
 	switch (operation)
 	{
 	case CryptoOperation::sign:
-		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 	case CryptoOperation::verify:
 		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 	case CryptoOperation::keygen:
@@ -314,6 +314,19 @@ Result<ByteBuffer> NativeProvider::aead_decrypt(const AeadDecryptParams &params,
 
 Result<ByteBuffer> NativeProvider::sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept
 {
+	if (is_ed25519_algorithm(params.algorithm))
+	{
+		if (params.private_key == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "native_provider", "private key is required"));
+		}
+		if (params.private_key->algorithm() != AsymmetricKeyAlgorithm::ed25519 || !params.private_key->allows(KeyUsage::sign))
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "native_provider", "Ed25519 signing key is required"));
+		}
+
+		return internal::sign_ed25519_seed(params.private_key->bytes(), message);
+	}
 	if (is_ecdsa_algorithm(params.algorithm))
 	{
 		if (params.private_key == nullptr)

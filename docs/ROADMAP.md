@@ -36,11 +36,14 @@ Accepted now:
     encrypt/decrypt/derive. Keep legacy algorithm-level `supports()` for
     source compatibility.
 
-Accepted into roadmap:
+Accepted and already completed:
 
 - Ed25519 sign.
-  - Reason: current Ed25519 is verify-only.
-  - Goes under Current Focus.
+  - Reason: Ed25519 was verify-only when the analysis was imported.
+  - Result: NativeProvider now supports deterministic Ed25519 sign and verify.
+
+Accepted into roadmap:
+
 - Raw vs DER key material boundary.
   - Reason: `import_der()` is currently a thin owned key container and does not
     prove DER parsing for every algorithm.
@@ -93,7 +96,7 @@ Alpha gate from the analysis:
 - Windows/Linux/macOS native CI green
 - OpenSSL ON/OFF CI green
 - algorithm status table present
-- Ed25519 sign+verify complete, or verify-only explicitly marked
+- Ed25519 sign+verify complete
 - cross-platform OS RNG present
 - raw/DER key material boundary clear
 - CMake install/export works
@@ -113,22 +116,18 @@ Goal:
 
 Remaining slices:
 
-1. `M` NativeProvider Ed25519 sign
-   - import private key material
-   - sign through provider API
-   - minimum tests: RFC 8032 signing vectors, deterministic repeatability
-
-2. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
+1. `S` OpenSSL differential path, if local OpenSSL supports Ed25519
    - sign OpenSSL -> verify Native
    - sign Native -> verify OpenSSL
 
-3. `S` Ed25519 key generation, if needed before KeyStore evolution
+2. `S` Ed25519 key generation, if needed before KeyStore evolution
    - import public/private key material
    - export public/private material in the current thin key shape
 
 Exit criteria:
 
 - RFC 8032 vectors pass
+- NativeProvider signs and verifies deterministic Ed25519 signatures
 - invalid signatures return `VerifyResult::invalid()`
 - API does not expose irrelevant RSA/ECDSA parameters
 

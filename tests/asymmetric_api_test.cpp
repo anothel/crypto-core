@@ -289,7 +289,7 @@ void test_default_provider_reports_operation_level_asymmetric_support()
 	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::rsa_pss_sha256));
 	require(provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
 	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
-	require(!provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ed25519));
+	require(provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ed25519));
 	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::ed25519));
 	require(!provider.supports(crypto_core::CryptoOperation::keygen, crypto_core::AsymmetricKeyAlgorithm::ed25519));
 	require(provider.supports(crypto_core::CryptoOperation::encrypt, crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
