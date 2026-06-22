@@ -138,6 +138,12 @@ public:
 	    AsymmetricKeyAlgorithm algorithm,
 	    std::span<const std::uint8_t> der,
 	    KeyUsage usage);
+	[[nodiscard]] static Result<PublicKey> import_raw_ed25519(
+	    std::span<const std::uint8_t> raw_public_key,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PublicKey> import_raw_ed25519(
+	    std::span<const std::uint8_t> raw_public_key,
+	    KeyUsage usage);
 
 	[[nodiscard]] AsymmetricKeyAlgorithm algorithm() const noexcept
 	{
@@ -200,6 +206,12 @@ public:
 	[[nodiscard]] static Result<PrivateKey> import_der(
 	    AsymmetricKeyAlgorithm algorithm,
 	    SecureBuffer der,
+	    KeyUsage usage);
+	[[nodiscard]] static Result<PrivateKey> import_raw_ed25519_seed(
+	    SecureBuffer raw_seed,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PrivateKey> import_raw_ed25519_seed(
+	    SecureBuffer raw_seed,
 	    KeyUsage usage);
 
 	[[nodiscard]] AsymmetricKeyAlgorithm algorithm() const noexcept

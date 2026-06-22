@@ -32,7 +32,7 @@ std::vector<std::uint8_t> bytes(std::string_view hex)
 
 crypto_core::PublicKey import_ed25519_verify_key(std::span<const std::uint8_t> key)
 {
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, key, crypto_core::KeyUsage::verify);
+	auto public_key = crypto_core::PublicKey::import_raw_ed25519(key, crypto_core::KeyUsage::verify);
 	require(public_key.has_value());
 	return public_key.value();
 }
@@ -90,12 +90,23 @@ void test_native_provider_rejects_invalid_ed25519_key_and_signature_shapes()
 {
 	current_check = "invalid Ed25519 shape setup";
 	crypto_core::NativeProvider provider;
-	auto short_public_key = import_ed25519_verify_key(bytes("01"));
-	auto result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ed25519, &short_public_key, bytes("00")}, bytes("00"));
-	current_check = "short Ed25519 public key fails";
-	require(!result.has_value());
-	current_check = "short Ed25519 public key invalid_key";
-	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
+	auto short_public_key = crypto_core::PublicKey::import_raw_ed25519(bytes("01"), crypto_core::KeyUsage::verify);
+	current_check = "short Ed25519 public key import fails";
+	require(!short_public_key.has_value());
+	current_check = "short Ed25519 public key import invalid_key";
+	require(short_public_key.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto legacy_short_public_key =
+	    crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, bytes("01"), crypto_core::KeyUsage::verify);
+	require(legacy_short_public_key.has_value());
+	auto legacy_result = crypto_core::verify(
+	    provider,
+	    {crypto_core::SignatureAlgorithm::ed25519, &legacy_short_public_key.value(), bytes("00")},
+	    bytes("00"));
+	current_check = "legacy short Ed25519 public key verify fails";
+	require(!legacy_result.has_value());
+	current_check = "legacy short Ed25519 public key verify invalid_key";
+	require(legacy_result.error().code() == crypto_core::ErrorCode::invalid_key);
 
 	auto public_key = import_ed25519_verify_key(bytes("D75A980182B10AB7D54BFED3C964073A0EE172F3DAA62325AF021A68F707511A"));
 	auto short_signature = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ed25519, &public_key, bytes("00")}, bytes("00"));

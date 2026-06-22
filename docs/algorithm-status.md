@@ -27,6 +27,9 @@ Status labels:
 | Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; hardening notes tracked |
 | Signature | Ed25519 | verify-only | native verify present; native sign queued |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
+| Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte raw keys |
+| Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
+| Key import | DER/SPKI/PKCS#8 | planned | current `import_der` is compatibility wrapper, not full parser |
 | Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
 | Key agreement | ECDH | planned/deferred | no active 0.x goal |
 

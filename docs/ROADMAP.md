@@ -146,23 +146,12 @@ Goal:
 
 Remaining slices:
 
-1. `S` Ed25519 raw public-key import
-   - add explicit `PublicKey::import_raw_ed25519(...)`
-   - keep current owned key storage semantics
-   - minimum tests: 32-byte accept, wrong length reject, verify path uses raw key
-
-2. `S` Ed25519 raw private seed import
-   - add explicit `PrivateKey::import_raw_ed25519_seed(...)`
-   - enforce 32-byte seed
-   - minimum tests: move-only private key, wrong length reject
-
-3. `M` DER naming migration plan
+1. `M` DER naming migration plan
    - decide `import_spki_der`, `import_pkcs8_der`, and `import_rsa_pkcs1_der`
    - keep compatibility wrappers until 1.0 API decision
 
 Exit criteria:
 
-- Ed25519 no longer depends on a misleading `import_der()` name for raw keys
 - DER-specific names map to actual DER parsing behavior
 - existing RSA/ECDSA tests stay green
 

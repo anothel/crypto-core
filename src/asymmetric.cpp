@@ -8,6 +8,8 @@ namespace crypto_core
 namespace
 {
 
+constexpr std::size_t ed25519_raw_key_size = 32;
+
 bool is_known_algorithm(AsymmetricKeyAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
@@ -55,6 +57,21 @@ Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::s
 	return import_der(algorithm, der, key_usage_value(usage));
 }
 
+Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsageMask usages)
+{
+	if (raw_public_key.size() != ed25519_raw_key_size)
+	{
+		return Result<PublicKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 raw public key must be 32 bytes"));
+	}
+
+	return Result<PublicKey>::success(PublicKey(AsymmetricKeyAlgorithm::ed25519, usages, ByteBuffer::copy_from(raw_public_key)));
+}
+
+Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsage usage)
+{
+	return import_raw_ed25519(raw_public_key, key_usage_value(usage));
+}
+
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsageMask usages)
 {
 	auto validation = validate_der_key_material(algorithm, der.bytes());
@@ -69,6 +86,21 @@ Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, Secu
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsage usage)
 {
 	return import_der(algorithm, std::move(der), key_usage_value(usage));
+}
+
+Result<PrivateKey> PrivateKey::import_raw_ed25519_seed(SecureBuffer raw_seed, KeyUsageMask usages)
+{
+	if (raw_seed.size() != ed25519_raw_key_size)
+	{
+		return Result<PrivateKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 raw private seed must be 32 bytes"));
+	}
+
+	return Result<PrivateKey>::success(PrivateKey(AsymmetricKeyAlgorithm::ed25519, usages, std::move(raw_seed)));
+}
+
+Result<PrivateKey> PrivateKey::import_raw_ed25519_seed(SecureBuffer raw_seed, KeyUsage usage)
+{
+	return import_raw_ed25519_seed(std::move(raw_seed), key_usage_value(usage));
 }
 
 Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept

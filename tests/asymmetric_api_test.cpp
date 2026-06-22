@@ -181,6 +181,61 @@ void test_asymmetric_keys_reject_empty_der()
 	require(private_key.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_ed25519_raw_public_key_import_validates_length_and_owns_bytes()
+{
+	std::array<std::uint8_t, 32> raw{};
+	raw[0] = 0xA5U;
+
+	auto key = crypto_core::PublicKey::import_raw_ed25519(raw, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
+	require(key.has_value());
+	require(key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ed25519);
+	require(key.value().allows(crypto_core::KeyUsage::verify));
+	require(key.value().allows(crypto_core::KeyUsage::encrypt));
+	require(key.value().size() == raw.size());
+
+	raw[0] = 0x5AU;
+	require(key.value().bytes()[0] == 0xA5U);
+
+	std::array<std::uint8_t, 31> short_raw{};
+	auto short_key = crypto_core::PublicKey::import_raw_ed25519(short_raw, crypto_core::KeyUsage::verify);
+	require(!short_key.has_value());
+	require(short_key.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	std::array<std::uint8_t, 33> long_raw{};
+	auto long_key = crypto_core::PublicKey::import_raw_ed25519(long_raw, crypto_core::KeyUsage::verify);
+	require(!long_key.has_value());
+	require(long_key.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
+void test_ed25519_raw_private_seed_import_validates_length_and_moves_buffer()
+{
+	std::array<std::uint8_t, 32> raw{};
+	raw[0] = 0x11U;
+	auto buffer = crypto_core::SecureBuffer::copy_from(raw);
+	require(buffer.has_value());
+
+	auto key = crypto_core::PrivateKey::import_raw_ed25519_seed(std::move(buffer.value()), crypto_core::KeyUsage::sign);
+	require(key.has_value());
+	require(key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ed25519);
+	require(key.value().allows(crypto_core::KeyUsage::sign));
+	require(key.value().size() == raw.size());
+	require(key.value().bytes()[0] == 0x11U);
+
+	std::array<std::uint8_t, 31> short_raw{};
+	auto short_buffer = crypto_core::SecureBuffer::copy_from(short_raw);
+	require(short_buffer.has_value());
+	auto short_key = crypto_core::PrivateKey::import_raw_ed25519_seed(std::move(short_buffer.value()), crypto_core::KeyUsage::sign);
+	require(!short_key.has_value());
+	require(short_key.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	std::array<std::uint8_t, 33> long_raw{};
+	auto long_buffer = crypto_core::SecureBuffer::copy_from(long_raw);
+	require(long_buffer.has_value());
+	auto long_key = crypto_core::PrivateKey::import_raw_ed25519_seed(std::move(long_buffer.value()), crypto_core::KeyUsage::sign);
+	require(!long_key.has_value());
+	require(long_key.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 void test_private_key_and_key_pair_are_move_only()
 {
 	static_assert(std::is_copy_constructible_v<crypto_core::PublicKey>);
@@ -305,6 +360,8 @@ int main()
 	test_rsa_oaep_params_own_label();
 	test_public_and_private_key_import_export();
 	test_asymmetric_keys_reject_empty_der();
+	test_ed25519_raw_public_key_import_validates_length_and_owns_bytes();
+	test_ed25519_raw_private_seed_import_validates_length_and_moves_buffer();
 	test_private_key_and_key_pair_are_move_only();
 	test_rsa_key_generation_params_have_safe_defaults();
 	test_ec_key_generation_params_have_sign_verify_defaults();
