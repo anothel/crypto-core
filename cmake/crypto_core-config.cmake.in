@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(@CRYPTO_CORE_ENABLE_OPENSSL@)
+    find_dependency(OpenSSL)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/crypto_core-targets.cmake")
+check_required_components(crypto_core)

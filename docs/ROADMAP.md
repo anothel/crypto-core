@@ -225,6 +225,8 @@ Remaining slices:
    - `install(EXPORT)`
    - package config and version config
    - install-tree smoke test
+   - install/export implementation added; first external consumer validation
+     outside local smoke pending
 
 2. `M` GitHub Actions native CI
    - Windows/MSVC

@@ -101,6 +101,19 @@ ctest --test-dir build-openssl -C Debug --output-on-failure
 If OpenSSL is installed outside `vcpkg`, set `OPENSSL_ROOT_DIR` or provide
 `OPENSSL_INCLUDE_DIR` and `OPENSSL_CRYPTO_LIBRARY`.
 
+Install-tree smoke check:
+
+```powershell
+cmake --install build --config Debug --prefix build-install
+cmake -S tests/install_package_smoke -B build-install-smoke `
+  -DCMAKE_PREFIX_PATH=$PWD\build-install
+cmake --build build-install-smoke --config Debug
+.\build-install-smoke\Debug\crypto_core_install_package_smoke.exe
+```
+
+For OpenSSL-enabled installs, pass the same `vcpkg` toolchain file or
+`OPENSSL_ROOT_DIR` hint to the consumer configure step.
+
 ## Windows Shell Setup
 
 If `cmake`, `ctest`, or `cl` are not found in PowerShell, install CMake and

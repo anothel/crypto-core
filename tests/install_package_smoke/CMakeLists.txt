@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 3.24)
+
+project(crypto_core_install_package_smoke LANGUAGES CXX)
+
+find_package(crypto_core CONFIG REQUIRED)
+
+add_executable(crypto_core_install_package_smoke smoke.cpp)
+target_link_libraries(crypto_core_install_package_smoke PRIVATE crypto_core::crypto_core)
+target_compile_features(crypto_core_install_package_smoke PRIVATE cxx_std_20)

@@ -7,6 +7,9 @@ project(
     LANGUAGES CXX
 )
 
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
 option(CRYPTO_CORE_BUILD_TESTS "Build crypto-core tests" ON)
 option(CRYPTO_CORE_ENABLE_OPENSSL "Enable optional OpenSSL provider" OFF)
 
@@ -57,7 +60,7 @@ target_compile_definitions(crypto_core
 target_include_directories(crypto_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 if(WIN32)
@@ -98,6 +101,44 @@ if(MSVC)
 else()
     target_compile_options(crypto_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+set(crypto_core_config_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/crypto_core")
+
+install(TARGETS crypto_core
+    EXPORT crypto_core-targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN "internal" EXCLUDE
+)
+
+install(EXPORT crypto_core-targets
+    NAMESPACE crypto_core::
+    DESTINATION ${crypto_core_config_install_dir}
+)
+
+configure_package_config_file(
+    cmake/crypto_core-config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/crypto_core-config.cmake"
+    INSTALL_DESTINATION ${crypto_core_config_install_dir}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/crypto_core-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMinorVersion
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/crypto_core-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/crypto_core-config-version.cmake"
+    DESTINATION ${crypto_core_config_install_dir}
+)
 
 if(CRYPTO_CORE_BUILD_TESTS)
     include(CTest)
