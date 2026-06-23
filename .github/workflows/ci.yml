@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  native:
+    name: native-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-msvc
+            os: windows-latest
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=OFF
+          - name: ubuntu-gcc
+            os: ubuntu-latest
+            cc: gcc
+            cxx: g++
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=OFF -DCMAKE_BUILD_TYPE=Debug
+          - name: ubuntu-clang
+            os: ubuntu-latest
+            cc: clang
+            cxx: clang++
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=OFF -DCMAKE_BUILD_TYPE=Debug
+          - name: macos-clang
+            os: macos-15
+            cc: clang
+            cxx: clang++
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=OFF -DCMAKE_BUILD_TYPE=Debug
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cc }}" ]; then
+            export CC="${{ matrix.cc }}"
+            export CXX="${{ matrix.cxx }}"
+          fi
+          cmake -S . -B build ${{ matrix.cmake_args }}
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+  openssl:
+    name: openssl-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-gcc
+            os: ubuntu-latest
+            install: sudo apt-get update && sudo apt-get install -y libssl-dev
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=ON -DCMAKE_BUILD_TYPE=Debug
+          - name: macos-clang
+            os: macos-15
+            install: brew install openssl@3
+            cmake_args: -DCRYPTO_CORE_ENABLE_OPENSSL=ON -DCMAKE_BUILD_TYPE=Debug -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenSSL
+        shell: bash
+        run: ${{ matrix.install }}
+
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build-openssl ${{ matrix.cmake_args }}
+
+      - name: Build
+        run: cmake --build build-openssl --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build-openssl -C Debug --output-on-failure
+
+  openssl-windows:
+    name: openssl-windows-msvc
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenSSL with vcpkg
+        shell: pwsh
+        run: |
+          if (-not $env:VCPKG_ROOT) {
+            $env:VCPKG_ROOT = "C:\vcpkg"
+          }
+          vcpkg install openssl:x64-windows
+          "VCPKG_ROOT=$env:VCPKG_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "$env:VCPKG_ROOT\installed\x64-windows\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build-openssl `
+            -DCRYPTO_CORE_ENABLE_OPENSSL=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+
+      - name: Build
+        run: cmake --build build-openssl --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build-openssl -C Debug --output-on-failure
+
+  sanitizers:
+    name: sanitizers-ubuntu-clang
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build-sanitize \
+            -DCRYPTO_CORE_ENABLE_OPENSSL=OFF \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build-sanitize --parallel
+
+      - name: Test
+        run: ctest --test-dir build-sanitize --output-on-failure

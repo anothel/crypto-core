@@ -72,6 +72,11 @@ Implemented native/default-provider surface:
 
 The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## CI
+
+GitHub Actions runs native Debug builds on Windows, Ubuntu, and macOS, plus
+OpenSSL-enabled and Linux Clang sanitizer jobs.
+
 ## Build
 
 Native-only build:

@@ -156,7 +156,7 @@ Exit criteria:
 
 ### 1.5 Cross-Platform OS RNG
 
-Status: queued
+Status: active
 Size: `S`
 Priority: P1
 
@@ -170,6 +170,7 @@ Remaining slices:
    - run native RNG tests on Windows
    - run native RNG tests on Linux
    - run native RNG tests on macOS
+   - GitHub Actions workflow added; first remote green run pending
 
 Exit criteria:
 
@@ -209,7 +210,7 @@ Exit criteria:
 
 ### 1.7 Build, Package, and CI
 
-Status: queued
+Status: active
 Size: `M`
 Priority: P1
 
@@ -230,10 +231,12 @@ Remaining slices:
    - Ubuntu/GCC
    - Ubuntu/Clang
    - macOS/Clang
+   - workflow added; first remote green run pending
 
 3. `M` OpenSSL and sanitizer CI
    - OpenSSL ON/OFF
    - ASan/UBSan on Linux Clang Debug
+   - workflow added; first remote green run pending
 
 Exit criteria:
 
