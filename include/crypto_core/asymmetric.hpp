@@ -162,33 +162,31 @@ public:
 
 	[[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept
 	{
-		return der_.bytes();
+		return material_.bytes();
 	}
 
 	[[nodiscard]] std::size_t size() const noexcept
 	{
-		return der_.size();
+		return material_.size();
 	}
 
 	[[nodiscard]] bool empty() const noexcept
 	{
-		return der_.empty();
+		return material_.empty();
 	}
 
-	[[nodiscard]] ByteBuffer export_der() const
-	{
-		return ByteBuffer::copy_from(der_.bytes());
-	}
+	[[nodiscard]] Result<ByteBuffer> export_der() const;
 
 private:
-	PublicKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, ByteBuffer der) noexcept
-	    : algorithm_(algorithm), usages_(usages), der_(std::move(der))
+	PublicKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, ByteBuffer material, bool der_encoded) noexcept
+	    : algorithm_(algorithm), usages_(usages), material_(std::move(material)), der_encoded_(der_encoded)
 	{
 	}
 
 	AsymmetricKeyAlgorithm algorithm_{AsymmetricKeyAlgorithm::rsa};
 	KeyUsageMask usages_{key_usage_value(KeyUsage::none)};
-	ByteBuffer der_;
+	ByteBuffer material_;
+	bool der_encoded_{false};
 };
 
 class PrivateKey final
@@ -231,33 +229,31 @@ public:
 
 	[[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept
 	{
-		return der_.bytes();
+		return material_.bytes();
 	}
 
 	[[nodiscard]] std::size_t size() const noexcept
 	{
-		return der_.size();
+		return material_.size();
 	}
 
 	[[nodiscard]] bool empty() const noexcept
 	{
-		return der_.empty();
+		return material_.empty();
 	}
 
-	[[nodiscard]] Result<SecureBuffer> export_der() const
-	{
-		return der_.clone();
-	}
+	[[nodiscard]] Result<SecureBuffer> export_der() const;
 
 private:
-	PrivateKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, SecureBuffer der) noexcept
-	    : algorithm_(algorithm), usages_(usages), der_(std::move(der))
+	PrivateKey(AsymmetricKeyAlgorithm algorithm, KeyUsageMask usages, SecureBuffer material, bool der_encoded) noexcept
+	    : algorithm_(algorithm), usages_(usages), material_(std::move(material)), der_encoded_(der_encoded)
 	{
 	}
 
 	AsymmetricKeyAlgorithm algorithm_{AsymmetricKeyAlgorithm::rsa};
 	KeyUsageMask usages_{key_usage_value(KeyUsage::none)};
-	SecureBuffer der_;
+	SecureBuffer material_;
+	bool der_encoded_{false};
 };
 
 struct KeyPair final

@@ -30,7 +30,7 @@ Status labels:
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
 | Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte raw keys |
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
-| Key import | DER/SPKI/PKCS#8 | planned | current `import_der` is compatibility wrapper where full parsing is not wired; raw/DER boundary queued |
+| Key import | DER/SPKI/PKCS#8 | planned | current `import_der` is compatibility wrapper where full parsing is not wired; Ed25519 DER is rejected until a real parser exists |
 | Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
 | Key agreement | ECDH | planned/deferred | no active 0.x goal |
 

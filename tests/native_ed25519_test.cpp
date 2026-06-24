@@ -110,15 +110,9 @@ void test_native_provider_rejects_invalid_ed25519_key_and_signature_shapes()
 
 	auto legacy_short_public_key =
 	    crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, bytes("01"), crypto_core::KeyUsage::verify);
-	require(legacy_short_public_key.has_value());
-	auto legacy_result = crypto_core::verify(
-	    provider,
-	    {crypto_core::SignatureAlgorithm::ed25519, &legacy_short_public_key.value(), bytes("00")},
-	    bytes("00"));
-	current_check = "legacy short Ed25519 public key verify fails";
-	require(!legacy_result.has_value());
-	current_check = "legacy short Ed25519 public key verify invalid_key";
-	require(legacy_result.error().code() == crypto_core::ErrorCode::invalid_key);
+	current_check = "legacy Ed25519 DER public key import rejects raw-shaped input";
+	require(!legacy_short_public_key.has_value());
+	require(legacy_short_public_key.error().code() == crypto_core::ErrorCode::invalid_key);
 
 	auto public_key = import_ed25519_verify_key(bytes("D75A980182B10AB7D54BFED3C964073A0EE172F3DAA62325AF021A68F707511A"));
 	auto short_signature = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ed25519, &public_key, bytes("00")}, bytes("00"));
@@ -216,11 +210,9 @@ void test_native_provider_rejects_invalid_ed25519_signing_keys()
 	auto short_buffer = crypto_core::SecureBuffer::copy_from(bytes("01"));
 	require(short_buffer.has_value());
 	auto legacy_short_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, std::move(short_buffer.value()), crypto_core::KeyUsage::sign);
-	require(legacy_short_key.has_value());
-	auto short_seed = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ed25519, &legacy_short_key.value()}, message);
-	current_check = "short Ed25519 signing seed fails";
-	require(!short_seed.has_value());
-	require(short_seed.error().code() == crypto_core::ErrorCode::invalid_key);
+	current_check = "legacy Ed25519 DER private key import rejects raw-shaped input";
+	require(!legacy_short_key.has_value());
+	require(legacy_short_key.error().code() == crypto_core::ErrorCode::invalid_key);
 
 	auto null_key = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::ed25519, nullptr}, message);
 	current_check = "null Ed25519 signing key fails";

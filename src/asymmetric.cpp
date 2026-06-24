@@ -36,6 +36,11 @@ Result<void> validate_der_key_material(AsymmetricKeyAlgorithm algorithm, std::sp
 		return Result<void>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "DER key must not be empty"));
 	}
 
+	if (algorithm == AsymmetricKeyAlgorithm::ed25519)
+	{
+		return Result<void>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 DER import is not implemented; use raw Ed25519 import APIs"));
+	}
+
 	return Result<void>::success();
 }
 
@@ -49,7 +54,7 @@ Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::s
 		return Result<PublicKey>::failure(validation.error());
 	}
 
-	return Result<PublicKey>::success(PublicKey(algorithm, usages, ByteBuffer::copy_from(der)));
+	return Result<PublicKey>::success(PublicKey(algorithm, usages, ByteBuffer::copy_from(der), true));
 }
 
 Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsage usage)
@@ -64,7 +69,7 @@ Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> ra
 		return Result<PublicKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 raw public key must be 32 bytes"));
 	}
 
-	return Result<PublicKey>::success(PublicKey(AsymmetricKeyAlgorithm::ed25519, usages, ByteBuffer::copy_from(raw_public_key)));
+	return Result<PublicKey>::success(PublicKey(AsymmetricKeyAlgorithm::ed25519, usages, ByteBuffer::copy_from(raw_public_key), false));
 }
 
 Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsage usage)
@@ -80,7 +85,7 @@ Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, Secu
 		return Result<PrivateKey>::failure(validation.error());
 	}
 
-	return Result<PrivateKey>::success(PrivateKey(algorithm, usages, std::move(der)));
+	return Result<PrivateKey>::success(PrivateKey(algorithm, usages, std::move(der), true));
 }
 
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsage usage)
@@ -95,12 +100,32 @@ Result<PrivateKey> PrivateKey::import_raw_ed25519_seed(SecureBuffer raw_seed, Ke
 		return Result<PrivateKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 raw private seed must be 32 bytes"));
 	}
 
-	return Result<PrivateKey>::success(PrivateKey(AsymmetricKeyAlgorithm::ed25519, usages, std::move(raw_seed)));
+	return Result<PrivateKey>::success(PrivateKey(AsymmetricKeyAlgorithm::ed25519, usages, std::move(raw_seed), false));
 }
 
 Result<PrivateKey> PrivateKey::import_raw_ed25519_seed(SecureBuffer raw_seed, KeyUsage usage)
 {
 	return import_raw_ed25519_seed(std::move(raw_seed), key_usage_value(usage));
+}
+
+Result<ByteBuffer> PublicKey::export_der() const
+{
+	if (!der_encoded_)
+	{
+		return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "public key material is not DER encoded"));
+	}
+
+	return Result<ByteBuffer>::success(ByteBuffer::copy_from(material_.bytes()));
+}
+
+Result<SecureBuffer> PrivateKey::export_der() const
+{
+	if (!der_encoded_)
+	{
+		return Result<SecureBuffer>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "private key material is not DER encoded"));
+	}
+
+	return material_.clone();
 }
 
 Result<ByteBuffer> sign(const SignParams &params, std::span<const std::uint8_t> message) noexcept

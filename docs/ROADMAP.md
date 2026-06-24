@@ -179,7 +179,7 @@ Exit criteria:
 
 ### 1.4 Key Material Format Boundary
 
-Status: queued
+Status: active
 Size: `M`
 Priority: P0
 
@@ -187,12 +187,19 @@ Goal:
 
 - separate raw key material APIs from DER/ASN.1 key import APIs.
 
+Completed baseline:
+
+- raw Ed25519 public keys and private seeds import only through raw APIs
+- `import_der(ed25519, ...)` rejects until real Ed25519 SPKI/PKCS#8 parsing
+  exists
+- `export_der()` rejects raw Ed25519 key material
+
 Remaining slices:
 
-1. `M` key material encoding boundary
-   - introduce an internal encoding tag or equivalent representation
-   - distinguish raw Ed25519 public keys/seeds from DER/SPKI/PKCS#8/PKCS#1
-   - clarify `bytes()` semantics or plan `encoded_bytes()` naming before 1.0
+1. `M` broader key material encoding boundary
+   - clarify `bytes()` semantics before 1.0
+   - decide whether public format inspection is needed or private state is
+     enough
 
 2. `M` DER naming migration plan
    - decide `import_spki_der`, `import_pkcs8_der`, and `import_rsa_pkcs1_der`
