@@ -1,8 +1,10 @@
 #include "crypto_core/crypto_core.hpp"
 #include "crypto_core/internal/ecdsa.hpp"
+#include "crypto_core/internal/ec_der.hpp"
 
 #include "test_vectors.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -35,9 +37,13 @@ constexpr std::string_view basepoint_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D030107034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
 constexpr std::string_view scalar_one_private_key_der_hex =
     "303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107";
+constexpr std::string_view p256_group_order_half_hex =
+    "7FFFFFFF800000007FFFFFFFFFFFFFFFDE737D56D38BCF4279DCE5617E3192A8";
 // RFC 6979 Appendix A.2.5, ECDSA P-256 with SHA-256.
 constexpr std::string_view rfc6979_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D0301070342000460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8BC99A41AE9E95628BC64F2F1B20C2D7E9F5177A3C294D4462299";
+constexpr std::string_view rfc6979_private_key_der_hex =
+    "30310201010420C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721A00A06082A8648CE3D030107";
 constexpr std::string_view rfc6979_sample_sha256_signature_der_hex =
     "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
 constexpr std::string_view rfc6979_test_sha256_signature_der_hex =
@@ -372,6 +378,29 @@ void test_ecdsa_helper_signing_is_deterministic()
 	require(first.value() == second.value());
 }
 
+void test_ecdsa_helper_signs_with_low_s()
+{
+	auto private_key_der = bytes(rfc6979_private_key_der_hex);
+	auto digest = sha256(ascii_bytes("sample"));
+	auto half_order = bytes(p256_group_order_half_hex);
+
+	auto signature = crypto_core::internal::sign_ecdsa_p256_sha256_digest(private_key_der, digest);
+	require(signature.has_value());
+
+	auto parsed = crypto_core::internal::parse_ecdsa_signature_der(signature.value().bytes());
+	require(parsed.has_value());
+	const auto s_bytes = parsed.value().s.bytes();
+	const auto equals_half = s_bytes.size() == half_order.size() &&
+	    std::equal(s_bytes.begin(), s_bytes.end(), half_order.begin());
+	require(s_bytes.size() < half_order.size() ||
+	        equals_half ||
+	        std::lexicographical_compare(
+	            s_bytes.begin(),
+	            s_bytes.end(),
+	            half_order.begin(),
+	            half_order.end()));
+}
+
 void test_native_provider_reports_ecdsa_verify_support()
 {
 	crypto_core::NativeProvider provider;
@@ -557,6 +586,7 @@ int main()
 	RUN_TEST(test_ecdsa_helper_rejects_non_sha256_digest_size_as_error);
 	RUN_TEST(test_ecdsa_helper_signs_and_verifies_digest);
 	RUN_TEST(test_ecdsa_helper_signing_is_deterministic);
+	RUN_TEST(test_ecdsa_helper_signs_with_low_s);
 	RUN_TEST(test_native_provider_reports_ecdsa_verify_support);
 	RUN_TEST(test_native_provider_signs_and_verifies_ecdsa_signature);
 	RUN_TEST(test_native_provider_ecdsa_signing_is_deterministic);

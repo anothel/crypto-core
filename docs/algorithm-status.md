@@ -24,7 +24,7 @@ Status labels:
 | AEAD | AES-GCM | experimental | AES-128/192/256 |
 | RNG | OS RNG | experimental | Windows `BCryptGenRandom`, Linux `getrandom`, Apple `SecRandomCopyBytes`, BSD `arc4random_buf`; GitHub Actions matrix configured |
 | Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |
-| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; low-S policy and malformed-vector hardening tracked |
+| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; native signing emits low-S DER signatures; malformed-vector hardening tracked |
 | Signature | ECDSA P-384 | unsupported | no active 0.x goal |
 | Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds; Ed25519ctx/ph unsupported |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |

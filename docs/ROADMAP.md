@@ -372,7 +372,7 @@ Remaining slices:
    - document public-input branches vs private-input branches
 
 3. `M` policy and negative-vector coverage
-   - low-S signature policy decision
+   - native signing emits low-S signatures; decide later whether verify should reject high-S signatures
    - malformed DER signature vectors
    - malformed public point vectors
    - P-384 unsupported status remains explicit

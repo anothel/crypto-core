@@ -5,6 +5,8 @@
 #include "crypto_core/internal/hmac.hpp"
 #include "crypto_core/internal/p256_fixed.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -18,6 +20,16 @@ namespace
 {
 
 constexpr std::size_t sha256_digest_size = 32;
+constexpr std::array<std::uint8_t, 32> p256_group_order{
+    0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+    0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51};
+constexpr std::array<std::uint8_t, 32> p256_group_order_half{
+    0x7F, 0xFF, 0xFF, 0xFF, 0x80, 0x00, 0x00, 0x00,
+    0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xDE, 0x73, 0x7D, 0x56, 0xD3, 0x8B, 0xCF, 0x42,
+    0x79, 0xDC, 0xE5, 0x61, 0x7E, 0x31, 0x92, 0xA8};
 
 [[nodiscard]] Error ecdsa_error(ErrorCode code, std::string_view message) noexcept
 {
@@ -42,6 +54,54 @@ constexpr std::size_t sha256_digest_size = 32;
 [[nodiscard]] Result<ByteBuffer> bits_to_octets(std::span<const std::uint8_t> digest)
 {
 	return p256_fixed_scalar_reduce_fixed_32(digest);
+}
+
+[[nodiscard]] std::array<std::uint8_t, 32> fixed_32(std::span<const std::uint8_t> value) noexcept
+{
+	std::array<std::uint8_t, 32> output{};
+	const auto copy_size = std::min(value.size(), output.size());
+	std::copy(
+	    value.end() - static_cast<std::ptrdiff_t>(copy_size),
+	    value.end(),
+	    output.end() - static_cast<std::ptrdiff_t>(copy_size));
+	return output;
+}
+
+[[nodiscard]] bool greater_than_32(const std::array<std::uint8_t, 32> &lhs, const std::array<std::uint8_t, 32> &rhs) noexcept
+{
+	return std::lexicographical_compare(rhs.begin(), rhs.end(), lhs.begin(), lhs.end());
+}
+
+[[nodiscard]] std::array<std::uint8_t, 32> subtract_32(const std::array<std::uint8_t, 32> &lhs, const std::array<std::uint8_t, 32> &rhs) noexcept
+{
+	std::array<std::uint8_t, 32> output{};
+	std::uint16_t borrow = 0;
+	for (std::size_t i = output.size(); i > 0; --i)
+	{
+		const auto left = static_cast<std::uint16_t>(lhs[i - 1U]);
+		const auto right = static_cast<std::uint16_t>(rhs[i - 1U] + borrow);
+		if (left >= right)
+		{
+			output[i - 1U] = static_cast<std::uint8_t>(left - right);
+			borrow = 0;
+		}
+		else
+		{
+			output[i - 1U] = static_cast<std::uint8_t>((left + 0x100U) - right);
+			borrow = 1;
+		}
+	}
+	return output;
+}
+
+[[nodiscard]] std::array<std::uint8_t, 32> low_s(std::span<const std::uint8_t> s) noexcept
+{
+	auto fixed = fixed_32(s);
+	if (greater_than_32(fixed, p256_group_order_half))
+	{
+		return subtract_32(p256_group_order, fixed);
+	}
+	return fixed;
 }
 
 class Rfc6979P256Sha256 final
@@ -301,7 +361,8 @@ Result<ByteBuffer> sign_ecdsa_p256_sha256_digest(std::span<const std::uint8_t> p
 			continue;
 		}
 
-		return encode_ecdsa_signature_der(r.value().bytes(), s.value().bytes());
+		const auto canonical_s = low_s(s.value().bytes());
+		return encode_ecdsa_signature_der(r.value().bytes(), canonical_s);
 	}
 
 	return Result<ByteBuffer>::failure(ecdsa_error(ErrorCode::provider_error, "failed to generate ECDSA signature"));

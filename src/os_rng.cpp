@@ -7,8 +7,8 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <bcrypt.h>
 #include <windows.h>
+#include <bcrypt.h>
 #elif defined(__linux__)
 #include <cerrno>
 #include <sys/random.h>
