@@ -167,6 +167,26 @@ void test_aes_cbc_pkcs7_round_trip()
 	require_buffer_eq(decrypted.value(), plaintext);
 }
 
+void test_aes_cbc_rejects_invalid_pkcs7_padding()
+{
+	auto cbc_vectors = load_cbc_vectors();
+	const auto &vector = cbc_vectors[0];
+	std::vector<std::uint8_t> invalid_plaintext(16, 0x42);
+	invalid_plaintext[14] = 0x01;
+	invalid_plaintext[15] = 0x02;
+
+	auto encrypted = crypto_core::cipher(
+	    params(cbc_algorithm(vector.label), crypto_core::CipherDirection::encrypt, vector.key, vector.iv),
+	    invalid_plaintext);
+	require(encrypted.has_value());
+
+	auto decrypted = crypto_core::cipher(
+	    params(cbc_algorithm(vector.label), crypto_core::CipherDirection::decrypt, vector.key, vector.iv, crypto_core::CipherPadding::pkcs7),
+	    encrypted.value().bytes());
+	require(!decrypted.has_value());
+	require(decrypted.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 void test_aes_cbc_rejects_invalid_inputs()
 {
 	auto cbc_vectors = load_cbc_vectors();
@@ -213,6 +233,7 @@ int main()
 	test_aes_cbc_known_answer_vectors();
 	test_aes_cbc_streaming_matches_one_shot();
 	test_aes_cbc_pkcs7_round_trip();
+	test_aes_cbc_rejects_invalid_pkcs7_padding();
 	test_aes_cbc_rejects_invalid_inputs();
 	test_aes_cbc_final_after_final_fails();
 	return 0;

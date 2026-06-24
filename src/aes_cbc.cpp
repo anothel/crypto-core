@@ -1,6 +1,7 @@
 #include "crypto_core/internal/aes_cbc.hpp"
 
 #include "crypto_core/internal/aes.hpp"
+#include "crypto_core/memory.hpp"
 
 #include <algorithm>
 #include <array>
@@ -153,20 +154,22 @@ private:
 		}
 
 		const auto pad = output.back();
-		if (pad == 0 || pad > block_size || pad > output.size())
+		auto valid_mask = constant_time_bool_mask(
+		    pad != 0 && pad <= block_size && pad <= output.size());
+		std::uint8_t padding_diff = 0;
+		const auto scan_size = std::min(block_size, output.size());
+		for (std::size_t i = 0; i < scan_size; ++i)
+		{
+			const auto padding_mask = constant_time_bool_mask(i < pad);
+			padding_diff |= static_cast<std::uint8_t>((output[output.size() - 1U - i] ^ pad) & padding_mask);
+		}
+		valid_mask &= constant_time_is_zero(padding_diff);
+		if (valid_mask != 0xFFU)
 		{
 			return Result<void>::failure(make_error(ErrorCode::invalid_argument, "aes_cbc", "invalid PKCS#7 padding"));
 		}
 
 		const auto start = output.size() - pad;
-		for (std::size_t i = start; i < output.size(); ++i)
-		{
-			if (output[i] != pad)
-			{
-				return Result<void>::failure(make_error(ErrorCode::invalid_argument, "aes_cbc", "invalid PKCS#7 padding"));
-			}
-		}
-
 		output.resize(start);
 		return Result<void>::success();
 	}
