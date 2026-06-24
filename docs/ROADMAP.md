@@ -101,6 +101,50 @@ Alpha gate from the analysis:
 - raw/DER key material boundary clear
 - CMake install/export works
 
+## External Analysis Triage: 2026-06-24
+
+Source: `C:/Users/anoth/Downloads/crypto_core_code_based_reanalysis_2026-06-24.md`.
+
+Accepted into roadmap:
+
+- Raw/DER key material boundary remains the next P0 design slice.
+  - Reason: raw Ed25519 material and DER import APIs can still be confused at
+    the API/storage boundary.
+  - Action: track key-material encoding explicitly, clarify byte-export
+    semantics, keep raw Ed25519 APIs raw-only, and move DER imports toward
+    strict SPKI/PKCS#8/PKCS#1 behavior.
+- Security model and constant-time status need sharper wording.
+  - Reason: constant-time helpers exist, but helper coverage is not algorithm
+    certification.
+  - Action: document protected assets, RNG failure semantics, unsupported
+    modes, side-channel boundaries, and production recommendation status.
+- Provider capability and status docs must stay operation-level.
+  - Reason: algorithm-level "supported" can hide sign/verify/keygen gaps.
+  - Action: keep capability tests aligned with public status tables.
+- Negative, malformed, and fuzz-style tests need a dedicated queue.
+  - Reason: DER/OAEP/PSS, Ed25519 point decode, P-256 point decode, and RNG
+    failure behavior are security-relevant regression surfaces.
+- CI evidence remains a release gate.
+  - Reason: workflow files exist, but remote green runs and install-package
+    smoke in CI are the evidence that matters.
+
+Deferred:
+
+- `LICENSE` selection.
+  - Reason: project-owner policy decision.
+- Provider-backed `KeyStore`, PKCS#11, PQC, and benchmarks.
+  - Reason: valid goals, but they depend on key-material and provider
+    capability boundaries being stable first.
+- Constant-time hardening certification.
+  - Reason: RSA, P-256, and Ed25519 need narrower reviewed boundaries first.
+
+Rejected for now:
+
+- Add another standalone backlog document.
+  - Reason: the roadmap is the source of truth for remaining work.
+- Claim production readiness, audit status, or constant-time guarantees.
+  - Reason: current code is experimental and not externally certified.
+
 ## Current Focus
 
 ### 1.3 Ed25519
@@ -145,12 +189,23 @@ Goal:
 
 Remaining slices:
 
-1. `M` DER naming migration plan
+1. `M` key material encoding boundary
+   - introduce an internal encoding tag or equivalent representation
+   - distinguish raw Ed25519 public keys/seeds from DER/SPKI/PKCS#8/PKCS#1
+   - clarify `bytes()` semantics or plan `encoded_bytes()` naming before 1.0
+
+2. `M` DER naming migration plan
    - decide `import_spki_der`, `import_pkcs8_der`, and `import_rsa_pkcs1_der`
    - keep compatibility wrappers until 1.0 API decision
 
+3. `M` strict import validation
+   - raw Ed25519 imports stay raw-only
+   - DER imports parse and validate their declared format where possible
+   - `import_der(..., ed25519)` stops acting like a raw import long term
+
 Exit criteria:
 
+- raw and DER import paths are separately named and separately tested
 - DER-specific names map to actual DER parsing behavior
 - existing RSA/ECDSA tests stay green
 
@@ -179,8 +234,8 @@ Exit criteria:
 ### 1.6 Security and Status Documentation
 
 Status: queued
-Size: `S`
-Priority: P1
+Size: `M`
+Priority: P0
 
 Goal:
 
@@ -197,16 +252,20 @@ Remaining slices:
    - native sign/verify/encrypt/decrypt/keygen status
    - OpenSSL oracle status
    - experimental/verify-only/planned/deferred labels
+   - implemented/tested/constant-time-reviewed/fuzzed/production status notes
 
 3. `S` `docs/security-model.md` and `docs/constant-time-notes.md`
    - protected assets
    - non-goals for 0.x
    - known timing-risk register
+   - RNG source and failure semantics
+   - Ed25519ctx/Ed25519ph and P-384 unsupported status
 
 Exit criteria:
 
 - user can tell which algorithms are complete, verify-only, or deferred
 - known side-channel boundaries are documented, not implied
+- 0.x production recommendation is explicit and conservative
 
 ### 1.7 Build, Package, and CI
 
@@ -269,7 +328,13 @@ Remaining slices:
    - move private-sensitive pieces away from variable-limb arithmetic where
      practical
 
-3. `L` additional RSA support
+3. `M` negative and malformed input coverage
+   - RSA-PSS and RSA-OAEP malformed vectors
+   - DER parser rejection vectors for RSA keys and signatures
+   - RSA-2048 and RSA-3072 reference vectors where practical
+   - uniform public error behavior audit
+
+4. `L` additional RSA support
    - RSA-3072/RSA-4096 fixed-width support
    - native RSA key generation
    - PKCS#11-backed RSA keys
@@ -298,6 +363,12 @@ Remaining slices:
 2. `M` constant-time audit
    - review scalar, field, point, and DER-adjacent boundaries
    - document public-input branches vs private-input branches
+
+3. `M` policy and negative-vector coverage
+   - low-S signature policy decision
+   - malformed DER signature vectors
+   - malformed public point vectors
+   - P-384 unsupported status remains explicit
 
 Deferred:
 
@@ -359,6 +430,39 @@ Exit criteria:
 - self-tests are deterministic
 - restricted mode cannot silently enable unsupported algorithms
 - normal provider injection remains simple
+
+### 1.12 Fuzzing and Failure Injection
+
+Status: queued
+Size: `M`
+Priority: P1
+
+Goal:
+
+- turn imported analysis risk areas into executable regression coverage.
+
+Remaining slices:
+
+1. `M` malformed parser and signature fixtures
+   - DER key/signature fixtures
+   - RSA-PSS/OAEP failure cases
+   - Ed25519 public key decode rejection cases
+   - P-256 public point rejection cases
+
+2. `S` RNG failure injection
+   - force OS RNG failure in tests
+   - verify failures map into stable `ErrorCode`
+   - no silent fallback to weak randomness
+
+3. `S` provider status regression tests
+   - capability matrix matches `docs/algorithm-status.md`
+   - keygen unsupported status remains test-visible
+
+Exit criteria:
+
+- malformed inputs reject deterministically
+- RNG failures are observable and documented
+- provider capability tests prevent status drift
 
 ## Phase 3: Encoding and Certificate Requests
 

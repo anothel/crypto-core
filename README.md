@@ -72,6 +72,15 @@ Implemented native/default-provider surface:
 
 The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## Security Status
+
+- 0.x is experimental and not production-certified.
+- Constant-time helper primitives exist, but algorithm-level constant-time
+  certification is not claimed.
+- Current algorithm and hardening status is tracked in
+  [docs/algorithm-status.md](docs/algorithm-status.md) and
+  [docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## CI
 
 GitHub Actions runs native Debug builds on Windows, Ubuntu, and macOS, plus
@@ -132,18 +141,14 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 ## Roadmap
 
-Current focus:
+Near-term queue:
 
-1. RSA hardening and completion
-   - RSA-2048 fixed-width BigInt design
-   - fixed-width arithmetic and Montgomery core
-   - fixed-width private exponent path
-   - private-operation timing-risk boundary
-2. ECDSA P-256 hardening
-3. Ed25519
-4. KeyStore provider-backed handles
-5. ASN.1 DER, stricter PEM, CSR parsing
-6. PKCS#11 and PQC provider work
+1. Raw/DER key material boundary
+2. Security/status documentation and conservative 0.x production guidance
+3. CI evidence, install/export smoke, and OpenSSL ON/OFF coverage
+4. Ed25519 OpenSSL differential checks and optional key generation
+5. RSA and P-256 hardening, malformed vectors, and fuzz-style coverage
+6. KeyStore provider-backed handles, ASN.1 DER, PEM, CSR, PKCS#11, and PQC
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

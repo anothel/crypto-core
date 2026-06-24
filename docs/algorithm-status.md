@@ -24,12 +24,13 @@ Status labels:
 | AEAD | AES-GCM | experimental | AES-128/192/256 |
 | RNG | OS RNG | experimental | Windows `BCryptGenRandom`, Linux `getrandom`, Apple `SecRandomCopyBytes`, BSD `arc4random_buf`; GitHub Actions matrix configured |
 | Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |
-| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; hardening notes tracked |
-| Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds |
+| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; low-S policy and malformed-vector hardening tracked |
+| Signature | ECDSA P-384 | unsupported | no active 0.x goal |
+| Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds; Ed25519ctx/ph unsupported |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
 | Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte raw keys |
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
-| Key import | DER/SPKI/PKCS#8 | planned | current `import_der` is compatibility wrapper, not full parser |
+| Key import | DER/SPKI/PKCS#8 | planned | current `import_der` is compatibility wrapper where full parsing is not wired; raw/DER boundary queued |
 | Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
 | Key agreement | ECDH | planned/deferred | no active 0.x goal |
 
@@ -49,7 +50,16 @@ Status labels:
 ## Explicit Non-Goals For Now
 
 - DES, RC2, RC4, MD5, SHA-1
+- Ed25519ctx and Ed25519ph
+- native P-384 signatures
 - TLS protocol implementation
 - certificate chain validation
 - mutable global provider registry
 - formal constant-time certification
+
+## Security Status Notes
+
+- 0.x is experimental and not production-certified.
+- Constant-time helper primitives exist, but algorithm-level constant-time
+  certification is not claimed.
+- Fuzzing and malformed-input coverage are tracked in `docs/ROADMAP.md`.
