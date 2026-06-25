@@ -25,6 +25,55 @@ Before calling an alpha/reuse-ready release:
 - security boundary docs state threat model, provider trust, zeroization, RNG
   failure behavior, and constant-time limitations.
 
+## What To Do Next
+
+Work in this order unless a security issue preempts it:
+
+1. P0: finish the key material API boundary.
+   - next slice: define `bytes()`/`export_der()` semantics in tests and docs.
+   - then add explicit DER import names where current names overpromise:
+     `import_spki_der`, `import_pkcs8_der`, `import_rsa_pkcs1_der`.
+   - done when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
+     API name or test behavior.
+
+2. P0: lock provider capability truth into tests.
+   - next slice: add a provider capability matrix regression test for
+     NativeProvider and OpenSSLProvider.
+   - compare sign/verify/keygen/encrypt/decrypt/derive support with
+     `docs/algorithm-status.md`.
+   - done when status docs cannot drift from provider behavior silently.
+
+3. P0: finish security disclosure docs.
+   - next slice: add `SECURITY.md` after the owner confirms the reporting
+     address and supported-version policy.
+   - done when users know how to report sensitive vulnerabilities without
+     opening public issues.
+
+4. P1: turn CI/package claims into evidence.
+   - next slice: record first green remote CI runs for native and OpenSSL
+     builds.
+   - run and record install-tree consumer smoke command/environment.
+   - done when release notes can link to actual CI/install evidence.
+
+5. P1: add malformed-input regression coverage.
+   - next slice: add the smallest focused fixture set for one surface at a
+     time: RSA-PSS/OAEP, RSA DER, ECDSA DER, Ed25519 canonicality, P-256 public
+     points, RNG failure injection.
+   - done when malformed inputs reject deterministically and no weak RNG
+     fallback exists.
+
+6. P1: finish Ed25519 interoperability proof.
+   - next slice: add OpenSSL differential tests if local/CI OpenSSL exposes
+     Ed25519 support.
+   - otherwise document it as unavailable in the status docs.
+   - done when Ed25519 native sign/verify has either OpenSSL differential
+     coverage or an explicit, tested reason it cannot.
+
+7. P2: continue RSA and P-256 hardening.
+   - next slice: choose one reviewed boundary at a time, starting with RSA CRT
+     recombination or P-256 exceptional-case formulas.
+   - done only with targeted tests and updated constant-time notes.
+
 ## Current Focus
 
 ### 1. Key Material Format Boundary
@@ -64,6 +113,13 @@ Priority: P0
 Size: S
 
 Goal: make security claims explicit instead of implied.
+
+Done baseline:
+
+- `docs/security-model.md` documents assets, trust boundaries, key material,
+  memory, RNG, and 0.x non-goals.
+- `docs/constant-time-notes.md` documents current timing claims and limits.
+- README links to the security and timing docs.
 
 Next slices:
 
