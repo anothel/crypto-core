@@ -19,6 +19,84 @@ void require(bool condition)
 	}
 }
 
+struct SignatureCapability final
+{
+	crypto_core::SignatureAlgorithm algorithm;
+	bool sign;
+	bool verify;
+};
+
+struct KeygenCapability final
+{
+	crypto_core::AsymmetricKeyAlgorithm algorithm;
+	bool keygen;
+};
+
+struct EncryptionCapability final
+{
+	crypto_core::AsymmetricEncryptionAlgorithm algorithm;
+	bool encrypt;
+	bool decrypt;
+};
+
+template <typename Provider>
+void require_signature_capabilities(const Provider &provider, std::span<const SignatureCapability> capabilities)
+{
+	for (const auto &capability : capabilities)
+	{
+		require(provider.supports(capability.algorithm) == (capability.sign || capability.verify));
+		require(provider.supports(crypto_core::CryptoOperation::sign, capability.algorithm) == capability.sign);
+		require(provider.supports(crypto_core::CryptoOperation::verify, capability.algorithm) == capability.verify);
+		require(!provider.supports(crypto_core::CryptoOperation::keygen, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::encrypt, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::decrypt, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::derive, capability.algorithm));
+	}
+}
+
+template <typename Provider>
+void require_keygen_capabilities(const Provider &provider, std::span<const KeygenCapability> capabilities)
+{
+	for (const auto &capability : capabilities)
+	{
+		require(provider.supports(crypto_core::CryptoOperation::keygen, capability.algorithm) == capability.keygen);
+		require(!provider.supports(crypto_core::CryptoOperation::sign, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::verify, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::encrypt, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::decrypt, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::derive, capability.algorithm));
+	}
+}
+
+template <typename Provider>
+void require_encryption_capabilities(const Provider &provider, std::span<const EncryptionCapability> capabilities)
+{
+	for (const auto &capability : capabilities)
+	{
+		require(provider.supports(capability.algorithm) == (capability.encrypt || capability.decrypt));
+		require(provider.supports(crypto_core::CryptoOperation::encrypt, capability.algorithm) == capability.encrypt);
+		require(provider.supports(crypto_core::CryptoOperation::decrypt, capability.algorithm) == capability.decrypt);
+		require(!provider.supports(crypto_core::CryptoOperation::sign, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::verify, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::keygen, capability.algorithm));
+		require(!provider.supports(crypto_core::CryptoOperation::derive, capability.algorithm));
+	}
+}
+
+template <typename Provider>
+void require_no_key_agreement_capabilities(const Provider &provider)
+{
+	require(!provider.supports(crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::KeyAgreementAlgorithm::ecdh_p384));
+	require(!provider.supports(crypto_core::CryptoOperation::derive, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::CryptoOperation::derive, crypto_core::KeyAgreementAlgorithm::ecdh_p384));
+	require(!provider.supports(crypto_core::CryptoOperation::sign, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::CryptoOperation::verify, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::CryptoOperation::keygen, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::CryptoOperation::encrypt, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+	require(!provider.supports(crypto_core::CryptoOperation::decrypt, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+}
+
 } // namespace
 
 void test_hash_algorithm_metadata()
@@ -145,6 +223,66 @@ void test_default_hash_uses_native_provider()
 	require(digest.value().size() == crypto_core::digest_size(crypto_core::HashAlgorithm::sha256));
 }
 
+void test_native_provider_capability_matrix_matches_status_docs()
+{
+	crypto_core::NativeProvider provider;
+
+	const std::array<SignatureCapability, 5> signatures{{
+	    {crypto_core::SignatureAlgorithm::rsa_pss, true, true},
+	    {crypto_core::SignatureAlgorithm::rsa_pss_sha256, true, true},
+	    {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, true, true},
+	    {crypto_core::SignatureAlgorithm::ecdsa_p384_sha384, false, false},
+	    {crypto_core::SignatureAlgorithm::ed25519, true, true},
+	}};
+	require_signature_capabilities(provider, signatures);
+
+	const std::array<KeygenCapability, 4> keygen{{
+	    {crypto_core::AsymmetricKeyAlgorithm::rsa, false},
+	    {crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, false},
+	    {crypto_core::AsymmetricKeyAlgorithm::ecdsa_p384, false},
+	    {crypto_core::AsymmetricKeyAlgorithm::ed25519, false},
+	}};
+	require_keygen_capabilities(provider, keygen);
+
+	const std::array<EncryptionCapability, 2> encryption{{
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, true, true},
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, true, true},
+	}};
+	require_encryption_capabilities(provider, encryption);
+	require_no_key_agreement_capabilities(provider);
+}
+
+#if defined(CRYPTO_CORE_ENABLE_OPENSSL)
+void test_openssl_provider_capability_matrix_matches_status_docs()
+{
+	crypto_core::OpenSSLProvider provider;
+
+	const std::array<SignatureCapability, 5> signatures{{
+	    {crypto_core::SignatureAlgorithm::rsa_pss, true, true},
+	    {crypto_core::SignatureAlgorithm::rsa_pss_sha256, true, true},
+	    {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, true, true},
+	    {crypto_core::SignatureAlgorithm::ecdsa_p384_sha384, false, false},
+	    {crypto_core::SignatureAlgorithm::ed25519, false, false},
+	}};
+	require_signature_capabilities(provider, signatures);
+
+	const std::array<KeygenCapability, 4> keygen{{
+	    {crypto_core::AsymmetricKeyAlgorithm::rsa, true},
+	    {crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, true},
+	    {crypto_core::AsymmetricKeyAlgorithm::ecdsa_p384, false},
+	    {crypto_core::AsymmetricKeyAlgorithm::ed25519, false},
+	}};
+	require_keygen_capabilities(provider, keygen);
+
+	const std::array<EncryptionCapability, 2> encryption{{
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep, true, true},
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, true, true},
+	}};
+	require_encryption_capabilities(provider, encryption);
+	require_no_key_agreement_capabilities(provider);
+}
+#endif
+
 int main()
 {
 	test_hash_algorithm_metadata();
@@ -152,5 +290,9 @@ int main()
 	test_hash_wrapper_uses_explicit_provider();
 	test_hash_wrapper_returns_provider_error();
 	test_default_hash_uses_native_provider();
+	test_native_provider_capability_matrix_matches_status_docs();
+#if defined(CRYPTO_CORE_ENABLE_OPENSSL)
+	test_openssl_provider_capability_matrix_matches_status_docs();
+#endif
 	return 0;
 }

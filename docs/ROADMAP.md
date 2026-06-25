@@ -36,11 +36,10 @@ Work in this order unless a security issue preempts it:
    - done when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
      API name or test behavior.
 
-2. P0: lock provider capability truth into tests.
-   - next slice: add a provider capability matrix regression test for
-     NativeProvider and OpenSSLProvider.
-   - compare sign/verify/keygen/encrypt/decrypt/derive support with
-     `docs/algorithm-status.md`.
+2. P0: keep provider capability truth locked to tests.
+   - done baseline: provider API tests cover NativeProvider and OpenSSLProvider
+     sign/verify/keygen/encrypt/decrypt/derive support.
+   - next slice: update the matrix whenever `docs/algorithm-status.md` changes.
    - done when status docs cannot drift from provider behavior silently.
 
 3. P0: finish security disclosure docs.
@@ -171,6 +170,11 @@ Size: M
 
 Goal: convert security-risk notes into executable tests.
 
+Done baseline:
+
+- provider capability matrix regression covers NativeProvider and
+  OpenSSLProvider operation-level support.
+
 Next slices:
 
 - malformed DER/signature fixtures for RSA and ECDSA.
@@ -178,7 +182,6 @@ Next slices:
 - Ed25519 public-key decode and signature canonicality rejection cases.
 - P-256 public-point rejection cases.
 - RNG failure injection with stable `ErrorCode`.
-- provider capability matrix regression against `docs/algorithm-status.md`.
 
 Exit criteria:
 
