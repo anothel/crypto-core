@@ -144,6 +144,27 @@ Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, Secu
 	return import_der(algorithm, std::move(der), key_usage_value(usage));
 }
 
+Result<PrivateKey> PrivateKey::import_pkcs8_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsageMask usages)
+{
+	if (algorithm != AsymmetricKeyAlgorithm::rsa)
+	{
+		return Result<PrivateKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "PKCS#8 DER import is not implemented for this algorithm"));
+	}
+
+	auto parsed = internal::parse_rsa_pkcs8_private_key_der(der.bytes());
+	if (!parsed)
+	{
+		return Result<PrivateKey>::failure(parsed.error());
+	}
+
+	return Result<PrivateKey>::success(PrivateKey(AsymmetricKeyAlgorithm::rsa, usages, std::move(der), true));
+}
+
+Result<PrivateKey> PrivateKey::import_pkcs8_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsage usage)
+{
+	return import_pkcs8_der(algorithm, std::move(der), key_usage_value(usage));
+}
+
 Result<PrivateKey> PrivateKey::import_rsa_pkcs1_der(SecureBuffer der, KeyUsageMask usages)
 {
 	auto parsed = internal::parse_rsa_pkcs1_private_key_der(der.bytes());

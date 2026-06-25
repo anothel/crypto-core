@@ -403,6 +403,11 @@ Result<RsaPrivateKeyMaterial> parse_rsa_private_key_der(std::span<const std::uin
 	return parse_pkcs8_private_key(der);
 }
 
+Result<RsaPrivateKeyMaterial> parse_rsa_pkcs8_private_key_der(std::span<const std::uint8_t> der)
+{
+	return parse_pkcs8_private_key(der);
+}
+
 Result<RsaPrivateKeyMaterial> parse_rsa_pkcs1_private_key_der(std::span<const std::uint8_t> der)
 {
 	return parse_pkcs1_private_key(der);

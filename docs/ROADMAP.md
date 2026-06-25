@@ -30,8 +30,8 @@ Before calling an alpha/reuse-ready release:
 Work in this order unless a security issue preempts it:
 
 1. P0: finish the key material API boundary.
-   - add explicit DER import names where current names overpromise:
-     `import_pkcs8_der`.
+   - replace compatibility `import_der` call sites with explicit format names
+     where each caller knows the container.
    - add strict malformed DER rejection tests for paths that claim DER parsing.
    - exit when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
      API name, docs, or tests.
@@ -84,7 +84,8 @@ API.
 
 Next slices:
 
-- add DER-specific names where needed: `import_pkcs8_der`.
+- replace compatibility `import_der` call sites with explicit format names
+  where each caller knows the container.
 - keep compatibility wrappers only until the 1.0 API decision.
 - add strict malformed DER rejection tests for paths that claim DER parsing.
 

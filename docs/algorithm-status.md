@@ -32,7 +32,7 @@ Status labels:
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
 | Key import | SPKI DER public keys | experimental | `PublicKey::import_spki_der` validates RSA and P-256 SPKI containers; Ed25519 SPKI is rejected until a real parser exists |
 | Key import | RSA PKCS#1 DER | experimental | `import_rsa_pkcs1_der` validates RSA public and private PKCS#1 containers |
-| Key import | PKCS#8 DER | planned | current `import_der` is compatibility wrapper where full parsing is not wired; `is_der_encoded()` exposes stored-material encoding |
+| Key import | PKCS#8 DER | experimental | `PrivateKey::import_pkcs8_der` validates RSA PKCS#8 containers; non-RSA PKCS#8 is not implemented |
 | Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
 | Key agreement | ECDH | planned/deferred | no active 0.x goal |
 
