@@ -30,49 +30,46 @@ Before calling an alpha/reuse-ready release:
 Work in this order unless a security issue preempts it:
 
 1. P0: finish the key material API boundary.
-   - done baseline: `is_der_encoded()` lets callers distinguish stored raw
-     material from DER material before using `bytes()`.
-   - then add explicit DER import names where current names overpromise:
+   - add explicit DER import names where current names overpromise:
      `import_spki_der`, `import_pkcs8_der`, `import_rsa_pkcs1_der`.
-   - done when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
-     API name or test behavior.
+   - add strict malformed DER rejection tests for paths that claim DER parsing.
+   - exit when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
+     API name, docs, or tests.
 
-2. P0: keep provider capability truth locked to tests.
-   - done baseline: provider API tests cover NativeProvider and OpenSSLProvider
-     sign/verify/keygen/encrypt/decrypt/derive support.
-   - next slice: update the matrix whenever `docs/algorithm-status.md` changes.
-   - done when status docs cannot drift from provider behavior silently.
+2. P0: keep provider capability truth from drifting.
+   - update provider capability matrix whenever `docs/algorithm-status.md`
+     changes.
+   - exit when status docs cannot drift from provider behavior silently.
 
 3. P0: finish security disclosure docs.
-   - next slice: add `SECURITY.md` after the owner confirms the reporting
-     address and supported-version policy.
-   - done when users know how to report sensitive vulnerabilities without
+   - add `SECURITY.md` after the owner confirms the reporting address and
+     supported-version policy.
+   - exit when users know how to report sensitive vulnerabilities without
      opening public issues.
 
 4. P1: turn CI/package claims into evidence.
-   - next slice: record first green remote CI runs for native and OpenSSL
-     builds.
+   - record first green remote CI runs for native and OpenSSL builds.
    - run and record install-tree consumer smoke command/environment.
-   - done when release notes can link to actual CI/install evidence.
+   - exit when release notes can link to actual CI/install evidence.
 
 5. P1: add malformed-input regression coverage.
-   - next slice: add the smallest focused fixture set for one surface at a
-     time: RSA-PSS/OAEP, RSA DER, ECDSA DER, Ed25519 canonicality, P-256 public
-     points, RNG failure injection.
-   - done when malformed inputs reject deterministically and no weak RNG
+   - add the smallest focused fixture set for one surface at a time: RSA-PSS/
+     OAEP, RSA DER, ECDSA DER, Ed25519 canonicality, P-256 public points, RNG
+     failure injection.
+   - exit when malformed inputs reject deterministically and no weak RNG
      fallback exists.
 
 6. P1: finish Ed25519 interoperability proof.
-   - next slice: add OpenSSL differential tests if local/CI OpenSSL exposes
-     Ed25519 support.
+   - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
+     support.
    - otherwise document it as unavailable in the status docs.
-   - done when Ed25519 native sign/verify has either OpenSSL differential
+   - exit when Ed25519 native sign/verify has either OpenSSL differential
      coverage or an explicit, tested reason it cannot.
 
 7. P2: continue RSA and P-256 hardening.
-   - next slice: choose one reviewed boundary at a time, starting with RSA CRT
-     recombination or P-256 exceptional-case formulas.
-   - done only with targeted tests and updated constant-time notes.
+   - choose one reviewed boundary at a time, starting with RSA CRT recombination
+     or P-256 exceptional-case formulas.
+   - exit only with targeted tests and updated constant-time notes.
 
 ## Current Focus
 
@@ -84,14 +81,6 @@ Size: M
 
 Goal: stop raw key bytes and DER/ASN.1 containers from looking like the same
 API.
-
-Done baseline:
-
-- raw Ed25519 public/private imports exist.
-- `import_der(ed25519, ...)` rejects until real Ed25519 SPKI/PKCS#8 parsing
-  exists.
-- raw Ed25519 material does not export as DER.
-- `is_der_encoded()` exposes whether `bytes()` currently contains DER.
 
 Next slices:
 
@@ -113,13 +102,6 @@ Priority: P0
 Size: S
 
 Goal: make security claims explicit instead of implied.
-
-Done baseline:
-
-- `docs/security-model.md` documents assets, trust boundaries, key material,
-  memory, RNG, and 0.x non-goals.
-- `docs/constant-time-notes.md` documents current timing claims and limits.
-- README links to the security and timing docs.
 
 Next slices:
 
@@ -170,11 +152,6 @@ Priority: P1
 Size: M
 
 Goal: convert security-risk notes into executable tests.
-
-Done baseline:
-
-- provider capability matrix regression covers NativeProvider and
-  OpenSSLProvider operation-level support.
 
 Next slices:
 
