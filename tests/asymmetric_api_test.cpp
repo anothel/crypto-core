@@ -1,5 +1,7 @@
 #include "crypto_core/crypto_core.hpp"
 
+#include "test_vectors.hpp"
+
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -167,6 +169,37 @@ void test_public_and_private_key_import_export()
 	require(exported_private.value().size() == private_der.size());
 	exported_private.value().bytes()[0] = 0xAAU;
 	require(private_key.value().bytes()[0] == 9U);
+}
+
+void test_public_key_import_spki_der_validates_container()
+{
+	const std::array<std::uint8_t, 29> rsa_spki_der{
+	    0x30, 0x1B, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+	    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x0A, 0x00,
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::array<std::uint8_t, 9> rsa_pkcs1_der{
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+
+	auto rsa = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_spki_der, crypto_core::KeyUsage::verify);
+	require(rsa.has_value());
+	require(rsa.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+	require(rsa.value().is_der_encoded());
+	require(rsa.value().bytes().size() == rsa_spki_der.size());
+
+	auto pkcs1 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_pkcs1_der, crypto_core::KeyUsage::verify);
+	require(!pkcs1.has_value());
+	require(pkcs1.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto p256_der = crypto_core::test_support::decode_hex("3059301306072A8648CE3D020106082A8648CE3D030107034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
+	require(p256_der.has_value());
+	auto p256 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, p256_der.value(), crypto_core::KeyUsage::verify);
+	require(p256.has_value());
+	require(p256.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
+	require(p256.value().is_der_encoded());
+
+	auto ed25519 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, rsa_spki_der, crypto_core::KeyUsage::verify);
+	require(!ed25519.has_value());
+	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_asymmetric_keys_reject_empty_der()
@@ -385,6 +418,7 @@ int main()
 	test_rsa_pss_params_are_explicit();
 	test_rsa_oaep_params_own_label();
 	test_public_and_private_key_import_export();
+	test_public_key_import_spki_der_validates_container();
 	test_asymmetric_keys_reject_empty_der();
 	test_ed25519_der_import_rejects_raw_material();
 	test_ed25519_raw_public_key_import_validates_length_and_owns_bytes();

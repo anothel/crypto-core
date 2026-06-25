@@ -1,6 +1,8 @@
 #include "crypto_core/asymmetric.hpp"
 
 #include "crypto_core/error.hpp"
+#include "crypto_core/internal/ec_der.hpp"
+#include "crypto_core/internal/rsa_der.hpp"
 #include "crypto_core/provider.hpp"
 
 namespace crypto_core
@@ -60,6 +62,41 @@ Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::s
 Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsage usage)
 {
 	return import_der(algorithm, der, key_usage_value(usage));
+}
+
+Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsageMask usages)
+{
+	switch (algorithm)
+	{
+	case AsymmetricKeyAlgorithm::rsa:
+	{
+		auto parsed = internal::parse_rsa_spki_public_key_der(der);
+		if (!parsed)
+		{
+			return Result<PublicKey>::failure(parsed.error());
+		}
+		break;
+	}
+	case AsymmetricKeyAlgorithm::ecdsa_p256:
+	{
+		auto parsed = internal::parse_p256_public_key_der(der);
+		if (!parsed)
+		{
+			return Result<PublicKey>::failure(parsed.error());
+		}
+		break;
+	}
+	case AsymmetricKeyAlgorithm::ecdsa_p384:
+	case AsymmetricKeyAlgorithm::ed25519:
+		return Result<PublicKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "SPKI DER import is not implemented for this algorithm"));
+	}
+
+	return Result<PublicKey>::success(PublicKey(algorithm, usages, ByteBuffer::copy_from(der), true));
+}
+
+Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsage usage)
+{
+	return import_spki_der(algorithm, der, key_usage_value(usage));
 }
 
 Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsageMask usages)

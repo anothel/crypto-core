@@ -28,6 +28,7 @@ struct RsaPrivateKeyMaterial final
 };
 
 [[nodiscard]] Result<RsaPublicKeyMaterial> parse_rsa_public_key_der(std::span<const std::uint8_t> der);
+[[nodiscard]] Result<RsaPublicKeyMaterial> parse_rsa_spki_public_key_der(std::span<const std::uint8_t> der);
 [[nodiscard]] Result<RsaPrivateKeyMaterial> parse_rsa_private_key_der(std::span<const std::uint8_t> der);
 
 } // namespace crypto_core::internal

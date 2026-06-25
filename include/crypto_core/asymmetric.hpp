@@ -138,6 +138,14 @@ public:
 	    AsymmetricKeyAlgorithm algorithm,
 	    std::span<const std::uint8_t> der,
 	    KeyUsage usage);
+	[[nodiscard]] static Result<PublicKey> import_spki_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    std::span<const std::uint8_t> der,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PublicKey> import_spki_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    std::span<const std::uint8_t> der,
+	    KeyUsage usage);
 	[[nodiscard]] static Result<PublicKey> import_raw_ed25519(
 	    std::span<const std::uint8_t> raw_public_key,
 	    KeyUsageMask usages);
