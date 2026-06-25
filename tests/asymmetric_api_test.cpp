@@ -451,14 +451,22 @@ void test_asymmetric_provider_defaults_return_unsupported_algorithm()
 {
 	UnsupportedAsymmetricProvider provider;
 	const std::array<std::uint8_t, 3> message{1, 2, 3};
-	const std::array<std::uint8_t, 3> key_der{4, 5, 6};
+	const std::array<std::uint8_t, 29> public_der{
+	    0x30, 0x1B, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+	    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x0A, 0x00,
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::array<std::uint8_t, 31> private_der{
+	    0x30, 0x1D, 0x02, 0x01, 0x00, 0x02, 0x02, 0x0C, 0xA1, 0x02,
+	    0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01, 0x3D, 0x02,
+	    0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31, 0x02, 0x01,
+	    0x26};
 	const std::array<std::uint8_t, 2> signature{7, 8};
 
-	auto private_buffer = crypto_core::SecureBuffer::copy_from(key_der);
+	auto private_buffer = crypto_core::SecureBuffer::copy_from(private_der);
 	require(private_buffer.has_value());
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(private_buffer.value()), crypto_core::KeyUsage::sign | crypto_core::KeyUsage::decrypt | crypto_core::KeyUsage::derive);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(private_buffer.value()), crypto_core::KeyUsage::sign | crypto_core::KeyUsage::decrypt | crypto_core::KeyUsage::derive);
 	require(private_key.has_value());
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, key_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, public_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
 	require(public_key.has_value());
 
 	auto sign_result = crypto_core::sign(provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key.value(), crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256)}, message);

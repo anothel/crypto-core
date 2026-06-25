@@ -71,14 +71,14 @@ inline const std::vector<std::uint8_t> &rsa_reference_oaep_sha256_ciphertext()
 
 inline PublicKey rsa_reference_verify_key()
 {
-	auto key = PublicKey::import_der(AsymmetricKeyAlgorithm::rsa, rsa_reference_verify_public_key_der(), KeyUsage::verify);
+	auto key = PublicKey::import_spki_der(AsymmetricKeyAlgorithm::rsa, rsa_reference_verify_public_key_der(), KeyUsage::verify);
 	require_fixture(key.has_value());
 	return key.value();
 }
 
 inline PublicKey rsa_reference_sign_verify_key()
 {
-	auto key = PublicKey::import_der(AsymmetricKeyAlgorithm::rsa, rsa_reference_sign_public_key_der(), KeyUsage::verify | KeyUsage::encrypt);
+	auto key = PublicKey::import_spki_der(AsymmetricKeyAlgorithm::rsa, rsa_reference_sign_public_key_der(), KeyUsage::verify | KeyUsage::encrypt);
 	require_fixture(key.has_value());
 	return key.value();
 }
@@ -87,7 +87,7 @@ inline PrivateKey rsa_reference_sign_key()
 {
 	auto buffer = SecureBuffer::copy_from(rsa_reference_sign_private_key_der());
 	require_fixture(buffer.has_value());
-	auto key = PrivateKey::import_der(AsymmetricKeyAlgorithm::rsa, std::move(buffer.value()), KeyUsage::sign | KeyUsage::decrypt);
+	auto key = PrivateKey::import_rsa_pkcs1_der(std::move(buffer.value()), KeyUsage::sign | KeyUsage::decrypt);
 	require_fixture(key.has_value());
 	return std::move(key.value());
 }

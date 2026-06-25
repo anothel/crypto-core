@@ -923,7 +923,7 @@ Result<KeyPair> OpenSSLProvider::generate_key_pair(const GenerateKeyPairParams &
 			return Result<KeyPair>::failure(private_der.error());
 		}
 
-		auto public_key = PublicKey::import_der(AsymmetricKeyAlgorithm::ecdsa_p256, public_der.value().bytes(), params.ec.public_usages);
+		auto public_key = PublicKey::import_spki_der(AsymmetricKeyAlgorithm::ecdsa_p256, public_der.value().bytes(), params.ec.public_usages);
 		if (!public_key)
 		{
 			return Result<KeyPair>::failure(public_key.error());
@@ -984,12 +984,12 @@ Result<KeyPair> OpenSSLProvider::generate_key_pair(const GenerateKeyPairParams &
 		return Result<KeyPair>::failure(private_der.error());
 	}
 
-	auto public_key = PublicKey::import_der(AsymmetricKeyAlgorithm::rsa, public_der.value().bytes(), params.rsa.public_usages);
+	auto public_key = PublicKey::import_spki_der(AsymmetricKeyAlgorithm::rsa, public_der.value().bytes(), params.rsa.public_usages);
 	if (!public_key)
 	{
 		return Result<KeyPair>::failure(public_key.error());
 	}
-	auto private_key = PrivateKey::import_der(AsymmetricKeyAlgorithm::rsa, std::move(private_der.value()), params.rsa.private_usages);
+	auto private_key = PrivateKey::import_rsa_pkcs1_der(std::move(private_der.value()), params.rsa.private_usages);
 	if (!private_key)
 	{
 		return Result<KeyPair>::failure(private_key.error());

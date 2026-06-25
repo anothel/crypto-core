@@ -145,16 +145,23 @@ void test_key_store_rejects_duplicate_ids()
 void test_key_store_stores_asymmetric_keys_by_id()
 {
 	crypto_core::KeyStore store;
-	const std::uint8_t public_der_bytes[] = {1, 2, 3};
-	const std::uint8_t private_der_bytes[] = {4, 5, 6};
-	const auto public_der = std::span<const std::uint8_t>(public_der_bytes, 3);
-	const auto private_der = std::span<const std::uint8_t>(private_der_bytes, 3);
+	const std::uint8_t public_der_bytes[] = {
+	    0x30, 0x1B, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+	    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x0A, 0x00,
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::uint8_t private_der_bytes[] = {
+	    0x30, 0x1D, 0x02, 0x01, 0x00, 0x02, 0x02, 0x0C, 0xA1, 0x02,
+	    0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01, 0x3D, 0x02,
+	    0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31, 0x02, 0x01,
+	    0x26};
+	const auto public_der = std::span<const std::uint8_t>(public_der_bytes, sizeof(public_der_bytes));
+	const auto private_der = std::span<const std::uint8_t>(private_der_bytes, sizeof(private_der_bytes));
 
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, public_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, public_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
 	auto private_buffer = crypto_core::SecureBuffer::copy_from(private_der);
 	require(public_key.has_value());
 	require(private_buffer.has_value());
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(private_buffer.value()), crypto_core::KeyUsage::sign | crypto_core::KeyUsage::decrypt);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(private_buffer.value()), crypto_core::KeyUsage::sign | crypto_core::KeyUsage::decrypt);
 	require(private_key.has_value());
 
 	require(store.insert_public("rsa-public", public_key.value()).has_value());

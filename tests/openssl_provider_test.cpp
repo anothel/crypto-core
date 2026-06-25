@@ -550,8 +550,8 @@ void test_openssl_rsa_pss_sign_verify_round_trip()
 	crypto_core::OpenSSLProvider provider;
 	auto der = generate_rsa_der_key_pair();
 
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::sign);
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(der.private_key), crypto_core::KeyUsage::sign);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
 	require(private_key.has_value());
 	require(public_key.has_value());
 
@@ -727,8 +727,8 @@ void test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs()
 	crypto_core::OpenSSLProvider provider;
 	auto der = generate_rsa_der_key_pair();
 
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::sign);
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(der.private_key), crypto_core::KeyUsage::sign);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::verify);
 	require(private_key.has_value());
 	require(public_key.has_value());
 
@@ -754,8 +754,8 @@ void test_openssl_rsa_oaep_encrypt_decrypt_round_trip()
 	crypto_core::OpenSSLProvider provider;
 	auto der = generate_rsa_der_key_pair();
 
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
 	require(private_key.has_value());
 	require(public_key.has_value());
 
@@ -777,8 +777,8 @@ void test_openssl_rsa_oaep_rejects_bad_inputs()
 	crypto_core::OpenSSLProvider provider;
 	auto der = generate_rsa_der_key_pair();
 
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
 	require(private_key.has_value());
 	require(public_key.has_value());
 
@@ -808,8 +808,8 @@ void test_native_rsa_oaep_ciphertext_decrypts_with_openssl()
 	crypto_core::OpenSSLProvider openssl;
 	auto der = generate_rsa_der_key_pair();
 
-	auto private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(der.private_key), crypto_core::KeyUsage::decrypt);
-	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(der.private_key), crypto_core::KeyUsage::decrypt);
+	auto public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der.public_key.bytes(), crypto_core::KeyUsage::encrypt);
 	require(private_key.has_value());
 	require(public_key.has_value());
 

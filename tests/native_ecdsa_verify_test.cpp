@@ -1,6 +1,6 @@
 #include "crypto_core/crypto_core.hpp"
-#include "crypto_core/internal/ecdsa.hpp"
 #include "crypto_core/internal/ec_der.hpp"
+#include "crypto_core/internal/ecdsa.hpp"
 
 #include "test_vectors.hpp"
 
@@ -100,7 +100,7 @@ std::vector<std::uint8_t> sha256(std::span<const std::uint8_t> message)
 crypto_core::PublicKey import_ecdsa_verify_key(std::string_view public_key_der_hex)
 {
 	auto public_key_der = bytes(public_key_der_hex);
-	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
+	auto key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
 	require(key.has_value());
 	return key.value();
 }
@@ -113,7 +113,7 @@ crypto_core::PublicKey import_ecdsa_verify_key()
 crypto_core::PublicKey import_basepoint_ecdsa_verify_key()
 {
 	auto public_key_der = bytes(basepoint_public_key_spki_der_hex);
-	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
+	auto key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
 	require(key.has_value());
 	return key.value();
 }
@@ -131,7 +131,7 @@ crypto_core::PrivateKey import_scalar_one_ecdsa_sign_key(crypto_core::KeyUsage u
 crypto_core::PublicKey import_ecdsa_key_without_verify_usage()
 {
 	auto public_key_der = bytes(public_key_spki_der_hex);
-	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::encrypt);
+	auto key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::encrypt);
 	require(key.has_value());
 	return key.value();
 }
@@ -147,7 +147,7 @@ crypto_core::PublicKey import_malformed_ecdsa_verify_key()
 
 crypto_core::PublicKey import_rsa_verify_key()
 {
-	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_pss_public_key_der, crypto_core::KeyUsage::verify);
+	auto key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_pss_public_key_der, crypto_core::KeyUsage::verify);
 	require(key.has_value());
 	return key.value();
 }
@@ -391,7 +391,7 @@ void test_ecdsa_helper_signs_with_low_s()
 	require(parsed.has_value());
 	const auto s_bytes = parsed.value().s.bytes();
 	const auto equals_half = s_bytes.size() == half_order.size() &&
-	    std::equal(s_bytes.begin(), s_bytes.end(), half_order.begin());
+	                         std::equal(s_bytes.begin(), s_bytes.end(), half_order.begin());
 	require(s_bytes.size() < half_order.size() ||
 	        equals_half ||
 	        std::lexicographical_compare(
