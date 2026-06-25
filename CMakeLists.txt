@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 project(
     crypto_core
     VERSION 0.1.0
-    DESCRIPTION "Production-oriented cryptographic engine written in modern C++"
+    DESCRIPTION "Native-first cryptographic engine written in modern C++"
     LANGUAGES CXX
 )
 

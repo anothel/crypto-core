@@ -68,8 +68,6 @@ Goal: make security claims explicit instead of implied.
 Next slices:
 
 - create `SECURITY.md` after owner confirms reporting channel.
-- add `docs/security-model.md`.
-- add or update `docs/constant-time-notes.md`.
 - keep `docs/algorithm-status.md` aligned with provider capability tests.
 
 Must cover:

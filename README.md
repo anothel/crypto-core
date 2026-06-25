@@ -1,6 +1,6 @@
 # crypto-core
 
-Production-oriented cryptographic engine written in modern C++.
+Native-first cryptographic engine written in modern C++.
 
 `crypto-core` is not just an algorithm library. It is a provider-backed crypto
 engine covering primitives, key material, public APIs, backend providers, and
@@ -78,7 +78,9 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 - Constant-time helper primitives exist, but algorithm-level constant-time
   certification is not claimed.
 - Current algorithm and hardening status is tracked in
-  [docs/algorithm-status.md](docs/algorithm-status.md) and
+  [docs/algorithm-status.md](docs/algorithm-status.md),
+  [docs/security-model.md](docs/security-model.md),
+  [docs/constant-time-notes.md](docs/constant-time-notes.md), and
   [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## CI
