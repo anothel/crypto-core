@@ -175,6 +175,11 @@ public:
 		return material_.empty();
 	}
 
+	[[nodiscard]] bool is_der_encoded() const noexcept
+	{
+		return der_encoded_;
+	}
+
 	[[nodiscard]] Result<ByteBuffer> export_der() const;
 
 private:
@@ -240,6 +245,11 @@ public:
 	[[nodiscard]] bool empty() const noexcept
 	{
 		return material_.empty();
+	}
+
+	[[nodiscard]] bool is_der_encoded() const noexcept
+	{
+		return der_encoded_;
 	}
 
 	[[nodiscard]] Result<SecureBuffer> export_der() const;

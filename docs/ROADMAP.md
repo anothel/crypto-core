@@ -30,7 +30,8 @@ Before calling an alpha/reuse-ready release:
 Work in this order unless a security issue preempts it:
 
 1. P0: finish the key material API boundary.
-   - next slice: define `bytes()`/`export_der()` semantics in tests and docs.
+   - done baseline: `is_der_encoded()` lets callers distinguish stored raw
+     material from DER material before using `bytes()`.
    - then add explicit DER import names where current names overpromise:
      `import_spki_der`, `import_pkcs8_der`, `import_rsa_pkcs1_der`.
    - done when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
@@ -90,10 +91,10 @@ Done baseline:
 - `import_der(ed25519, ...)` rejects until real Ed25519 SPKI/PKCS#8 parsing
   exists.
 - raw Ed25519 material does not export as DER.
+- `is_der_encoded()` exposes whether `bytes()` currently contains DER.
 
 Next slices:
 
-- clarify `bytes()`/export semantics before 1.0.
 - add DER-specific names where needed: `import_spki_der`,
   `import_pkcs8_der`, `import_rsa_pkcs1_der`.
 - keep compatibility wrappers only until the 1.0 API decision.

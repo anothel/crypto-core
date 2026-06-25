@@ -143,6 +143,7 @@ void test_public_and_private_key_import_export()
 	require(public_key.value().allows(crypto_core::KeyUsage::encrypt));
 	require(!public_key.value().allows(crypto_core::KeyUsage::decrypt));
 	require(public_key.value().size() == public_der.size());
+	require(public_key.value().is_der_encoded());
 
 	auto exported_public = public_key.value().export_der();
 	require(exported_public.has_value());
@@ -159,6 +160,7 @@ void test_public_and_private_key_import_export()
 	require(private_key.value().allows(crypto_core::KeyUsage::decrypt));
 	require(!private_key.value().allows(crypto_core::KeyUsage::verify));
 	require(private_key.value().size() == private_der.size());
+	require(private_key.value().is_der_encoded());
 
 	auto exported_private = private_key.value().export_der();
 	require(exported_private.has_value());
@@ -208,6 +210,7 @@ void test_ed25519_raw_public_key_import_validates_length_and_owns_bytes()
 	require(key.value().allows(crypto_core::KeyUsage::verify));
 	require(key.value().allows(crypto_core::KeyUsage::encrypt));
 	require(key.value().size() == raw.size());
+	require(!key.value().is_der_encoded());
 
 	raw[0] = 0x5AU;
 	require(key.value().bytes()[0] == 0xA5U);
@@ -239,6 +242,7 @@ void test_ed25519_raw_private_seed_import_validates_length_and_moves_buffer()
 	require(key.value().allows(crypto_core::KeyUsage::sign));
 	require(key.value().size() == raw.size());
 	require(key.value().bytes()[0] == 0x11U);
+	require(!key.value().is_der_encoded());
 	auto exported_der = key.value().export_der();
 	require(!exported_der.has_value());
 	require(exported_der.error().code() == crypto_core::ErrorCode::invalid_key);
