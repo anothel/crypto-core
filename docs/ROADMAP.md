@@ -145,6 +145,52 @@ Rejected for now:
 - Claim production readiness, audit status, or constant-time guarantees.
   - Reason: current code is experimental and not externally certified.
 
+## External Analysis Triage: 2026-06-25
+
+Source: `C:/Users/anoth/Downloads/crypto_core_improvement_analysis_2026-06-25.md`.
+
+Accepted into roadmap:
+
+- Alpha gate remains the top productization blocker.
+  - Reason: LICENSE, SECURITY.md, remote CI evidence, and raw/DER API clarity
+    are required before external users can safely assess reuse.
+  - Action: keep `LICENSE`, `SECURITY.md`, CI green evidence, install consumer
+    validation, and key material format boundary as release-gating work.
+- Security boundary documentation should be explicit before more feature growth.
+  - Reason: crypto users need threat model, secret/public data boundaries,
+    provider trust boundaries, zeroization policy, side-channel assumptions,
+    RNG failure semantics, and conservative production guidance.
+  - Action: keep `docs/security-model.md` and `docs/constant-time-notes.md`
+    as the next security documentation slice.
+- Test hardening should favor negative, differential, and matrix coverage.
+  - Reason: malformed DER/PEM/ASN.1, RSA padding/signature failures, ECDSA
+    invalid keys/signatures, Ed25519 canonicality, RNG failure injection, and
+    operation capability drift are the most useful regression surfaces.
+  - Action: keep fuzz/failure-injection work queued and prefer small executable
+    regression tests over another standalone backlog.
+- OpenSSL should remain an optional oracle, not an architectural dependency.
+  - Reason: native-first remains the proof target, while OpenSSL differential
+    checks help catch drift where available.
+  - Action: expand OpenSSL differential coverage only where the local and CI
+    environments can support it without changing default-provider behavior.
+
+Deferred:
+
+- License selection.
+  - Reason: owner policy decision, not an implementation detail.
+- KeyStore handles, ASN.1/PEM/CSR expansion, PKCS#11, PQC, validated mode.
+  - Reason: valid later milestones, but lower priority than alpha gate,
+    security boundary docs, API truthfulness, and regression evidence.
+
+Rejected for now:
+
+- Add a new improvement-backlog document.
+  - Reason: `docs/ROADMAP.md` is already the source of truth and duplicating
+    the queue makes future cleanup harder.
+- Claim CI, package, audit, or constant-time success without fresh evidence.
+  - Reason: the imported report was static analysis and did not verify local
+    builds, remote CI, fuzzers, or formal side-channel properties.
+
 ## Current Focus
 
 ### 1.3 Ed25519
@@ -167,6 +213,7 @@ Remaining slices:
 2. `S` Ed25519 key generation, if needed before KeyStore evolution
    - import public/private key material
    - export public/private material in the current thin key shape
+   - keep keygen decision documented if deferred
 
 Exit criteria:
 
@@ -174,6 +221,8 @@ Exit criteria:
 - NativeProvider signs and verifies deterministic Ed25519 signatures
 - invalid signatures return `VerifyResult::invalid()`
 - API does not expose irrelevant RSA/ECDSA parameters
+- OpenSSL differential support is either tested or explicitly documented as
+  unavailable/deferred
 
 ## Next Queue
 
@@ -264,9 +313,14 @@ Remaining slices:
 3. `S` `docs/security-model.md` and `docs/constant-time-notes.md`
    - protected assets
    - non-goals for 0.x
+   - threat model and provider trust boundary
+   - secret/public data boundary
+   - memory zeroization policy
    - known timing-risk register
    - RNG source and failure semantics
    - Ed25519ctx/Ed25519ph and P-384 unsupported status
+   - package/release wording that preserves the experimental,
+     not-production-certified status
 
 Exit criteria:
 
@@ -293,6 +347,7 @@ Remaining slices:
    - install-tree smoke test
    - install/export implementation added; first external consumer validation
      outside local smoke pending
+   - release checklist records validated consumer command and environment
 
 2. `M` GitHub Actions native CI
    - Windows/MSVC
@@ -300,6 +355,7 @@ Remaining slices:
    - Ubuntu/Clang
    - macOS/Clang
    - workflow added; first remote green run pending
+   - README badge or release checklist links to the first green run
 
 3. `M` OpenSSL and sanitizer CI
    - OpenSSL ON/OFF
