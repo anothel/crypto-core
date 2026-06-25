@@ -68,8 +68,7 @@ Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, s
 {
 	switch (algorithm)
 	{
-	case AsymmetricKeyAlgorithm::rsa:
-	{
+	case AsymmetricKeyAlgorithm::rsa: {
 		auto parsed = internal::parse_rsa_spki_public_key_der(der);
 		if (!parsed)
 		{
@@ -77,8 +76,7 @@ Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, s
 		}
 		break;
 	}
-	case AsymmetricKeyAlgorithm::ecdsa_p256:
-	{
+	case AsymmetricKeyAlgorithm::ecdsa_p256: {
 		auto parsed = internal::parse_p256_public_key_der(der);
 		if (!parsed)
 		{
@@ -97,6 +95,22 @@ Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, s
 Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsage usage)
 {
 	return import_spki_der(algorithm, der, key_usage_value(usage));
+}
+
+Result<PublicKey> PublicKey::import_rsa_pkcs1_der(std::span<const std::uint8_t> der, KeyUsageMask usages)
+{
+	auto parsed = internal::parse_rsa_pkcs1_public_key_der(der);
+	if (!parsed)
+	{
+		return Result<PublicKey>::failure(parsed.error());
+	}
+
+	return Result<PublicKey>::success(PublicKey(AsymmetricKeyAlgorithm::rsa, usages, ByteBuffer::copy_from(der), true));
+}
+
+Result<PublicKey> PublicKey::import_rsa_pkcs1_der(std::span<const std::uint8_t> der, KeyUsage usage)
+{
+	return import_rsa_pkcs1_der(der, key_usage_value(usage));
 }
 
 Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsageMask usages)
@@ -128,6 +142,22 @@ Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, Secu
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsage usage)
 {
 	return import_der(algorithm, std::move(der), key_usage_value(usage));
+}
+
+Result<PrivateKey> PrivateKey::import_rsa_pkcs1_der(SecureBuffer der, KeyUsageMask usages)
+{
+	auto parsed = internal::parse_rsa_pkcs1_private_key_der(der.bytes());
+	if (!parsed)
+	{
+		return Result<PrivateKey>::failure(parsed.error());
+	}
+
+	return Result<PrivateKey>::success(PrivateKey(AsymmetricKeyAlgorithm::rsa, usages, std::move(der), true));
+}
+
+Result<PrivateKey> PrivateKey::import_rsa_pkcs1_der(SecureBuffer der, KeyUsage usage)
+{
+	return import_rsa_pkcs1_der(std::move(der), key_usage_value(usage));
 }
 
 Result<PrivateKey> PrivateKey::import_raw_ed25519_seed(SecureBuffer raw_seed, KeyUsageMask usages)

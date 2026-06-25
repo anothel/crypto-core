@@ -31,7 +31,7 @@ Work in this order unless a security issue preempts it:
 
 1. P0: finish the key material API boundary.
    - add explicit DER import names where current names overpromise:
-     `import_pkcs8_der`, `import_rsa_pkcs1_der`.
+     `import_pkcs8_der`.
    - add strict malformed DER rejection tests for paths that claim DER parsing.
    - exit when raw Ed25519, RSA DER, and ECDSA DER paths cannot be confused by
      API name, docs, or tests.
@@ -84,8 +84,7 @@ API.
 
 Next slices:
 
-- add DER-specific names where needed: `import_pkcs8_der`,
-  `import_rsa_pkcs1_der`.
+- add DER-specific names where needed: `import_pkcs8_der`.
 - keep compatibility wrappers only until the 1.0 API decision.
 - add strict malformed DER rejection tests for paths that claim DER parsing.
 

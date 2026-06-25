@@ -387,6 +387,11 @@ Result<RsaPublicKeyMaterial> parse_rsa_spki_public_key_der(std::span<const std::
 	return parse_spki_public_key(der);
 }
 
+Result<RsaPublicKeyMaterial> parse_rsa_pkcs1_public_key_der(std::span<const std::uint8_t> der)
+{
+	return parse_pkcs1_public_key(der);
+}
+
 Result<RsaPrivateKeyMaterial> parse_rsa_private_key_der(std::span<const std::uint8_t> der)
 {
 	auto pkcs1 = parse_pkcs1_private_key(der);
@@ -396,6 +401,11 @@ Result<RsaPrivateKeyMaterial> parse_rsa_private_key_der(std::span<const std::uin
 	}
 
 	return parse_pkcs8_private_key(der);
+}
+
+Result<RsaPrivateKeyMaterial> parse_rsa_pkcs1_private_key_der(std::span<const std::uint8_t> der)
+{
+	return parse_pkcs1_private_key(der);
 }
 
 } // namespace crypto_core::internal

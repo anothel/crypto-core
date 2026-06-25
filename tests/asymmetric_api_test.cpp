@@ -202,6 +202,52 @@ void test_public_key_import_spki_der_validates_container()
 	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_rsa_pkcs1_der_import_validates_container()
+{
+	const std::array<std::uint8_t, 9> public_pkcs1_der{
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::array<std::uint8_t, 29> public_spki_der{
+	    0x30, 0x1B, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+	    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x0A, 0x00,
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::array<std::uint8_t, 31> private_pkcs1_der{
+	    0x30, 0x1D, 0x02, 0x01, 0x00, 0x02, 0x02, 0x0C, 0xA1, 0x02,
+	    0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01, 0x3D, 0x02,
+	    0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31, 0x02, 0x01,
+	    0x26};
+	const std::array<std::uint8_t, 53> private_pkcs8_der{
+	    0x30, 0x33, 0x02, 0x01, 0x00, 0x30, 0x0D, 0x06, 0x09, 0x2A,
+	    0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00,
+	    0x04, 0x1F, 0x30, 0x1D, 0x02, 0x01, 0x00, 0x02, 0x02, 0x0C,
+	    0xA1, 0x02, 0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01,
+	    0x3D, 0x02, 0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31,
+	    0x02, 0x01, 0x26};
+
+	auto public_key = crypto_core::PublicKey::import_rsa_pkcs1_der(public_pkcs1_der, crypto_core::KeyUsage::verify);
+	require(public_key.has_value());
+	require(public_key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+	require(public_key.value().is_der_encoded());
+	require(public_key.value().bytes().size() == public_pkcs1_der.size());
+
+	auto spki = crypto_core::PublicKey::import_rsa_pkcs1_der(public_spki_der, crypto_core::KeyUsage::verify);
+	require(!spki.has_value());
+	require(spki.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto private_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs1_der);
+	require(private_buffer.has_value());
+	auto private_key = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(private_buffer.value()), crypto_core::KeyUsage::sign);
+	require(private_key.has_value());
+	require(private_key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::rsa);
+	require(private_key.value().is_der_encoded());
+	require(private_key.value().bytes().size() == private_pkcs1_der.size());
+
+	auto pkcs8_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs8_der);
+	require(pkcs8_buffer.has_value());
+	auto pkcs8 = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(pkcs8_buffer.value()), crypto_core::KeyUsage::sign);
+	require(!pkcs8.has_value());
+	require(pkcs8.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 void test_asymmetric_keys_reject_empty_der()
 {
 	const std::array<std::uint8_t, 0> empty{};
@@ -419,6 +465,7 @@ int main()
 	test_rsa_oaep_params_own_label();
 	test_public_and_private_key_import_export();
 	test_public_key_import_spki_der_validates_container();
+	test_rsa_pkcs1_der_import_validates_container();
 	test_asymmetric_keys_reject_empty_der();
 	test_ed25519_der_import_rejects_raw_material();
 	test_ed25519_raw_public_key_import_validates_length_and_owns_bytes();
