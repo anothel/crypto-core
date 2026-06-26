@@ -11,5 +11,6 @@ namespace crypto_core::internal
 
 [[nodiscard]] Result<bool> verify_ed25519(std::span<const std::uint8_t> public_key, std::span<const std::uint8_t> signature, std::span<const std::uint8_t> message);
 [[nodiscard]] Result<ByteBuffer> sign_ed25519_seed(std::span<const std::uint8_t> seed, std::span<const std::uint8_t> message);
+[[nodiscard]] Result<void> validate_ed25519_public_key(std::span<const std::uint8_t> public_key);
 
 } // namespace crypto_core::internal

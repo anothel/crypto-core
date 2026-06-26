@@ -2,6 +2,7 @@
 
 #include "crypto_core/error.hpp"
 #include "crypto_core/internal/ec_der.hpp"
+#include "crypto_core/internal/ed25519.hpp"
 #include "crypto_core/internal/rsa_der.hpp"
 #include "crypto_core/provider.hpp"
 
@@ -77,9 +78,10 @@ Result<PublicKey> PublicKey::import_rsa_pkcs1_der(std::span<const std::uint8_t> 
 
 Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> raw_public_key, KeyUsageMask usages)
 {
-	if (raw_public_key.size() != ed25519_raw_key_size)
+	auto validation = internal::validate_ed25519_public_key(raw_public_key);
+	if (!validation)
 	{
-		return Result<PublicKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 raw public key must be 32 bytes"));
+		return Result<PublicKey>::failure(validation.error());
 	}
 
 	return Result<PublicKey>::success(PublicKey(AsymmetricKeyAlgorithm::ed25519, usages, ByteBuffer::copy_from(raw_public_key), false));

@@ -122,6 +122,28 @@ void test_native_provider_rejects_invalid_ed25519_key_and_signature_shapes()
 	require(!short_signature.value().is_valid());
 }
 
+void test_native_provider_rejects_non_canonical_ed25519_inputs()
+{
+	current_check = "non-canonical Ed25519 input setup";
+	crypto_core::NativeProvider provider;
+	auto non_canonical_public_key = crypto_core::PublicKey::import_raw_ed25519(bytes("EDFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7F"), crypto_core::KeyUsage::verify);
+	current_check = "non-canonical Ed25519 public key import fails";
+	require(!non_canonical_public_key.has_value());
+	require(non_canonical_public_key.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto public_key = import_ed25519_verify_key(bytes("D75A980182B10AB7D54BFED3C964073A0EE172F3DAA62325AF021A68F707511A"));
+	auto signature = bytes(
+	    "E5564300C360AC729086E2CC806E828A84877F1EB8E5D974D873E06522490155"
+	    "EDD3F55C1A631258D69CF7A2DEF9DE1400000000000000000000000000000010");
+	const std::vector<std::uint8_t> message;
+
+	auto result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ed25519, &public_key, signature}, message);
+	current_check = "non-canonical Ed25519 S returns Result";
+	require(result.has_value());
+	current_check = "non-canonical Ed25519 S is invalid";
+	require(!result.value().is_valid());
+}
+
 void test_native_provider_signs_rfc8032_empty_message_vector()
 {
 	current_check = "RFC8032 empty-message signing vector setup";
@@ -228,6 +250,7 @@ int main()
 	test_native_provider_verifies_rfc8032_empty_message_vector();
 	test_native_provider_rejects_tampered_ed25519_inputs();
 	test_native_provider_rejects_invalid_ed25519_key_and_signature_shapes();
+	test_native_provider_rejects_non_canonical_ed25519_inputs();
 	test_native_provider_signs_rfc8032_empty_message_vector();
 	test_native_provider_signs_rfc8032_one_octet_message_vector_deterministically();
 	test_native_provider_signs_rfc8032_two_octet_message_vector();

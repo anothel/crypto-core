@@ -421,6 +421,8 @@ void test_ed25519_raw_public_key_import_validates_length_and_owns_bytes()
 {
 	std::array<std::uint8_t, 32> raw{};
 	raw[0] = 0xA5U;
+	auto non_canonical = crypto_core::test_support::decode_hex("EDFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7F");
+	require(non_canonical.has_value());
 
 	auto key = crypto_core::PublicKey::import_raw_ed25519(raw, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
 	require(key.has_value());
@@ -445,6 +447,10 @@ void test_ed25519_raw_public_key_import_validates_length_and_owns_bytes()
 	auto long_key = crypto_core::PublicKey::import_raw_ed25519(long_raw, crypto_core::KeyUsage::verify);
 	require(!long_key.has_value());
 	require(long_key.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto non_canonical_key = crypto_core::PublicKey::import_raw_ed25519(non_canonical.value(), crypto_core::KeyUsage::verify);
+	require(!non_canonical_key.has_value());
+	require(non_canonical_key.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_ed25519_raw_private_seed_import_validates_length_and_moves_buffer()

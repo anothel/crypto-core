@@ -28,7 +28,7 @@ Status labels:
 | Signature | ECDSA P-384 | unsupported | no active 0.x goal |
 | Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds; Ed25519ctx/ph unsupported |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
-| Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte raw keys |
+| Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte canonical encoded points |
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
 | Key import | SPKI DER public keys | experimental | `PublicKey::import_spki_der` validates RSA and P-256 SPKI containers; Ed25519 SPKI is rejected until a real parser exists |
 | Key import | SEC1 DER private keys | experimental | `PrivateKey::import_sec1_der` validates P-256 SEC1 containers |

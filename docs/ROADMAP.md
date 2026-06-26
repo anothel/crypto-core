@@ -52,8 +52,7 @@ Work in this order unless a security issue preempts it:
 
 5. P1: add malformed-input regression coverage.
    - add the smallest focused fixture set for one surface at a time: RSA-PSS/
-     OAEP, RSA DER, ECDSA DER, Ed25519 canonicality, P-256 public points, RNG
-     failure injection.
+     OAEP, RSA DER, ECDSA DER, P-256 public points, RNG failure injection.
    - exit when malformed inputs reject deterministically and no weak RNG
      fallback exists.
 
@@ -153,7 +152,6 @@ Next slices:
 
 - malformed DER/signature fixtures for RSA and ECDSA.
 - RSA-PSS and RSA-OAEP negative cases.
-- Ed25519 public-key decode and signature canonicality rejection cases.
 - P-256 public-point rejection cases.
 - RNG failure injection with stable `ErrorCode`.
 

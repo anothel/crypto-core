@@ -752,6 +752,17 @@ Result<ByteBuffer> sign_ed25519_seed(std::span<const std::uint8_t> seed, std::sp
 	return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
 }
 
+Result<void> validate_ed25519_public_key(std::span<const std::uint8_t> public_key)
+{
+	auto point = decode_point(public_key);
+	if (!point)
+	{
+		return Result<void>::failure(point.error());
+	}
+
+	return Result<void>::success();
+}
+
 Result<bool> verify_ed25519(
     std::span<const std::uint8_t> public_key,
     std::span<const std::uint8_t> signature,
