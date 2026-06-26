@@ -135,8 +135,19 @@ void test_rsa_oaep_params_own_label()
 
 void test_public_and_private_key_import_export()
 {
-	const std::array<std::uint8_t, 4> public_der{1, 2, 3, 4};
-	const std::array<std::uint8_t, 5> private_der{9, 8, 7, 6, 5};
+	const std::array<std::uint8_t, 29> public_der{
+	    0x30, 0x1B, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+	    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x0A, 0x00,
+	    0x30, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	const std::array<std::uint8_t, 53> private_der{
+	    0x30, 0x33, 0x02, 0x01, 0x00, 0x30, 0x0D, 0x06, 0x09, 0x2A,
+	    0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00,
+	    0x04, 0x1F, 0x30, 0x1D, 0x02, 0x01, 0x00, 0x02, 0x02, 0x0C,
+	    0xA1, 0x02, 0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01,
+	    0x3D, 0x02, 0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31,
+	    0x02, 0x01, 0x26};
+	const std::array<std::uint8_t, 4> malformed_public_der{1, 2, 3, 4};
+	const std::array<std::uint8_t, 5> malformed_private_der{9, 8, 7, 6, 5};
 
 	auto public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, public_der, crypto_core::KeyUsage::verify | crypto_core::KeyUsage::encrypt);
 	require(public_key.has_value());
@@ -151,7 +162,11 @@ void test_public_and_private_key_import_export()
 	require(exported_public.has_value());
 	require(exported_public.value().size() == public_der.size());
 	exported_public.value().bytes()[0] = 0xFFU;
-	require(public_key.value().bytes()[0] == 1U);
+	require(public_key.value().bytes()[0] == 0x30U);
+
+	auto malformed_public_key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, malformed_public_der, crypto_core::KeyUsage::verify);
+	require(!malformed_public_key.has_value());
+	require(malformed_public_key.error().code() == crypto_core::ErrorCode::invalid_key);
 
 	auto private_buffer = crypto_core::SecureBuffer::copy_from(private_der);
 	require(private_buffer.has_value());
@@ -168,7 +183,13 @@ void test_public_and_private_key_import_export()
 	require(exported_private.has_value());
 	require(exported_private.value().size() == private_der.size());
 	exported_private.value().bytes()[0] = 0xAAU;
-	require(private_key.value().bytes()[0] == 9U);
+	require(private_key.value().bytes()[0] == 0x30U);
+
+	auto malformed_private_buffer = crypto_core::SecureBuffer::copy_from(malformed_private_der);
+	require(malformed_private_buffer.has_value());
+	auto malformed_private_key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(malformed_private_buffer.value()), crypto_core::KeyUsage::sign);
+	require(!malformed_private_key.has_value());
+	require(malformed_private_key.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_public_key_import_spki_der_validates_container()
@@ -200,6 +221,10 @@ void test_public_key_import_spki_der_validates_container()
 	auto ed25519 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, rsa_spki_der, crypto_core::KeyUsage::verify);
 	require(!ed25519.has_value());
 	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto unknown = crypto_core::PublicKey::import_spki_der(static_cast<crypto_core::AsymmetricKeyAlgorithm>(255), rsa_spki_der, crypto_core::KeyUsage::verify);
+	require(!unknown.has_value());
+	require(unknown.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 }
 
 void test_rsa_pkcs1_der_import_validates_container()
@@ -315,6 +340,15 @@ void test_pkcs8_der_import_validates_container()
 	    crypto_core::KeyUsage::sign);
 	require(!ed25519.has_value());
 	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto unknown_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs8_der);
+	require(unknown_buffer.has_value());
+	auto unknown = crypto_core::PrivateKey::import_pkcs8_der(
+	    static_cast<crypto_core::AsymmetricKeyAlgorithm>(255),
+	    std::move(unknown_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!unknown.has_value());
+	require(unknown.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
 }
 
 void test_sec1_der_import_validates_container()

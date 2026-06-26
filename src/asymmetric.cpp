@@ -12,51 +12,11 @@ namespace
 
 constexpr std::size_t ed25519_raw_key_size = 32;
 
-bool is_known_algorithm(AsymmetricKeyAlgorithm algorithm) noexcept
-{
-	switch (algorithm)
-	{
-	case AsymmetricKeyAlgorithm::rsa:
-	case AsymmetricKeyAlgorithm::ecdsa_p256:
-	case AsymmetricKeyAlgorithm::ecdsa_p384:
-	case AsymmetricKeyAlgorithm::ed25519:
-		return true;
-	}
-
-	return false;
-}
-
-Result<void> validate_der_key_material(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der) noexcept
-{
-	if (!is_known_algorithm(algorithm))
-	{
-		return Result<void>::failure(make_error(ErrorCode::unsupported_algorithm, "asymmetric", "asymmetric key algorithm is not supported"));
-	}
-
-	if (der.empty())
-	{
-		return Result<void>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "DER key must not be empty"));
-	}
-
-	if (algorithm == AsymmetricKeyAlgorithm::ed25519)
-	{
-		return Result<void>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "Ed25519 DER import is not implemented; use raw Ed25519 import APIs"));
-	}
-
-	return Result<void>::success();
-}
-
 } // namespace
 
 Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsageMask usages)
 {
-	auto validation = validate_der_key_material(algorithm, der);
-	if (!validation)
-	{
-		return Result<PublicKey>::failure(validation.error());
-	}
-
-	return Result<PublicKey>::success(PublicKey(algorithm, usages, ByteBuffer::copy_from(der), true));
+	return import_spki_der(algorithm, der, usages);
 }
 
 Result<PublicKey> PublicKey::import_der(AsymmetricKeyAlgorithm algorithm, std::span<const std::uint8_t> der, KeyUsage usage)
@@ -87,6 +47,8 @@ Result<PublicKey> PublicKey::import_spki_der(AsymmetricKeyAlgorithm algorithm, s
 	case AsymmetricKeyAlgorithm::ecdsa_p384:
 	case AsymmetricKeyAlgorithm::ed25519:
 		return Result<PublicKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "SPKI DER import is not implemented for this algorithm"));
+	default:
+		return Result<PublicKey>::failure(make_error(ErrorCode::unsupported_algorithm, "asymmetric", "asymmetric key algorithm is not supported"));
 	}
 
 	return Result<PublicKey>::success(PublicKey(algorithm, usages, ByteBuffer::copy_from(der), true));
@@ -130,13 +92,7 @@ Result<PublicKey> PublicKey::import_raw_ed25519(std::span<const std::uint8_t> ra
 
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsageMask usages)
 {
-	auto validation = validate_der_key_material(algorithm, der.bytes());
-	if (!validation)
-	{
-		return Result<PrivateKey>::failure(validation.error());
-	}
-
-	return Result<PrivateKey>::success(PrivateKey(algorithm, usages, std::move(der), true));
+	return import_pkcs8_der(algorithm, std::move(der), usages);
 }
 
 Result<PrivateKey> PrivateKey::import_der(AsymmetricKeyAlgorithm algorithm, SecureBuffer der, KeyUsage usage)
@@ -167,6 +123,8 @@ Result<PrivateKey> PrivateKey::import_pkcs8_der(AsymmetricKeyAlgorithm algorithm
 	case AsymmetricKeyAlgorithm::ecdsa_p384:
 	case AsymmetricKeyAlgorithm::ed25519:
 		return Result<PrivateKey>::failure(make_error(ErrorCode::invalid_key, "asymmetric", "PKCS#8 DER import is not implemented for this algorithm"));
+	default:
+		return Result<PrivateKey>::failure(make_error(ErrorCode::unsupported_algorithm, "asymmetric", "asymmetric key algorithm is not supported"));
 	}
 
 	return Result<PrivateKey>::success(PrivateKey(algorithm, usages, std::move(der), true));

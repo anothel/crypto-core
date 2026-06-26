@@ -136,15 +136,6 @@ crypto_core::PublicKey import_ecdsa_key_without_verify_usage()
 	return key.value();
 }
 
-crypto_core::PublicKey import_malformed_ecdsa_verify_key()
-{
-	auto public_key_der = bytes(public_key_spki_der_hex);
-	public_key_der[0] = 0x31;
-	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
-	require(key.has_value());
-	return key.value();
-}
-
 crypto_core::PublicKey import_rsa_verify_key()
 {
 	auto key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_pss_public_key_der, crypto_core::KeyUsage::verify);
@@ -531,16 +522,14 @@ void test_native_provider_rejects_ecdsa_key_without_verify_usage()
 	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
-void test_native_provider_rejects_malformed_ecdsa_public_key()
+void test_compat_import_der_rejects_malformed_ecdsa_public_key()
 {
-	crypto_core::NativeProvider provider;
-	auto public_key = import_malformed_ecdsa_verify_key();
-	auto signature_der = bytes(signature_der_hex);
-	auto message = bytes(message_hex);
+	auto public_key_der = bytes(public_key_spki_der_hex);
+	public_key_der[0] = 0x31;
 
-	auto result = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &public_key, signature_der}, message);
-	require(!result.has_value());
-	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
+	auto key = crypto_core::PublicKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, public_key_der, crypto_core::KeyUsage::verify);
+	require(!key.has_value());
+	require(key.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_default_provider_verifies_static_ecdsa_signature()
@@ -598,7 +587,7 @@ int main()
 	RUN_TEST(test_native_provider_rejects_empty_ecdsa_signature);
 	RUN_TEST(test_native_provider_rejects_rsa_key_for_ecdsa_verify);
 	RUN_TEST(test_native_provider_rejects_ecdsa_key_without_verify_usage);
-	RUN_TEST(test_native_provider_rejects_malformed_ecdsa_public_key);
+	RUN_TEST(test_compat_import_der_rejects_malformed_ecdsa_public_key);
 	RUN_TEST(test_default_provider_verifies_static_ecdsa_signature);
 	RUN_TEST(test_default_provider_signs_ecdsa_signature);
 	return 0;

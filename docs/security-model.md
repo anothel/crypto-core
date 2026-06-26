@@ -30,8 +30,9 @@ a different backend should pass an explicit `ICryptoProvider&`.
 ## Key Material Boundary
 
 Raw key material and DER/SPKI/PKCS#8 containers are distinct. Raw Ed25519 keys
-must use the raw Ed25519 import APIs. `import_der(ed25519, ...)` rejects until
-real Ed25519 DER parsing exists.
+must use the raw Ed25519 import APIs. Compatibility `import_der(...)` validates
+public keys as SPKI DER and private keys as PKCS#8 DER. `import_der(ed25519,
+...)` rejects until real Ed25519 DER parsing exists.
 
 `PublicKey::bytes()` and `PrivateKey::bytes()` return the stored material.
 Check `is_der_encoded()` before treating those bytes as DER. Use `export_der()`
