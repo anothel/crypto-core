@@ -175,6 +175,11 @@ if(CRYPTO_CORE_BUILD_TESTS)
             crypto_core::crypto_core
     )
 
+    target_compile_definitions(crypto_core_provider_api_tests
+        PRIVATE
+            CRYPTO_CORE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+
     add_test(NAME crypto_core.provider_api COMMAND crypto_core_provider_api_tests)
 
     add_executable(crypto_core_native_hash_tests

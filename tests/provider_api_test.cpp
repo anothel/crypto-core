@@ -3,8 +3,11 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -95,6 +98,19 @@ void require_no_key_agreement_capabilities(const Provider &provider)
 	require(!provider.supports(crypto_core::CryptoOperation::keygen, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
 	require(!provider.supports(crypto_core::CryptoOperation::encrypt, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
 	require(!provider.supports(crypto_core::CryptoOperation::decrypt, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
+}
+
+std::string read_algorithm_status_doc()
+{
+	const auto path = std::filesystem::path{CRYPTO_CORE_SOURCE_DIR} / "docs" / "algorithm-status.md";
+	std::ifstream input(path);
+	require(input.is_open());
+	return std::string(std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
+}
+
+void require_contains(std::string_view haystack, std::string_view needle)
+{
+	require(haystack.find(needle) != std::string_view::npos);
 }
 
 } // namespace
@@ -252,6 +268,21 @@ void test_native_provider_capability_matrix_matches_status_docs()
 	require_no_key_agreement_capabilities(provider);
 }
 
+void test_algorithm_status_doc_matches_provider_capability_matrix()
+{
+	const auto doc = read_algorithm_status_doc();
+
+	require_contains(doc, "| Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |");
+	require_contains(doc, "| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; native signing emits low-S DER signatures; malformed-vector hardening tracked |");
+	require_contains(doc, "| Signature | ECDSA P-384 | unsupported | no active 0.x goal |");
+	require_contains(doc, "| Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds; Ed25519ctx/ph unsupported |");
+	require_contains(doc, "| Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |");
+	require_contains(doc, "| Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |");
+	require_contains(doc, "| Key agreement | ECDH | planned/deferred | no active 0.x goal |");
+	require_contains(doc, "| Signature | Ed25519 | planned | differential path queued |");
+	require_contains(doc, "| Keygen | RSA/ECDSA P-256 | experimental | optional provider |");
+}
+
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 void test_openssl_provider_capability_matrix_matches_status_docs()
 {
@@ -291,6 +322,7 @@ int main()
 	test_hash_wrapper_returns_provider_error();
 	test_default_hash_uses_native_provider();
 	test_native_provider_capability_matrix_matches_status_docs();
+	test_algorithm_status_doc_matches_provider_capability_matrix();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif

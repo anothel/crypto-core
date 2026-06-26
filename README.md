@@ -80,7 +80,8 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 - Current algorithm and hardening status is tracked in
   [docs/algorithm-status.md](docs/algorithm-status.md),
   [docs/security-model.md](docs/security-model.md),
-  [docs/constant-time-notes.md](docs/constant-time-notes.md), and
+  [docs/constant-time-notes.md](docs/constant-time-notes.md),
+  [SECURITY.md](SECURITY.md), and
   [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## CI
@@ -145,12 +146,10 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Raw/DER key material boundary
-2. Security/status documentation and conservative 0.x production guidance
-3. CI evidence, install/export smoke, and OpenSSL ON/OFF coverage
-4. Ed25519 OpenSSL differential checks and optional key generation
-5. RSA and P-256 hardening, malformed vectors, and fuzz-style coverage
-6. KeyStore provider-backed handles, ASN.1 DER, PEM, CSR, PKCS#11, and PQC
+1. CI evidence, install/export smoke, and OpenSSL ON/OFF coverage
+2. Ed25519 OpenSSL differential checks and optional key generation
+3. RSA and P-256 hardening, malformed vectors, and fuzz-style coverage
+4. KeyStore provider-backed handles, ASN.1 DER, PEM, CSR, PKCS#11, and PQC
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 
