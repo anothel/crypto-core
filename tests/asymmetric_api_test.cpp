@@ -293,6 +293,42 @@ void test_pkcs8_der_import_validates_container()
 	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_sec1_der_import_validates_container()
+{
+	auto sec1_der = crypto_core::test_support::decode_hex("303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require(sec1_der.has_value());
+	auto sec1_buffer = crypto_core::SecureBuffer::copy_from(sec1_der.value());
+	require(sec1_buffer.has_value());
+	auto private_key = crypto_core::PrivateKey::import_sec1_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(sec1_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(private_key.has_value());
+	require(private_key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
+	require(private_key.value().is_der_encoded());
+	require(private_key.value().bytes().size() == sec1_der.value().size());
+
+	auto pkcs8_der = crypto_core::test_support::decode_hex("304D020100301306072A8648CE3D020106082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require(pkcs8_der.has_value());
+	auto pkcs8_buffer = crypto_core::SecureBuffer::copy_from(pkcs8_der.value());
+	require(pkcs8_buffer.has_value());
+	auto pkcs8 = crypto_core::PrivateKey::import_sec1_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(pkcs8_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!pkcs8.has_value());
+	require(pkcs8.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto rsa_buffer = crypto_core::SecureBuffer::copy_from(sec1_der.value());
+	require(rsa_buffer.has_value());
+	auto rsa = crypto_core::PrivateKey::import_sec1_der(
+	    crypto_core::AsymmetricKeyAlgorithm::rsa,
+	    std::move(rsa_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!rsa.has_value());
+	require(rsa.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 void test_asymmetric_keys_reject_empty_der()
 {
 	const std::array<std::uint8_t, 0> empty{};
@@ -520,6 +556,7 @@ int main()
 	test_public_key_import_spki_der_validates_container();
 	test_rsa_pkcs1_der_import_validates_container();
 	test_pkcs8_der_import_validates_container();
+	test_sec1_der_import_validates_container();
 	test_asymmetric_keys_reject_empty_der();
 	test_ed25519_der_import_rejects_raw_material();
 	test_ed25519_raw_public_key_import_validates_length_and_owns_bytes();

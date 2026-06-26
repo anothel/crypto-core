@@ -928,7 +928,7 @@ Result<KeyPair> OpenSSLProvider::generate_key_pair(const GenerateKeyPairParams &
 		{
 			return Result<KeyPair>::failure(public_key.error());
 		}
-		auto private_key = PrivateKey::import_der(AsymmetricKeyAlgorithm::ecdsa_p256, std::move(private_der.value()), params.ec.private_usages);
+		auto private_key = PrivateKey::import_sec1_der(AsymmetricKeyAlgorithm::ecdsa_p256, std::move(private_der.value()), params.ec.private_usages);
 		if (!private_key)
 		{
 			return Result<KeyPair>::failure(private_key.error());

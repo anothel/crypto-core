@@ -479,6 +479,11 @@ Result<EcPrivateKeyMaterial> parse_p256_private_key_der(std::span<const std::uin
 	return parse_p256_private_key_der_impl(der);
 }
 
+Result<EcPrivateKeyMaterial> parse_p256_sec1_private_key_der(std::span<const std::uint8_t> der)
+{
+	return parse_sec1_p256_private_key(der);
+}
+
 Result<EcdsaSignatureMaterial> parse_ecdsa_signature_der(std::span<const std::uint8_t> der)
 {
 	return parse_ecdsa_signature_der_impl(der);

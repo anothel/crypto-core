@@ -123,7 +123,7 @@ crypto_core::PrivateKey import_scalar_one_ecdsa_sign_key(crypto_core::KeyUsage u
 	auto private_key_der = bytes(scalar_one_private_key_der_hex);
 	auto buffer = crypto_core::SecureBuffer::copy_from(private_key_der);
 	require(buffer.has_value());
-	auto key = crypto_core::PrivateKey::import_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, std::move(buffer.value()), usage);
+	auto key = crypto_core::PrivateKey::import_sec1_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, std::move(buffer.value()), usage);
 	require(key.has_value());
 	return std::move(key.value());
 }

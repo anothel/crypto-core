@@ -232,6 +232,14 @@ public:
 	    AsymmetricKeyAlgorithm algorithm,
 	    SecureBuffer der,
 	    KeyUsage usage);
+	[[nodiscard]] static Result<PrivateKey> import_sec1_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    SecureBuffer der,
+	    KeyUsageMask usages);
+	[[nodiscard]] static Result<PrivateKey> import_sec1_der(
+	    AsymmetricKeyAlgorithm algorithm,
+	    SecureBuffer der,
+	    KeyUsage usage);
 	[[nodiscard]] static Result<PrivateKey> import_rsa_pkcs1_der(
 	    SecureBuffer der,
 	    KeyUsageMask usages);
