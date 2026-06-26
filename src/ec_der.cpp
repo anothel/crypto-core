@@ -20,6 +20,7 @@ constexpr std::uint8_t der_bit_string = 0x03;
 constexpr std::uint8_t der_octet_string = 0x04;
 constexpr std::uint8_t der_oid = 0x06;
 constexpr std::uint8_t der_context_0 = 0xA0;
+constexpr std::uint8_t der_context_1 = 0xA1;
 
 constexpr std::array<std::uint8_t, 7> id_ec_public_key_oid{
     0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01};
@@ -239,6 +240,38 @@ template <std::size_t Size>
 	return Result<void>::success();
 }
 
+[[nodiscard]] Result<void> read_optional_p256_public_key(DerReader &reader)
+{
+	if (reader.next_tag() != der_context_1)
+	{
+		return Result<void>::success();
+	}
+
+	auto public_key = reader.read(der_context_1);
+	if (!public_key)
+	{
+		return Result<void>::failure(public_key.error());
+	}
+
+	DerReader explicit_public_key(public_key.value().content);
+	auto bit_string = explicit_public_key.read(der_bit_string);
+	if (!bit_string)
+	{
+		return Result<void>::failure(bit_string.error());
+	}
+	const auto point = bit_string.value().content;
+	if (point.size() != 66 || point[0] != 0 || point[1] != 0x04)
+	{
+		return Result<void>::failure(der_error("invalid P-256 public key point"));
+	}
+	if (!explicit_public_key.empty())
+	{
+		return Result<void>::failure(der_error("trailing data in EC private key public key"));
+	}
+
+	return Result<void>::success();
+}
+
 [[nodiscard]] Result<EcPrivateKeyMaterial> parse_sec1_p256_private_key(std::span<const std::uint8_t> der)
 {
 	DerReader reader(der);
@@ -278,6 +311,16 @@ template <std::size_t Size>
 	if (!parameters)
 	{
 		return Result<EcPrivateKeyMaterial>::failure(parameters.error());
+	}
+
+	auto public_key = read_optional_p256_public_key(private_key);
+	if (!public_key)
+	{
+		return Result<EcPrivateKeyMaterial>::failure(public_key.error());
+	}
+	if (!private_key.empty())
+	{
+		return Result<EcPrivateKeyMaterial>::failure(der_error("trailing data in EC private key"));
 	}
 
 	return Result<EcPrivateKeyMaterial>::success(EcPrivateKeyMaterial{std::move(scalar.value())});
