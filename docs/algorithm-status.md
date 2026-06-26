@@ -30,7 +30,7 @@ Status labels:
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |
 | Key import | Ed25519 raw public key | experimental | `PublicKey::import_raw_ed25519` validates 32-byte canonical encoded points |
 | Key import | Ed25519 raw private seed | experimental | `PrivateKey::import_raw_ed25519_seed` validates 32-byte seeds |
-| Key import | SPKI DER public keys | experimental | `PublicKey::import_spki_der` validates RSA and P-256 SPKI containers; Ed25519 SPKI is rejected until a real parser exists |
+| Key import | SPKI DER public keys | experimental | `PublicKey::import_spki_der` validates RSA and P-256 SPKI containers, including P-256 on-curve public points; Ed25519 SPKI is rejected until a real parser exists |
 | Key import | SEC1 DER private keys | experimental | `PrivateKey::import_sec1_der` validates P-256 SEC1 containers |
 | Key import | RSA PKCS#1 DER | experimental | `import_rsa_pkcs1_der` validates RSA public and private PKCS#1 containers |
 | Key import | PKCS#8 DER | experimental | `PrivateKey::import_pkcs8_der` validates RSA and P-256 PKCS#8 containers |

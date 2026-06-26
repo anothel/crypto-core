@@ -132,6 +132,12 @@ void test_rejects_sec1_p256_private_key_with_malformed_public_key()
 	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
 }
 
+void test_rejects_sec1_p256_private_key_with_off_curve_public_key()
+{
+	auto der = bytes("307702010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107A1440342000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
+}
+
 void test_parses_pkcs8_p256_private_key()
 {
 	auto der = bytes("304D020100301306072A8648CE3D020106082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
@@ -172,6 +178,7 @@ int main()
 	test_rejects_sec1_p256_private_key_trailing_data();
 	test_parses_sec1_p256_private_key_with_public_key();
 	test_rejects_sec1_p256_private_key_with_malformed_public_key();
+	test_rejects_sec1_p256_private_key_with_off_curve_public_key();
 	test_parses_pkcs8_p256_private_key();
 	test_rejects_pkcs8_p256_private_key_with_trailing_inner_sec1_data();
 	test_encodes_ecdsa_signature_der();

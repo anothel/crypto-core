@@ -1,6 +1,7 @@
 #include "crypto_core/internal/ec_der.hpp"
 
 #include "crypto_core/error.hpp"
+#include "crypto_core/internal/p256_fixed.hpp"
 
 #include <algorithm>
 #include <array>
@@ -240,6 +241,16 @@ template <std::size_t Size>
 	return Result<void>::success();
 }
 
+[[nodiscard]] Result<P256Point> read_uncompressed_p256_point(std::span<const std::uint8_t> point)
+{
+	if (point.size() != 66 || point[0] != 0 || point[1] != 0x04)
+	{
+		return Result<P256Point>::failure(der_error("invalid P-256 public key point"));
+	}
+
+	return p256_fixed_point_from_coordinates(point.subspan(2, 32), point.subspan(34, 32));
+}
+
 [[nodiscard]] Result<void> read_optional_p256_public_key(DerReader &reader)
 {
 	if (reader.next_tag() != der_context_1)
@@ -259,10 +270,10 @@ template <std::size_t Size>
 	{
 		return Result<void>::failure(bit_string.error());
 	}
-	const auto point = bit_string.value().content;
-	if (point.size() != 66 || point[0] != 0 || point[1] != 0x04)
+	auto point = read_uncompressed_p256_point(bit_string.value().content);
+	if (!point)
 	{
-		return Result<void>::failure(der_error("invalid P-256 public key point"));
+		return Result<void>::failure(point.error());
 	}
 	if (!explicit_public_key.empty())
 	{
@@ -351,10 +362,10 @@ template <std::size_t Size>
 	{
 		return Result<EcPublicKeyMaterial>::failure(bit_string.error());
 	}
-	const auto point = bit_string.value().content;
-	if (point.size() != 66 || point[0] != 0 || point[1] != 0x04)
+	auto point = read_uncompressed_p256_point(bit_string.value().content);
+	if (!point)
 	{
-		return Result<EcPublicKeyMaterial>::failure(der_error("invalid P-256 public key point"));
+		return Result<EcPublicKeyMaterial>::failure(point.error());
 	}
 	if (!spki.empty())
 	{
@@ -362,8 +373,8 @@ template <std::size_t Size>
 	}
 
 	return Result<EcPublicKeyMaterial>::success(EcPublicKeyMaterial{
-	    ByteBuffer::copy_from(point.subspan(2, 32)),
-	    ByteBuffer::copy_from(point.subspan(34, 32))});
+	    std::move(point.value().x),
+	    std::move(point.value().y)});
 }
 
 [[nodiscard]] Result<EcdsaSignatureMaterial> parse_ecdsa_signature_der_impl(std::span<const std::uint8_t> der)

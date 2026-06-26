@@ -218,6 +218,12 @@ void test_public_key_import_spki_der_validates_container()
 	require(p256.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
 	require(p256.value().is_der_encoded());
 
+	auto off_curve_p256_der = crypto_core::test_support::decode_hex("3059301306072A8648CE3D020106082A8648CE3D0301070342000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+	require(off_curve_p256_der.has_value());
+	auto off_curve_p256 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, off_curve_p256_der.value(), crypto_core::KeyUsage::verify);
+	require(!off_curve_p256.has_value());
+	require(off_curve_p256.error().code() == crypto_core::ErrorCode::invalid_key);
+
 	auto ed25519 = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ed25519, rsa_spki_der, crypto_core::KeyUsage::verify);
 	require(!ed25519.has_value());
 	require(ed25519.error().code() == crypto_core::ErrorCode::invalid_key);
