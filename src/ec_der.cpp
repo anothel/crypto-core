@@ -355,6 +355,8 @@ template <std::size_t Size>
 	return Result<EcdsaSignatureMaterial>::success(EcdsaSignatureMaterial{std::move(r.value()), std::move(s.value())});
 }
 
+[[nodiscard]] Result<EcPrivateKeyMaterial> parse_pkcs8_p256_private_key(std::span<const std::uint8_t> der);
+
 [[nodiscard]] Result<EcPrivateKeyMaterial> parse_p256_private_key_der_impl(std::span<const std::uint8_t> der)
 {
 	auto sec1 = parse_sec1_p256_private_key(der);
@@ -363,6 +365,11 @@ template <std::size_t Size>
 		return sec1;
 	}
 
+	return parse_pkcs8_p256_private_key(der);
+}
+
+[[nodiscard]] Result<EcPrivateKeyMaterial> parse_pkcs8_p256_private_key(std::span<const std::uint8_t> der)
+{
 	DerReader reader(der);
 	auto sequence = reader.read(der_sequence);
 	if (!sequence)
@@ -477,6 +484,11 @@ Result<EcPublicKeyMaterial> parse_p256_public_key_der(std::span<const std::uint8
 Result<EcPrivateKeyMaterial> parse_p256_private_key_der(std::span<const std::uint8_t> der)
 {
 	return parse_p256_private_key_der_impl(der);
+}
+
+Result<EcPrivateKeyMaterial> parse_p256_pkcs8_private_key_der(std::span<const std::uint8_t> der)
+{
+	return parse_pkcs8_p256_private_key(der);
 }
 
 Result<EcPrivateKeyMaterial> parse_p256_sec1_private_key_der(std::span<const std::uint8_t> der)

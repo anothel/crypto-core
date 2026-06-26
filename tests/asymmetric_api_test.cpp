@@ -262,6 +262,10 @@ void test_pkcs8_der_import_validates_container()
 	    0xA1, 0x02, 0x01, 0x11, 0x02, 0x02, 0x0A, 0xC1, 0x02, 0x01,
 	    0x3D, 0x02, 0x01, 0x35, 0x02, 0x01, 0x35, 0x02, 0x01, 0x31,
 	    0x02, 0x01, 0x26};
+	auto p256_pkcs8_der = crypto_core::test_support::decode_hex("304D020100301306072A8648CE3D020106082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require(p256_pkcs8_der.has_value());
+	auto p256_sec1_der = crypto_core::test_support::decode_hex("303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require(p256_sec1_der.has_value());
 
 	auto pkcs8_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs8_der);
 	require(pkcs8_buffer.has_value());
@@ -274,6 +278,17 @@ void test_pkcs8_der_import_validates_container()
 	require(private_key.value().is_der_encoded());
 	require(private_key.value().bytes().size() == private_pkcs8_der.size());
 
+	auto p256_pkcs8_buffer = crypto_core::SecureBuffer::copy_from(p256_pkcs8_der.value());
+	require(p256_pkcs8_buffer.has_value());
+	auto p256_private_key = crypto_core::PrivateKey::import_pkcs8_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(p256_pkcs8_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(p256_private_key.has_value());
+	require(p256_private_key.value().algorithm() == crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256);
+	require(p256_private_key.value().is_der_encoded());
+	require(p256_private_key.value().bytes().size() == p256_pkcs8_der.value().size());
+
 	auto pkcs1_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs1_der);
 	require(pkcs1_buffer.has_value());
 	auto pkcs1 = crypto_core::PrivateKey::import_pkcs8_der(
@@ -282,6 +297,15 @@ void test_pkcs8_der_import_validates_container()
 	    crypto_core::KeyUsage::sign);
 	require(!pkcs1.has_value());
 	require(pkcs1.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto sec1_buffer = crypto_core::SecureBuffer::copy_from(p256_sec1_der.value());
+	require(sec1_buffer.has_value());
+	auto sec1 = crypto_core::PrivateKey::import_pkcs8_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(sec1_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!sec1.has_value());
+	require(sec1.error().code() == crypto_core::ErrorCode::invalid_key);
 
 	auto ed25519_buffer = crypto_core::SecureBuffer::copy_from(private_pkcs8_der);
 	require(ed25519_buffer.has_value());

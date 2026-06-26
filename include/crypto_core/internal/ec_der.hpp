@@ -28,6 +28,7 @@ struct EcdsaSignatureMaterial final
 
 [[nodiscard]] Result<EcPublicKeyMaterial> parse_p256_public_key_der(std::span<const std::uint8_t> der);
 [[nodiscard]] Result<EcPrivateKeyMaterial> parse_p256_private_key_der(std::span<const std::uint8_t> der);
+[[nodiscard]] Result<EcPrivateKeyMaterial> parse_p256_pkcs8_private_key_der(std::span<const std::uint8_t> der);
 [[nodiscard]] Result<EcPrivateKeyMaterial> parse_p256_sec1_private_key_der(std::span<const std::uint8_t> der);
 [[nodiscard]] Result<EcdsaSignatureMaterial> parse_ecdsa_signature_der(std::span<const std::uint8_t> der);
 [[nodiscard]] Result<ByteBuffer> encode_ecdsa_signature_der(std::span<const std::uint8_t> r, std::span<const std::uint8_t> s);

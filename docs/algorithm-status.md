@@ -33,7 +33,7 @@ Status labels:
 | Key import | SPKI DER public keys | experimental | `PublicKey::import_spki_der` validates RSA and P-256 SPKI containers; Ed25519 SPKI is rejected until a real parser exists |
 | Key import | SEC1 DER private keys | experimental | `PrivateKey::import_sec1_der` validates P-256 SEC1 containers |
 | Key import | RSA PKCS#1 DER | experimental | `import_rsa_pkcs1_der` validates RSA public and private PKCS#1 containers |
-| Key import | PKCS#8 DER | experimental | `PrivateKey::import_pkcs8_der` validates RSA PKCS#8 containers; non-RSA PKCS#8 is not implemented |
+| Key import | PKCS#8 DER | experimental | `PrivateKey::import_pkcs8_der` validates RSA and P-256 PKCS#8 containers |
 | Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |
 | Key agreement | ECDH | planned/deferred | no active 0.x goal |
 
