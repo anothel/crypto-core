@@ -251,7 +251,7 @@ template <std::size_t Size>
 	return p256_fixed_point_from_coordinates(point.subspan(2, 32), point.subspan(34, 32));
 }
 
-[[nodiscard]] Result<void> read_optional_p256_public_key(DerReader &reader)
+[[nodiscard]] Result<void> read_optional_p256_public_key(DerReader &reader, std::span<const std::uint8_t> private_scalar)
 {
 	if (reader.next_tag() != der_context_1)
 	{
@@ -275,6 +275,15 @@ template <std::size_t Size>
 	{
 		return Result<void>::failure(point.error());
 	}
+	auto expected = p256_fixed_base_point_multiply(private_scalar);
+	if (!expected)
+	{
+		return Result<void>::failure(expected.error());
+	}
+	if (expected.value().infinity || point.value().x != expected.value().x || point.value().y != expected.value().y)
+	{
+		return Result<void>::failure(der_error("EC private key public key does not match private scalar"));
+	}
 	if (!explicit_public_key.empty())
 	{
 		return Result<void>::failure(der_error("trailing data in EC private key public key"));
@@ -283,7 +292,7 @@ template <std::size_t Size>
 	return Result<void>::success();
 }
 
-[[nodiscard]] Result<EcPrivateKeyMaterial> parse_sec1_p256_private_key(std::span<const std::uint8_t> der)
+[[nodiscard]] Result<EcPrivateKeyMaterial> parse_sec1_p256_private_key(std::span<const std::uint8_t> der, bool require_parameters)
 {
 	DerReader reader(der);
 	auto sequence = reader.read(der_sequence);
@@ -327,13 +336,18 @@ template <std::size_t Size>
 		return Result<EcPrivateKeyMaterial>::failure(der_error("invalid P-256 private scalar"));
 	}
 
+	const bool has_parameters = private_key.next_tag() == der_context_0;
 	auto parameters = read_optional_p256_parameters(private_key);
 	if (!parameters)
 	{
 		return Result<EcPrivateKeyMaterial>::failure(parameters.error());
 	}
+	if (require_parameters && !has_parameters)
+	{
+		return Result<EcPrivateKeyMaterial>::failure(der_error("missing EC private key parameters"));
+	}
 
-	auto public_key = read_optional_p256_public_key(private_key);
+	auto public_key = read_optional_p256_public_key(private_key, scalar.value().bytes());
 	if (!public_key)
 	{
 		return Result<EcPrivateKeyMaterial>::failure(public_key.error());
@@ -422,7 +436,7 @@ template <std::size_t Size>
 
 [[nodiscard]] Result<EcPrivateKeyMaterial> parse_p256_private_key_der_impl(std::span<const std::uint8_t> der)
 {
-	auto sec1 = parse_sec1_p256_private_key(der);
+	auto sec1 = parse_sec1_p256_private_key(der, true);
 	if (sec1)
 	{
 		return sec1;
@@ -472,7 +486,7 @@ template <std::size_t Size>
 		return Result<EcPrivateKeyMaterial>::failure(der_error("trailing data in PrivateKeyInfo"));
 	}
 
-	return parse_sec1_p256_private_key(private_key.value().bytes());
+	return parse_sec1_p256_private_key(private_key.value().bytes(), false);
 }
 
 void write_der_length(std::vector<std::uint8_t> &output, std::size_t length)
@@ -556,7 +570,7 @@ Result<EcPrivateKeyMaterial> parse_p256_pkcs8_private_key_der(std::span<const st
 
 Result<EcPrivateKeyMaterial> parse_p256_sec1_private_key_der(std::span<const std::uint8_t> der)
 {
-	return parse_sec1_p256_private_key(der);
+	return parse_sec1_p256_private_key(der, true);
 }
 
 Result<EcdsaSignatureMaterial> parse_ecdsa_signature_der(std::span<const std::uint8_t> der)

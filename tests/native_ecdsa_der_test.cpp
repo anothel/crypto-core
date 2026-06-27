@@ -118,6 +118,12 @@ void test_rejects_sec1_p256_private_key_trailing_data()
 	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
 }
 
+void test_rejects_sec1_p256_private_key_without_parameters()
+{
+	auto der = bytes("302502010104200000000000000000000000000000000000000000000000000000000000000001");
+	require_invalid_key(crypto_core::internal::parse_p256_sec1_private_key_der(der));
+}
+
 void test_rejects_invalid_p256_private_scalar()
 {
 	auto zero = bytes("303102010104200000000000000000000000000000000000000000000000000000000000000000A00A06082A8648CE3D030107");
@@ -147,6 +153,12 @@ void test_rejects_sec1_p256_private_key_with_malformed_public_key()
 void test_rejects_sec1_p256_private_key_with_off_curve_public_key()
 {
 	auto der = bytes("307702010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107A1440342000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
+}
+
+void test_rejects_sec1_p256_private_key_with_mismatched_public_key()
+{
+	auto der = bytes("307702010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107A144034200047CF27B188D034F7E8A52380304B51AC3C08969E277F21B35A60B48FC4766997807775510DB8ED040293D9AC69F7430DBBA7DADE63CE982299E04B79D227873D1");
 	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
 }
 
@@ -188,10 +200,12 @@ int main()
 	test_rejects_signature_trailing_data();
 	test_parses_sec1_p256_private_key();
 	test_rejects_sec1_p256_private_key_trailing_data();
+	test_rejects_sec1_p256_private_key_without_parameters();
 	test_rejects_invalid_p256_private_scalar();
 	test_parses_sec1_p256_private_key_with_public_key();
 	test_rejects_sec1_p256_private_key_with_malformed_public_key();
 	test_rejects_sec1_p256_private_key_with_off_curve_public_key();
+	test_rejects_sec1_p256_private_key_with_mismatched_public_key();
 	test_parses_pkcs8_p256_private_key();
 	test_rejects_pkcs8_p256_private_key_with_trailing_inner_sec1_data();
 	test_encodes_ecdsa_signature_der();

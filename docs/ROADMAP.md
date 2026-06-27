@@ -45,15 +45,13 @@ Work in this order unless a security issue preempts it:
    - add NativeProvider RNG failure injection where randomness is consumed
      inside RSA signing/encryption.
    - add RSA-PSS and RSA-OAEP malformed/misuse vectors.
-   - add P-256 public-point rejection vectors.
    - audit secret debug/log/panic exposure and key material copies.
    - keep secret/tag comparison on the constant-time helper path.
    - exit when malformed inputs reject deterministically and RNG failures never
      silently fall back.
 
 2. P0: harden imported key structure.
-   - add SPKI/SEC1/PKCS#8 malformed algorithm and parameter variants.
-   - add P-256 public-point rejection vectors.
+   - add SPKI/PKCS#8 malformed algorithm variants.
    - exit when structurally invalid keys reject before crypto operations.
 
 3. P1: finish Ed25519 interoperability proof.
@@ -90,7 +88,6 @@ Next slices:
   malformed DER, unsupported version/algorithm, and invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
 - RSA-PSS and RSA-OAEP negative cases.
-- P-256 public-point rejection cases.
 - RNG failure injection with stable `ErrorCode`.
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
@@ -112,8 +109,7 @@ Goal: reject structurally invalid key material at import time.
 
 Next slices:
 
-- SPKI/SEC1/PKCS#8 malformed algorithm and parameter variants.
-- P-256 public-point rejection vectors.
+- SPKI/PKCS#8 malformed algorithm variants.
 
 Exit criteria:
 
