@@ -38,6 +38,22 @@ public keys as SPKI DER and private keys as PKCS#8 DER. `import_der(ed25519,
 Check `is_der_encoded()` before treating those bytes as DER. Use `export_der()`
 only when DER output is required.
 
+## Public API Failure Modes
+
+Public APIs are exception-free and return `Result<T>`. Callers must check the
+result before reading the value. `ErrorCode` values are stable enough for coarse
+caller branching; error messages are diagnostic text, not a compatibility
+contract.
+
+| Surface | Public API | Expected failure behavior |
+|---|---|---|
+| Key import | `PublicKey::import_spki_der`, `PrivateKey::import_pkcs8_der`, `PrivateKey::import_sec1_der`, `import_rsa_pkcs1_der`, raw Ed25519 import APIs | Malformed DER, wrong containers, unsupported algorithms, invalid P-256 points, and invalid Ed25519 raw key sizes return `invalid_key` or `unsupported_algorithm`. Imported bytes remain distinct from exported DER; raw Ed25519 keys are not DER. |
+| DER parsing | RSA SPKI/PKCS#1/PKCS#8, P-256 SPKI/SEC1/PKCS#8, ECDSA signatures | Non-minimal lengths/integers, trailing data, wrong OIDs, unsupported versions, negative integers, and invalid public points reject deterministically with `invalid_key`. |
+| Decrypt | `aead_decrypt`, `asymmetric_decrypt` | Authentication/tag/ciphertext failures return `authentication_failed` for AEAD or RSA-OAEP. Unsupported algorithms return `unsupported_algorithm`; null or wrong-usage keys return `invalid_argument` or `invalid_key`. |
+| Verify | `verify` | Bad signatures normally return a successful `VerifyResult::invalid()`. Unsupported algorithms or unusable keys return `Result<VerifyResult>` failure. |
+| RNG | `random_bytes` | Zero-length requests succeed with empty output. Unsupported providers return `unsupported_algorithm`; OS RNG failure returns `provider_error`. There is no fallback PRNG. |
+| KDF | `pbkdf2`, `hkdf` | Unsupported algorithm/API pair returns `unsupported_algorithm`. Zero iterations or zero output size return `invalid_argument`; HKDF output larger than 255 digest blocks returns `invalid_argument`. Provider backend failures return `provider_error`. |
+
 ## Memory Boundary
 
 `SecureBuffer` zeroes owned bytes on destruction. `PrivateKey` is move-only so

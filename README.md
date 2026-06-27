@@ -87,7 +87,9 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 ## CI
 
 GitHub Actions runs native Debug builds on Windows, Ubuntu, and macOS, plus
-OpenSSL-enabled and Linux Clang sanitizer jobs.
+OpenSSL-enabled and Linux Clang sanitizer jobs. Recorded green CI and
+install-tree smoke evidence is in
+[docs/release-evidence.md](docs/release-evidence.md).
 
 ## Build
 
