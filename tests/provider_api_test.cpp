@@ -100,9 +100,9 @@ void require_no_key_agreement_capabilities(const Provider &provider)
 	require(!provider.supports(crypto_core::CryptoOperation::decrypt, crypto_core::KeyAgreementAlgorithm::ecdh_p256));
 }
 
-std::string read_algorithm_status_doc()
+std::string read_doc(std::string_view name)
 {
-	const auto path = std::filesystem::path{CRYPTO_CORE_SOURCE_DIR} / "docs" / "algorithm-status.md";
+	const auto path = std::filesystem::path{CRYPTO_CORE_SOURCE_DIR} / "docs" / std::string{name};
 	std::ifstream input(path);
 	require(input.is_open());
 	return std::string(std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
@@ -270,10 +270,10 @@ void test_native_provider_capability_matrix_matches_status_docs()
 
 void test_algorithm_status_doc_matches_provider_capability_matrix()
 {
-	const auto doc = read_algorithm_status_doc();
+	const auto doc = read_doc("algorithm-status.md");
 
 	require_contains(doc, "| Signature | RSA-PSS | sign + verify experimental | RSA-2048 current native focus |");
-	require_contains(doc, "| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; native signing emits low-S DER signatures; malformed-vector hardening tracked |");
+	require_contains(doc, "| Signature | ECDSA P-256 | sign + verify experimental | fixed-limb backend; native signing emits low-S DER signatures; malformed-input regressions covered |");
 	require_contains(doc, "| Signature | ECDSA P-384 | unsupported | no active 0.x goal |");
 	require_contains(doc, "| Signature | Ed25519 | sign + verify experimental | raw 32-byte public keys and private seeds; Ed25519ctx/ph unsupported |");
 	require_contains(doc, "| Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |");
@@ -281,6 +281,17 @@ void test_algorithm_status_doc_matches_provider_capability_matrix()
 	require_contains(doc, "| Key agreement | ECDH | planned/deferred | no active 0.x goal |");
 	require_contains(doc, "| Signature | Ed25519 | sign + verify experimental | differential oracle against RFC 8032 vector |");
 	require_contains(doc, "| Keygen | RSA/ECDSA P-256 | experimental | optional provider |");
+}
+
+void test_security_model_documents_recommended_use_and_misuse_rejection()
+{
+	const auto doc = read_doc("security-model.md");
+
+	require_contains(doc, "## Recommended Public API Use");
+	require_contains(doc, "| Operation | Recommended use | Common misuse rejection |");
+	require_contains(doc, "| AES-GCM | Supply a unique nonce per key and preserve the returned tag with the ciphertext. | Wrong key, nonce, AAD, ciphertext, or tag returns `authentication_failed`; unsupported tag lengths return `invalid_argument`. |");
+	require_contains(doc, "| RSA-PSS/ECDSA/Ed25519 verify | Treat a bad signature as `Result<VerifyResult>` success with `VerifyResult::invalid()`. | Malformed keys or unsupported algorithms fail the `Result`; callers must not treat `Result` failure as a normal invalid signature. |");
+	require_contains(doc, "| RSA-OAEP decrypt | Treat decrypt failure as authentication failure and do not branch on internal padding details. | Wrong label/hash/ciphertext returns `authentication_failed`; unusable keys return `invalid_key` or `invalid_argument`. |");
 }
 
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
@@ -323,6 +334,7 @@ int main()
 	test_default_hash_uses_native_provider();
 	test_native_provider_capability_matrix_matches_status_docs();
 	test_algorithm_status_doc_matches_provider_capability_matrix();
+	test_security_model_documents_recommended_use_and_misuse_rejection();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif

@@ -54,6 +54,17 @@ contract.
 | RNG | `random_bytes` | Zero-length requests succeed with empty output. Unsupported providers return `unsupported_algorithm`; OS RNG failure returns `provider_error`. There is no fallback PRNG. |
 | KDF | `pbkdf2`, `hkdf` | Unsupported algorithm/API pair returns `unsupported_algorithm`. Zero iterations or zero output size return `invalid_argument`; HKDF output larger than 255 digest blocks returns `invalid_argument`. Provider backend failures return `provider_error`. |
 
+## Recommended Public API Use
+
+| Operation | Recommended use | Common misuse rejection |
+|---|---|---|
+| Provider selection | Use convenience APIs for the default `NativeProvider`; pass `ICryptoProvider&` only when a caller deliberately wants another backend. | Providers that do not implement a surface return `unsupported_algorithm`; 0.x does not support replacing `default_provider()` at runtime. |
+| Symmetric keys | Import long-lived symmetric material through `SecretKey`/`KeyStore`; pass raw key bytes to AEAD/cipher APIs only at the call boundary. | Wrong AES key sizes return `invalid_key`; wrong key usage in `KeyStore` returns `invalid_key`. |
+| AES-GCM | Supply a unique nonce per key and preserve the returned tag with the ciphertext. | Wrong key, nonce, AAD, ciphertext, or tag returns `authentication_failed`; unsupported tag lengths return `invalid_argument`. |
+| RSA-PSS/ECDSA/Ed25519 verify | Treat a bad signature as `Result<VerifyResult>` success with `VerifyResult::invalid()`. | Malformed keys or unsupported algorithms fail the `Result`; callers must not treat `Result` failure as a normal invalid signature. |
+| RSA-OAEP decrypt | Treat decrypt failure as authentication failure and do not branch on internal padding details. | Wrong label/hash/ciphertext returns `authentication_failed`; unusable keys return `invalid_key` or `invalid_argument`. |
+| KDF/RNG | Check `Result<T>` before using derived bytes or random output. | Invalid KDF sizes/iterations return `invalid_argument`; OS RNG failure returns `provider_error` with no fallback PRNG. |
+
 ## Memory Boundary
 
 `SecureBuffer` zeroes owned bytes on destruction. `PrivateKey` is move-only so

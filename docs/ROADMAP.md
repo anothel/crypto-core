@@ -41,23 +41,7 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-### 1. P1: API and Implementation Hardening
-
-Goal: reduce misuse without expanding the API surface unnecessarily.
-
-Next slices:
-
-- keep dedicated key/nonce/salt/tag/AAD types where they already exist; add a
-  new type only when raw bytes are causing real misuse risk.
-- make error types precise where callers must branch, and intentionally vague
-  where detail would leak security state.
-- isolate deprecated or unsafe surfaces behind explicit names/docs.
-
-Exit criteria:
-
-- API docs show both recommended use and common misuse rejection.
-
-### 2. P2: RSA and P-256 Hardening
+### 1. P2: RSA and P-256 Hardening
 
 Goal: reduce risk in reviewed math boundaries without broad rewrites.
 
@@ -71,7 +55,7 @@ Exit criteria:
 - one reviewed boundary closes with targeted tests.
 - constant-time notes update when behavior or limits change.
 
-### 3. P2: Release Integrity
+### 2. P2: Release Integrity
 
 Goal: make build and distribution outputs verifiable.
 
