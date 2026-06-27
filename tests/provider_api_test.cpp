@@ -279,7 +279,7 @@ void test_algorithm_status_doc_matches_provider_capability_matrix()
 	require_contains(doc, "| Encryption | RSA-OAEP | encrypt + decrypt experimental | RSA-2048 current native focus |");
 	require_contains(doc, "| Keygen | RSA/ECDSA/Ed25519 | planned | operation-level capability reports false for NativeProvider |");
 	require_contains(doc, "| Key agreement | ECDH | planned/deferred | no active 0.x goal |");
-	require_contains(doc, "| Signature | Ed25519 | planned | differential path queued |");
+	require_contains(doc, "| Signature | Ed25519 | sign + verify experimental | differential oracle against RFC 8032 vector |");
 	require_contains(doc, "| Keygen | RSA/ECDSA P-256 | experimental | optional provider |");
 }
 
@@ -293,7 +293,7 @@ void test_openssl_provider_capability_matrix_matches_status_docs()
 	    {crypto_core::SignatureAlgorithm::rsa_pss_sha256, true, true},
 	    {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, true, true},
 	    {crypto_core::SignatureAlgorithm::ecdsa_p384_sha384, false, false},
-	    {crypto_core::SignatureAlgorithm::ed25519, false, false},
+	    {crypto_core::SignatureAlgorithm::ed25519, true, true},
 	}};
 	require_signature_capabilities(provider, signatures);
 

@@ -28,6 +28,9 @@ namespace crypto_core
 namespace
 {
 
+constexpr std::size_t ed25519_raw_key_size = 32;
+constexpr std::size_t ed25519_signature_size = 64;
+
 const EVP_MD *evp_md(HashAlgorithm algorithm) noexcept
 {
 	switch (algorithm)
@@ -71,6 +74,11 @@ bool is_ecdsa_algorithm(SignatureAlgorithm algorithm) noexcept
 	}
 
 	return false;
+}
+
+bool is_ed25519_algorithm(SignatureAlgorithm algorithm) noexcept
+{
+	return algorithm == SignatureAlgorithm::ed25519;
 }
 
 const EVP_MD *ecdsa_md(SignatureAlgorithm algorithm) noexcept
@@ -217,6 +225,20 @@ Result<EvpPkeyPtr> import_private_key(
 	{
 		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
 	}
+	if (expected_algorithm == AsymmetricKeyAlgorithm::ed25519)
+	{
+		if (key.size() != ed25519_raw_key_size)
+		{
+			return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", parse_error));
+		}
+
+		EvpPkeyPtr pkey(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, key.bytes().data(), key.size()), EVP_PKEY_free);
+		if (pkey == nullptr)
+		{
+			return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_new_raw_private_key failed"));
+		}
+		return Result<EvpPkeyPtr>::success(std::move(pkey));
+	}
 	if (key.size() > static_cast<std::size_t>(LONG_MAX))
 	{
 		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", "private key DER is too large for OpenSSL"));
@@ -242,6 +264,20 @@ Result<EvpPkeyPtr> import_public_key(
 	if (key.algorithm() != expected_algorithm || !key.allows(required_usage))
 	{
 		return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", usage_error));
+	}
+	if (expected_algorithm == AsymmetricKeyAlgorithm::ed25519)
+	{
+		if (key.size() != ed25519_raw_key_size)
+		{
+			return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::invalid_key, "openssl_provider", parse_error));
+		}
+
+		EvpPkeyPtr pkey(EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, key.bytes().data(), key.size()), EVP_PKEY_free);
+		if (pkey == nullptr)
+		{
+			return Result<EvpPkeyPtr>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_PKEY_new_raw_public_key failed"));
+		}
+		return Result<EvpPkeyPtr>::success(std::move(pkey));
 	}
 	if (key.size() > static_cast<std::size_t>(LONG_MAX))
 	{
@@ -586,7 +622,7 @@ bool OpenSSLProvider::supports(KdfAlgorithm algorithm) const noexcept
 
 bool OpenSSLProvider::supports(SignatureAlgorithm algorithm) const noexcept
 {
-	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+	return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 }
 
 bool OpenSSLProvider::supports(CryptoOperation operation, SignatureAlgorithm algorithm) const noexcept
@@ -595,7 +631,7 @@ bool OpenSSLProvider::supports(CryptoOperation operation, SignatureAlgorithm alg
 	{
 	case CryptoOperation::sign:
 	case CryptoOperation::verify:
-		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm);
+		return is_rsa_pss_algorithm(algorithm) || is_ecdsa_algorithm(algorithm) || is_ed25519_algorithm(algorithm);
 	case CryptoOperation::keygen:
 	case CryptoOperation::encrypt:
 	case CryptoOperation::decrypt:
@@ -777,6 +813,40 @@ Result<ByteBuffer> OpenSSLProvider::sign(const SignParams &params, std::span<con
 		return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
 	}
 
+	if (is_ed25519_algorithm(params.algorithm))
+	{
+		if (params.private_key == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "private key is required"));
+		}
+
+		auto key = import_private_key(*params.private_key, AsymmetricKeyAlgorithm::ed25519, KeyUsage::sign, "Ed25519 signing key is required", "private key is not an Ed25519 seed");
+		if (!key)
+		{
+			return Result<ByteBuffer>::failure(key.error());
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+		if (EVP_DigestSignInit(context.get(), nullptr, nullptr, nullptr, key.value().get()) != 1)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSignInit failed"));
+		}
+
+		std::vector<std::uint8_t> signature(ed25519_signature_size);
+		std::size_t signature_size = signature.size();
+		if (EVP_DigestSign(context.get(), signature.data(), &signature_size, message.data(), message.size()) != 1 ||
+		    signature_size != ed25519_signature_size)
+		{
+			return Result<ByteBuffer>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestSign failed"));
+		}
+
+		return Result<ByteBuffer>::success(ByteBuffer(std::move(signature)));
+	}
+
 	return Result<ByteBuffer>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));
 }
 
@@ -886,6 +956,46 @@ Result<VerifyResult> OpenSSLProvider::verify(const VerifyParams &params, std::sp
 		}
 
 		return Result<VerifyResult>::success(VerifyResult::invalid());
+	}
+
+	if (is_ed25519_algorithm(params.algorithm))
+	{
+		if (params.public_key == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::invalid_argument, "openssl_provider", "public key is required"));
+		}
+		if (params.signature.size() != ed25519_signature_size)
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
+		auto key = import_public_key(*params.public_key, AsymmetricKeyAlgorithm::ed25519, KeyUsage::verify, "Ed25519 verification key is required", "public key is not an Ed25519 public key");
+		if (!key)
+		{
+			return Result<VerifyResult>::failure(key.error());
+		}
+
+		EvpMdCtxPtr context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+		if (context == nullptr)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_MD_CTX_new failed"));
+		}
+		if (EVP_DigestVerifyInit(context.get(), nullptr, nullptr, nullptr, key.value().get()) != 1)
+		{
+			return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerifyInit failed"));
+		}
+
+		const int ok = EVP_DigestVerify(context.get(), params.signature.data(), params.signature.size(), message.data(), message.size());
+		if (ok == 1)
+		{
+			return Result<VerifyResult>::success(VerifyResult::valid());
+		}
+		if (ok == 0)
+		{
+			return Result<VerifyResult>::success(VerifyResult::invalid());
+		}
+
+		return Result<VerifyResult>::failure(make_error(ErrorCode::provider_error, "openssl_provider", "EVP_DigestVerify failed"));
 	}
 
 	return Result<VerifyResult>::failure(make_error(ErrorCode::unsupported_algorithm, "openssl_provider", "signature algorithm is not supported by OpenSSLProvider"));

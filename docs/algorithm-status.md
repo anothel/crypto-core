@@ -46,7 +46,7 @@ Status labels:
 | KDF | PBKDF2/HKDF SHA-2 variants | experimental | optional provider |
 | Signature | RSA-PSS | sign + verify experimental | differential oracle |
 | Signature | ECDSA P-256 | sign + verify experimental | differential oracle |
-| Signature | Ed25519 | planned | differential path queued |
+| Signature | Ed25519 | sign + verify experimental | differential oracle against RFC 8032 vector |
 | Encryption | RSA-OAEP | encrypt + decrypt experimental | optional provider |
 | Keygen | RSA/ECDSA P-256 | experimental | optional provider |
 

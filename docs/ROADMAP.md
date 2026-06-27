@@ -41,19 +41,12 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-1. P1: finish Ed25519 interoperability proof.
-   - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
-     support.
-   - otherwise document it as unavailable in the status docs.
-   - exit when Ed25519 native sign/verify has either OpenSSL differential
-     coverage or an explicit, tested reason it cannot.
-
-2. P2: continue RSA and P-256 hardening.
+1. P2: continue RSA and P-256 hardening.
    - choose one reviewed boundary at a time: RSA CRT recombination or P-256
      exceptional-case formulas.
    - exit only with targeted tests and updated constant-time notes.
 
-3. P2: prepare release integrity.
+2. P2: prepare release integrity.
    - choose concrete SBOM and signing commands once release artifacts exist.
    - add a release checklist only when a versioned release process exists.
    - exit when release artifacts can be verified by users.
@@ -84,28 +77,7 @@ Exit criteria:
 - RNG failures do not silently fall back.
 - new malformed cases are added with targeted tests.
 
-### 2. Ed25519 Finish
-
-Status: active
-Priority: P1
-Size: S
-
-Goal: finish the remaining Ed25519 proof points without expanding the API.
-
-Next slices:
-
-- OpenSSL differential path if local/CI OpenSSL supports Ed25519.
-- document NativeProvider keygen as unsupported/deferred unless a release gate
-  needs it.
-
-Exit criteria:
-
-- RFC 8032 vectors pass.
-- NativeProvider signs and verifies deterministic Ed25519 signatures.
-- invalid signatures return `VerifyResult::invalid()`.
-- OpenSSL differential support is tested or explicitly documented unavailable.
-
-### 3. API and Implementation Hardening
+### 2. API and Implementation Hardening
 
 Status: queued
 Priority: P1
@@ -125,7 +97,7 @@ Exit criteria:
 
 - API docs show both recommended use and common misuse rejection.
 
-### 4. Release Integrity
+### 3. Release Integrity
 
 Status: active
 Priority: P2

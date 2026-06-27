@@ -9,8 +9,10 @@
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <span>
@@ -20,17 +22,25 @@
 namespace
 {
 
-void require(bool condition)
+void require_check(bool condition, const char *file, int line)
 {
 	if (!condition)
 	{
+		std::fprintf(stderr, "openssl_provider_test failed: %s:%d\n", file, line);
 		std::exit(1);
 	}
 }
 
+#define require(condition) require_check((condition), __FILE__, __LINE__)
+
 crypto_core::ByteBuffer bytes(std::string_view text)
 {
 	return crypto_core::ByteBuffer::copy_from(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t *>(text.data()), text.size()));
+}
+
+bool bytes_equal(std::span<const std::uint8_t> left, std::span<const std::uint8_t> right)
+{
+	return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin());
 }
 
 using EvpPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
@@ -41,6 +51,32 @@ struct RsaDerKeyPair
 	crypto_core::ByteBuffer public_key;
 	crypto_core::SecureBuffer private_key;
 };
+
+std::vector<std::uint8_t> hex_bytes(std::string_view hex)
+{
+	auto decoded = crypto_core::test_support::decode_hex(hex);
+	require(decoded.has_value());
+	return std::move(decoded.value());
+}
+
+crypto_core::PublicKey import_ed25519_verify_key(std::string_view public_key_hex)
+{
+	auto raw_public_key = hex_bytes(public_key_hex);
+	auto public_key = crypto_core::PublicKey::import_raw_ed25519(raw_public_key, crypto_core::KeyUsage::verify);
+	require(public_key.has_value());
+	return std::move(public_key.value());
+}
+
+crypto_core::PrivateKey import_ed25519_signing_seed(std::string_view seed_hex)
+{
+	auto raw_seed = hex_bytes(seed_hex);
+	auto seed = crypto_core::SecureBuffer::copy_from(raw_seed);
+	require(seed.has_value());
+
+	auto private_key = crypto_core::PrivateKey::import_raw_ed25519_seed(std::move(seed.value()), crypto_core::KeyUsage::sign);
+	require(private_key.has_value());
+	return std::move(private_key.value());
+}
 
 crypto_core::ByteBuffer export_public_key_der(EVP_PKEY *key)
 {
@@ -425,6 +461,10 @@ void test_openssl_provider_metadata()
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss));
 	require(provider.supports(crypto_core::SignatureAlgorithm::rsa_pss_sha256));
 	require(provider.supports(crypto_core::SignatureAlgorithm::ecdsa_p256_sha256));
+	require(provider.supports(crypto_core::SignatureAlgorithm::ed25519));
+	require(provider.supports(crypto_core::CryptoOperation::sign, crypto_core::SignatureAlgorithm::ed25519));
+	require(provider.supports(crypto_core::CryptoOperation::verify, crypto_core::SignatureAlgorithm::ed25519));
+	require(!provider.supports(crypto_core::CryptoOperation::keygen, crypto_core::AsymmetricKeyAlgorithm::ed25519));
 	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep));
 	require(provider.supports(crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256));
 }
@@ -711,6 +751,48 @@ void test_openssl_ecdsa_p256_rejects_rsa_keys()
 	require(verified.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_openssl_ed25519_interoperates_with_native()
+{
+	crypto_core::OpenSSLProvider openssl;
+	crypto_core::NativeProvider native;
+
+	auto private_key = import_ed25519_signing_seed("9D61B19DEFFD5A60BA844AF492EC2CC44449C5697B326919703BAC031CAE7F60");
+	auto public_key = import_ed25519_verify_key("D75A980182B10AB7D54BFED3C964073A0EE172F3DAA62325AF021A68F707511A");
+	const std::array<std::uint8_t, 0> message{};
+	const auto expected_signature = hex_bytes(
+	    "E5564300C360AC729086E2CC806E828A"
+	    "84877F1EB8E5D974D873E06522490155"
+	    "5FB8821590A33BACC61E39701CF9B46B"
+	    "D25BF5F0595BBE24655141438E7A100B");
+
+	auto openssl_signature = crypto_core::sign(openssl, {crypto_core::SignatureAlgorithm::ed25519, &private_key}, message);
+	require(openssl_signature.has_value());
+	require(bytes_equal(openssl_signature.value().bytes(), expected_signature));
+
+	auto native_verified = crypto_core::verify(native, {crypto_core::SignatureAlgorithm::ed25519, &public_key, openssl_signature.value().bytes()}, message);
+	require(native_verified.has_value());
+	require(native_verified.value().is_valid());
+
+	auto native_signature = crypto_core::sign(native, {crypto_core::SignatureAlgorithm::ed25519, &private_key}, message);
+	require(native_signature.has_value());
+	require(bytes_equal(native_signature.value().bytes(), expected_signature));
+
+	auto openssl_verified = crypto_core::verify(openssl, {crypto_core::SignatureAlgorithm::ed25519, &public_key, native_signature.value().bytes()}, message);
+	require(openssl_verified.has_value());
+	require(openssl_verified.value().is_valid());
+
+	const auto tampered_message = bytes("tampered");
+	auto bad_message = crypto_core::verify(openssl, {crypto_core::SignatureAlgorithm::ed25519, &public_key, expected_signature}, tampered_message.bytes());
+	require(bad_message.has_value());
+	require(!bad_message.value().is_valid());
+
+	auto bad_signature = expected_signature;
+	bad_signature[0] ^= 0x80U;
+	auto invalid_signature = crypto_core::verify(openssl, {crypto_core::SignatureAlgorithm::ed25519, &public_key, bad_signature}, message);
+	require(invalid_signature.has_value());
+	require(!invalid_signature.value().is_valid());
+}
+
 void test_openssl_rsa_key_generation_rejects_weak_parameters()
 {
 	crypto_core::OpenSSLProvider provider;
@@ -845,6 +927,7 @@ int main()
 	test_openssl_verifies_native_ecdsa_p256_signature();
 	test_openssl_ecdsa_p256_verify_returns_invalid_for_bad_inputs();
 	test_openssl_ecdsa_p256_rejects_rsa_keys();
+	test_openssl_ed25519_interoperates_with_native();
 	test_openssl_rsa_key_generation_rejects_weak_parameters();
 	test_openssl_rsa_pss_verify_returns_invalid_for_bad_inputs();
 	test_openssl_rsa_oaep_encrypt_decrypt_round_trip();
