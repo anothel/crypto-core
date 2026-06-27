@@ -81,6 +81,7 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
   [docs/algorithm-status.md](docs/algorithm-status.md),
   [docs/security-model.md](docs/security-model.md),
   [docs/constant-time-notes.md](docs/constant-time-notes.md),
+  [docs/release-integrity.md](docs/release-integrity.md),
   [SECURITY.md](SECURITY.md), and
   [docs/ROADMAP.md](docs/ROADMAP.md).
 

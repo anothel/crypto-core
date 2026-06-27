@@ -118,6 +118,18 @@ void test_rejects_sec1_p256_private_key_trailing_data()
 	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(der));
 }
 
+void test_rejects_invalid_p256_private_scalar()
+{
+	auto zero = bytes("303102010104200000000000000000000000000000000000000000000000000000000000000000A00A06082A8648CE3D030107");
+	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(zero));
+
+	auto group_order = bytes("30310201010420FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551A00A06082A8648CE3D030107");
+	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(group_order));
+
+	auto pkcs8_zero = bytes("304D020100301306072A8648CE3D020106082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000000A00A06082A8648CE3D030107");
+	require_invalid_key(crypto_core::internal::parse_p256_private_key_der(pkcs8_zero));
+}
+
 void test_parses_sec1_p256_private_key_with_public_key()
 {
 	auto der = bytes("307702010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107A144034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
@@ -176,6 +188,7 @@ int main()
 	test_rejects_signature_trailing_data();
 	test_parses_sec1_p256_private_key();
 	test_rejects_sec1_p256_private_key_trailing_data();
+	test_rejects_invalid_p256_private_scalar();
 	test_parses_sec1_p256_private_key_with_public_key();
 	test_rejects_sec1_p256_private_key_with_malformed_public_key();
 	test_rejects_sec1_p256_private_key_with_off_curve_public_key();

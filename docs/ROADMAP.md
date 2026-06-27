@@ -152,8 +152,12 @@ Delivered slices:
 
 - AES-GCM rejects wrong key, wrong nonce, tampered tag, and tags below the
   supported 12-byte minimum.
-- RSA DER rejects zero modulus, public exponent, and CRT private-key fields at
-  parse/import time.
+- RNG wrapper tests prove provider creation and generation failures propagate
+  as errors without fallback output.
+- RSA DER rejects zero, even, and one-valued modulus/public exponent shapes;
+  private-key CRT primes must be odd and greater than one.
+- P-256 SEC1/PKCS#8 private-key DER rejects zero and out-of-range private
+  scalars at parse/import time.
 
 Exit criteria:
 
@@ -209,18 +213,23 @@ Exit criteria:
 
 ### 6. Release Integrity
 
-Status: queued
+Status: active
 Priority: P2
 Size: M
 
 Goal: make build and distribution outputs verifiable.
 
+Delivered slices:
+
+- dependency update policy, SBOM expectations, checksum policy, and signing
+  expectations are documented in `docs/release-integrity.md`.
+- release checklist is intentionally deferred until a versioned release process
+  exists.
+
 Next slices:
 
-- dependency update policy or automation.
-- SBOM generation plan.
-- checksum/signing policy for release artifacts.
 - security changelog and migration notes for breaking security changes.
+- choose concrete SBOM and signing commands once release artifacts exist.
 - benchmark baseline only after release-supported APIs stabilize.
 
 Exit criteria:

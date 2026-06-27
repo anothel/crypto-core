@@ -317,6 +317,15 @@ template <std::size_t Size>
 	{
 		return Result<EcPrivateKeyMaterial>::failure(der_error("invalid P-256 private scalar size"));
 	}
+	auto scalar_valid = p256_fixed_scalar_is_valid_nonzero(scalar.value().bytes());
+	if (!scalar_valid)
+	{
+		return Result<EcPrivateKeyMaterial>::failure(scalar_valid.error());
+	}
+	if (!scalar_valid.value())
+	{
+		return Result<EcPrivateKeyMaterial>::failure(der_error("invalid P-256 private scalar"));
+	}
 
 	auto parameters = read_optional_p256_parameters(private_key);
 	if (!parameters)

@@ -145,6 +145,16 @@ private:
 	});
 }
 
+[[nodiscard]] bool is_one(std::span<const std::uint8_t> bytes) noexcept
+{
+	return bytes.size() == 1 && bytes.front() == 1;
+}
+
+[[nodiscard]] bool is_odd(std::span<const std::uint8_t> bytes) noexcept
+{
+	return !bytes.empty() && (bytes.back() & 1U) != 0U;
+}
+
 [[nodiscard]] Result<ByteBuffer> read_non_zero_integer(DerReader &reader, std::string_view name)
 {
 	auto value = read_positive_integer(reader);
@@ -153,6 +163,21 @@ private:
 		return value;
 	}
 	if (is_zero(value.value().bytes()))
+	{
+		return Result<ByteBuffer>::failure(der_error(name));
+	}
+
+	return value;
+}
+
+[[nodiscard]] Result<ByteBuffer> read_odd_greater_than_one_integer(DerReader &reader, std::string_view name)
+{
+	auto value = read_non_zero_integer(reader, name);
+	if (!value)
+	{
+		return value;
+	}
+	if (is_one(value.value().bytes()) || !is_odd(value.value().bytes()))
 	{
 		return Result<ByteBuffer>::failure(der_error(name));
 	}
@@ -221,8 +246,8 @@ private:
 	}
 
 	DerReader key(sequence.value().content);
-	auto modulus = read_non_zero_integer(key, "RSA modulus must be non-zero");
-	auto public_exponent = read_non_zero_integer(key, "RSA public exponent must be non-zero");
+	auto modulus = read_odd_greater_than_one_integer(key, "RSA modulus must be odd and greater than one");
+	auto public_exponent = read_odd_greater_than_one_integer(key, "RSA public exponent must be odd and greater than one");
 	if (!modulus)
 	{
 		return Result<RsaPublicKeyMaterial>::failure(modulus.error());
@@ -296,11 +321,11 @@ private:
 		return Result<RsaPrivateKeyMaterial>::failure(version.error());
 	}
 
-	auto modulus = read_non_zero_integer(key, "RSA modulus must be non-zero");
-	auto public_exponent = read_non_zero_integer(key, "RSA public exponent must be non-zero");
+	auto modulus = read_odd_greater_than_one_integer(key, "RSA modulus must be odd and greater than one");
+	auto public_exponent = read_odd_greater_than_one_integer(key, "RSA public exponent must be odd and greater than one");
 	auto private_exponent = read_non_zero_integer(key, "RSA private exponent must be non-zero");
-	auto prime1 = read_non_zero_integer(key, "RSA prime1 must be non-zero");
-	auto prime2 = read_non_zero_integer(key, "RSA prime2 must be non-zero");
+	auto prime1 = read_odd_greater_than_one_integer(key, "RSA prime1 must be odd and greater than one");
+	auto prime2 = read_odd_greater_than_one_integer(key, "RSA prime2 must be odd and greater than one");
 	auto exponent1 = read_non_zero_integer(key, "RSA exponent1 must be non-zero");
 	auto exponent2 = read_non_zero_integer(key, "RSA exponent2 must be non-zero");
 	auto coefficient = read_non_zero_integer(key, "RSA coefficient must be non-zero");

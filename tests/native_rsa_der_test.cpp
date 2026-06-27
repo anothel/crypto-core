@@ -25,6 +25,12 @@ void require_bytes(std::span<const std::uint8_t> actual, std::span<const std::ui
 	}
 }
 
+void require_invalid_key(auto result)
+{
+	require(!result.has_value());
+	require(result.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 constexpr std::array<std::uint8_t, 9> pkcs1_public_key_der{
     0x30,
     0x07,
@@ -253,6 +259,50 @@ void test_rejects_zero_rsa_integer_fields()
 	require(zero_private.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_rejects_invalid_rsa_key_shape()
+{
+	const std::array<std::uint8_t, 8> one_modulus_public_key_der{
+	    0x30,
+	    0x06,
+	    0x02,
+	    0x01,
+	    0x01,
+	    0x02,
+	    0x01,
+	    0x11,
+	};
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_public_key_der(one_modulus_public_key_der));
+
+	const std::array<std::uint8_t, 8> even_modulus_public_key_der{
+	    0x30,
+	    0x06,
+	    0x02,
+	    0x01,
+	    0x12,
+	    0x02,
+	    0x01,
+	    0x11,
+	};
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_public_key_der(even_modulus_public_key_der));
+
+	const std::array<std::uint8_t, 9> even_public_exponent_key_der{
+	    0x30,
+	    0x07,
+	    0x02,
+	    0x02,
+	    0x0C,
+	    0xA1,
+	    0x02,
+	    0x01,
+	    0x02,
+	};
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_public_key_der(even_public_exponent_key_der));
+
+	auto even_prime_private_key_der = pkcs1_private_key_der;
+	even_prime_private_key_der[18] = 0x3C;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(even_prime_private_key_der));
+}
+
 } // namespace
 
 int main()
@@ -263,5 +313,6 @@ int main()
 	test_parses_pkcs8_private_key();
 	test_rejects_malformed_der();
 	test_rejects_zero_rsa_integer_fields();
+	test_rejects_invalid_rsa_key_shape();
 	return 0;
 }
