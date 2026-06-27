@@ -119,6 +119,23 @@ void test_fixed_point_add_inverse_returns_infinity()
 	require(sum.value().infinity);
 }
 
+void test_fixed_point_exceptional_cases_are_explicit()
+{
+	auto infinity = crypto_core::internal::p256_point_at_infinity();
+
+	auto sum = crypto_core::internal::p256_fixed_point_add(infinity, infinity);
+	require(sum.has_value());
+	require(sum.value().infinity);
+
+	auto multiplied = crypto_core::internal::p256_fixed_scalar_multiply_branch_free(std::array<std::uint8_t, 1>{0x02}, infinity);
+	require(multiplied.has_value());
+	require(multiplied.value().infinity);
+
+	auto x = crypto_core::internal::p256_fixed_x_mod_order(infinity);
+	require(!x.has_value());
+	require(x.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 void test_scalar_multiply_by_two_matches_known_two_g()
 {
 	auto base = crypto_core::internal::p256_base_point();
@@ -526,6 +543,7 @@ int main()
 	test_point_add_matches_point_double_for_base_point();
 	test_fixed_point_add_infinity_identity();
 	test_fixed_point_add_inverse_returns_infinity();
+	test_fixed_point_exceptional_cases_are_explicit();
 	test_scalar_multiply_by_two_matches_known_two_g();
 	test_scalar_multiply_by_group_order_returns_infinity();
 	test_scalar_multiply_by_group_order_plus_one_returns_base_point();

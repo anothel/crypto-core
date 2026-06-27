@@ -41,21 +41,7 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-### 1. P2: RSA and P-256 Hardening
-
-Goal: reduce risk in reviewed math boundaries without broad rewrites.
-
-Next slices:
-
-- RSA CRT recombination boundary.
-- P-256 exceptional-case formulas.
-
-Exit criteria:
-
-- one reviewed boundary closes with targeted tests.
-- constant-time notes update when behavior or limits change.
-
-### 2. P2: Release Integrity
+### 1. P2: Release Integrity
 
 Goal: make build and distribution outputs verifiable.
 

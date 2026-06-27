@@ -10,6 +10,8 @@ Current hardening delivered:
 - branch-free generic scalar-bit ladder selection
 - RFC 6979 fixed scalar reduction
 - external-style valid and invalid ECDSA vectors
+- behavior tests for infinity identity, inverse-point addition, scalar multiply
+  at infinity, and x-coordinate extraction rejection at infinity
 
 ## Accepted Public Branches
 

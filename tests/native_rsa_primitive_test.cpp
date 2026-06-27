@@ -107,6 +107,32 @@ void test_rsa_private_crt_operation_matches_private_operation()
 	require_bytes(crt.value().bytes(), plain.value().bytes());
 }
 
+void test_rsa_private_crt_operation_handles_recombination_edges()
+{
+	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
+	require(key.has_value());
+
+	const std::array inputs{
+	    std::array<std::uint8_t, 2>{0x00, 0x00},
+	    std::array<std::uint8_t, 2>{0x00, 0x01},
+	    std::array<std::uint8_t, 2>{0x00, 0x06},
+	    std::array<std::uint8_t, 2>{0x0C, 0xA0},
+	};
+	const std::array outputs{
+	    std::array<std::uint8_t, 2>{0x00, 0x00},
+	    std::array<std::uint8_t, 2>{0x00, 0x01},
+	    std::array<std::uint8_t, 2>{0x0B, 0x56},
+	    std::array<std::uint8_t, 2>{0x0C, 0xA0},
+	};
+
+	for (std::size_t i = 0; i < inputs.size(); ++i)
+	{
+		auto crt = crypto_core::internal::rsa_private_crt_operation(key.value(), inputs[i]);
+		require(crt.has_value());
+		require_bytes(crt.value().bytes(), outputs[i]);
+	}
+}
+
 void test_rsa_private_crt_blinded_operation_matches_private_operation()
 {
 	auto key = crypto_core::internal::parse_rsa_private_key_der(pkcs1_private_key_der);
@@ -178,6 +204,7 @@ int main()
 	test_rsa_public_operation();
 	test_rsa_private_operation();
 	test_rsa_private_crt_operation_matches_private_operation();
+	test_rsa_private_crt_operation_handles_recombination_edges();
 	test_rsa_private_crt_blinded_operation_matches_private_operation();
 	test_rsa_private_crt_blinded_operation_rejects_invalid_blinding_factor();
 	test_rsa_operation_left_pads_to_modulus_width();

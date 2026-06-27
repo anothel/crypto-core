@@ -149,10 +149,8 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. API and implementation hardening for misuse-sensitive public surfaces
-2. RSA CRT recombination and P-256 exceptional-case hardening
-3. Release integrity: security changelog, SBOM/checksum/signing commands
-4. Later: provider-backed KeyStore handles, shared ASN.1 DER, PEM, CSR,
+1. Release integrity: security changelog, SBOM/checksum/signing commands
+2. Later: provider-backed KeyStore handles, shared ASN.1 DER, PEM, CSR,
    PKCS#11, and PQC
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.

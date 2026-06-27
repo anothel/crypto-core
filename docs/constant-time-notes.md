@@ -23,8 +23,12 @@ operation-count internals.
 ## Known Limits
 
 - BigInt-backed helpers still exist in some internal paths.
-- RSA CRT recombination hardening is not complete.
-- P-256 point formulas still have exceptional-case branches.
+- RSA CRT recombination still uses variable-limb `BigInt`; identity,
+  wraparound, and maximal representative behavior is tested, but
+  constant-time hardening is not claimed.
+- P-256 point formulas still have exceptional-case branches. Infinity,
+  identity, inverse, and rejection behavior is tested; complete formulas are
+  not implemented.
 - DER/PEM/ASN.1 parsing is public-input parsing and is not constant-time.
 - OpenSSL timing behavior depends on the linked OpenSSL build.
 - No formal leakage testing, audit, or certification has been completed.
