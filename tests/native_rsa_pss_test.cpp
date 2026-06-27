@@ -81,6 +81,31 @@ void test_emsa_pss_verify_rejects_wrong_message_hash_size()
 	require(result.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_emsa_pss_rejects_parameter_misuse()
+{
+	auto wrong_salt_params = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	wrong_salt_params.salt_length = 31;
+	auto wrong_salt = crypto_core::internal::emsa_pss_verify(pss_sha256_encoded_message, 1023, sha256_abc, wrong_salt_params);
+	require(wrong_salt.has_value());
+	require(!wrong_salt.value());
+
+	const std::array<std::uint8_t, 31> short_salt{};
+	auto wrong_salt_size = crypto_core::internal::emsa_pss_encode(1023, sha256_abc, short_salt, crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256));
+	require(!wrong_salt_size.has_value());
+	require(wrong_salt_size.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	auto unsupported_hash_params = crypto_core::RsaPssParams::for_hash(static_cast<crypto_core::HashAlgorithm>(255));
+	auto unsupported_hash = crypto_core::internal::emsa_pss_verify(pss_sha256_encoded_message, 1023, sha256_abc, unsupported_hash_params);
+	require(!unsupported_hash.has_value());
+	require(unsupported_hash.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+
+	auto unsupported_mgf_params = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	unsupported_mgf_params.mgf1_hash = static_cast<crypto_core::HashAlgorithm>(255);
+	auto unsupported_mgf = crypto_core::internal::emsa_pss_verify(pss_sha256_encoded_message, 1023, sha256_abc, unsupported_mgf_params);
+	require(!unsupported_mgf.has_value());
+	require(unsupported_mgf.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+}
+
 void test_emsa_pss_encode_matches_known_encoding()
 {
 	const auto params = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
@@ -106,6 +131,7 @@ int main()
 	test_emsa_pss_verify_rejects_tampered_encoding();
 	test_emsa_pss_verify_rejects_too_short_encoding();
 	test_emsa_pss_verify_rejects_wrong_message_hash_size();
+	test_emsa_pss_rejects_parameter_misuse();
 	test_emsa_pss_encode_matches_known_encoding();
 	return 0;
 }

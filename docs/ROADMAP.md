@@ -44,29 +44,24 @@ Work in this order unless a security issue preempts it:
 1. P0: close security-boundary regression gaps.
    - add NativeProvider RNG failure injection where randomness is consumed
      inside RSA signing/encryption.
-   - add RSA-PSS and RSA-OAEP malformed/misuse vectors.
    - audit secret debug/log/panic exposure and key material copies.
    - keep secret/tag comparison on the constant-time helper path.
    - exit when malformed inputs reject deterministically and RNG failures never
      silently fall back.
 
-2. P0: harden imported key structure.
-   - add SPKI/PKCS#8 malformed algorithm variants.
-   - exit when structurally invalid keys reject before crypto operations.
-
-3. P1: finish Ed25519 interoperability proof.
+2. P1: finish Ed25519 interoperability proof.
    - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
      support.
    - otherwise document it as unavailable in the status docs.
    - exit when Ed25519 native sign/verify has either OpenSSL differential
      coverage or an explicit, tested reason it cannot.
 
-4. P2: continue RSA and P-256 hardening.
+3. P2: continue RSA and P-256 hardening.
    - choose one reviewed boundary at a time: RSA CRT recombination or P-256
      exceptional-case formulas.
    - exit only with targeted tests and updated constant-time notes.
 
-5. P2: prepare release integrity.
+4. P2: prepare release integrity.
    - choose concrete SBOM and signing commands once release artifacts exist.
    - add a release checklist only when a versioned release process exists.
    - exit when release artifacts can be verified by users.
@@ -87,7 +82,6 @@ Next slices:
 - negative vectors for tamper, wrong key, wrong nonce, unsupported tag length,
   malformed DER, unsupported version/algorithm, and invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
-- RSA-PSS and RSA-OAEP negative cases.
 - RNG failure injection with stable `ErrorCode`.
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
@@ -99,25 +93,7 @@ Exit criteria:
 - RNG failures do not silently fall back.
 - new malformed cases are added with targeted tests.
 
-### 2. Imported-Key Validation
-
-Status: active
-Priority: P0
-Size: M
-
-Goal: reject structurally invalid key material at import time.
-
-Next slices:
-
-- SPKI/PKCS#8 malformed algorithm variants.
-
-Exit criteria:
-
-- invalid key structure rejects before sign, verify, encrypt, or decrypt.
-- parser errors remain deterministic and use stable `ErrorCode`.
-- each new boundary has one focused regression test.
-
-### 3. Ed25519 Finish
+### 2. Ed25519 Finish
 
 Status: active
 Priority: P1
@@ -138,7 +114,7 @@ Exit criteria:
 - invalid signatures return `VerifyResult::invalid()`.
 - OpenSSL differential support is tested or explicitly documented unavailable.
 
-### 4. API and Implementation Hardening
+### 3. API and Implementation Hardening
 
 Status: queued
 Priority: P1
@@ -162,7 +138,7 @@ Exit criteria:
 - no secret-owning public type exposes accidental copy/debug output.
 - API docs show both recommended use and common misuse rejection.
 
-### 5. Release Integrity
+### 4. Release Integrity
 
 Status: active
 Priority: P2

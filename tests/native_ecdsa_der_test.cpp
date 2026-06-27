@@ -56,6 +56,12 @@ void test_rejects_wrong_curve_spki()
 	require_invalid_key(crypto_core::internal::parse_p256_public_key_der(der));
 }
 
+void test_rejects_missing_curve_spki_parameters()
+{
+	auto der = bytes("304F300906072A8648CE3D0201034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
+	require_invalid_key(crypto_core::internal::parse_p256_public_key_der(der));
+}
+
 void test_rejects_compressed_point_spki()
 {
 	auto der = bytes("3059301306072A8648CE3D020106082A8648CE3D030107034200026B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
@@ -170,6 +176,15 @@ void test_parses_pkcs8_p256_private_key()
 	require_bytes(key.value().private_scalar.bytes(), bytes("0000000000000000000000000000000000000000000000000000000000000001"));
 }
 
+void test_rejects_pkcs8_p256_algorithm_variants()
+{
+	auto missing_curve = bytes("3043020100300906072A8648CE3D02010433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require_invalid_key(crypto_core::internal::parse_p256_pkcs8_private_key_der(missing_curve));
+
+	auto wrong_algorithm = bytes("304D020100301306072A8648CE3D020206082A8648CE3D0301070433303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107");
+	require_invalid_key(crypto_core::internal::parse_p256_pkcs8_private_key_der(wrong_algorithm));
+}
+
 void test_rejects_pkcs8_p256_private_key_with_trailing_inner_sec1_data()
 {
 	auto der = bytes("304F020100301306072A8648CE3D020106082A8648CE3D0301070435303302010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D0301070500");
@@ -191,6 +206,7 @@ int main()
 {
 	test_parses_p256_spki_uncompressed_point();
 	test_rejects_wrong_curve_spki();
+	test_rejects_missing_curve_spki_parameters();
 	test_rejects_compressed_point_spki();
 	test_rejects_trailing_spki_data();
 	test_parses_ecdsa_signature_der();
@@ -207,6 +223,7 @@ int main()
 	test_rejects_sec1_p256_private_key_with_off_curve_public_key();
 	test_rejects_sec1_p256_private_key_with_mismatched_public_key();
 	test_parses_pkcs8_p256_private_key();
+	test_rejects_pkcs8_p256_algorithm_variants();
 	test_rejects_pkcs8_p256_private_key_with_trailing_inner_sec1_data();
 	test_encodes_ecdsa_signature_der();
 	return 0;

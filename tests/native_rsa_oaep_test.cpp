@@ -106,6 +106,28 @@ void test_eme_oaep_rejects_too_large_message()
 	require(encoded.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
+void test_eme_oaep_rejects_parameter_misuse()
+{
+	const auto params = crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	std::array<std::uint8_t, 31> short_seed{};
+	const auto message = bytes("oaep params");
+
+	auto wrong_seed = crypto_core::internal::eme_oaep_encode(128, message.bytes(), short_seed, params);
+	require(!wrong_seed.has_value());
+	require(wrong_seed.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	auto unsupported_hash_params = crypto_core::RsaOaepParams::for_hash(static_cast<crypto_core::HashAlgorithm>(255));
+	auto unsupported_hash = crypto_core::internal::eme_oaep_decode(std::array<std::uint8_t, 128>{}, unsupported_hash_params);
+	require(!unsupported_hash.has_value());
+	require(unsupported_hash.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+
+	auto unsupported_mgf_params = crypto_core::RsaOaepParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	unsupported_mgf_params.mgf1_hash = static_cast<crypto_core::HashAlgorithm>(255);
+	auto unsupported_mgf = crypto_core::internal::eme_oaep_decode(std::array<std::uint8_t, 128>{}, unsupported_mgf_params);
+	require(!unsupported_mgf.has_value());
+	require(unsupported_mgf.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+}
+
 } // namespace
 
 int main()
@@ -115,5 +137,6 @@ int main()
 	test_eme_oaep_rejects_tampered_encoding();
 	test_eme_oaep_rejects_non_zero_leading_byte();
 	test_eme_oaep_rejects_too_large_message();
+	test_eme_oaep_rejects_parameter_misuse();
 	return 0;
 }
