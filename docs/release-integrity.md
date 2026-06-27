@@ -20,6 +20,14 @@ project publishes reusable 0.x artifacts.
 Each published release artifact set should include an SBOM or an explicit note
 that no artifact was published.
 
+Publish the SBOM in SPDX JSON or CycloneDX JSON format. The release workflow may
+use a different generator, but release notes must record the generator name and
+version. A concrete command template for SPDX JSON is:
+
+```sh
+syft dir:. -o spdx-json=crypto-core-${version}.spdx.json
+```
+
 The SBOM should record:
 
 - project name, version, commit, and build configuration
@@ -40,6 +48,12 @@ Checksum files should:
 - be published beside the artifacts
 - be regenerated only from the final uploaded artifacts
 
+Command template:
+
+```sh
+sha256sum ${artifacts} > crypto-core-${version}.sha256
+```
+
 ## Signing
 
 Release signing is required before calling artifacts reuse-ready.
@@ -56,7 +70,45 @@ After a signing key exists:
 - publish the public verification key and fingerprint
 - document the verification command in the release notes
 
+Command templates:
+
+```sh
+cosign sign-blob --key crypto-core-release.key --output-signature ${artifact}.sig ${artifact}
+cosign verify-blob --key crypto-core-release.pub --signature ${artifact}.sig ${artifact}
+```
+
+## Artifact Verification
+
+Users should verify downloaded artifacts before reuse:
+
+```sh
+sha256sum -c crypto-core-${version}.sha256
+cosign verify-blob --key crypto-core-release.pub --signature ${artifact}.sig ${artifact}
+```
+
+If artifacts are unsigned, release notes must say so and users should verify the
+source commit against recorded CI evidence instead of trusting artifact
+signatures.
+
+## Security Changelog And Migration Notes
+
+Each versioned release should state:
+
+- security fixes and behavior-changing hardening since the previous release
+- breaking API or error-code changes
+- provider behavior differences that affect compatibility
+- new unsupported modes or removed experimental surfaces
+- known unsigned-artifact or missing-SBOM exceptions
+
 ## Release Checklist
 
-No release checklist is maintained yet because the project has no versioned
-release process. Add one only when actual release steps exist.
+Before publishing versioned artifacts:
+
+- run native CI on Windows, Linux, and macOS
+- run OpenSSL-enabled CI where OpenSSL is supported
+- run install-tree consumer smoke
+- publish SHA-256 checksums for every archive, package, binary, and SBOM
+- publish SBOM in SPDX JSON or CycloneDX JSON format
+- publish security changelog and migration notes
+- publish signing key fingerprint and verification command when artifacts are signed
+- state clearly when artifacts are unsigned

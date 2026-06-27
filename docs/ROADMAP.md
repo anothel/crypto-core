@@ -37,26 +37,6 @@ Before calling an alpha/reuse-ready release:
 - release artifacts include checksum policy, SBOM plan, and vulnerability
   reporting policy.
 
-## Active Work
-
-Work in this order unless a security issue preempts it:
-
-### 1. P2: Release Integrity
-
-Goal: make build and distribution outputs verifiable.
-
-Next slices:
-
-- security changelog and migration notes for breaking security changes.
-- choose concrete SBOM and signing commands once release artifacts exist.
-- benchmark baseline only after release-supported APIs stabilize.
-
-Exit criteria:
-
-- users can verify release artifacts.
-- dependency security updates run through CI.
-- release checklist covers tests, SBOM, checksums/signing, and changelog.
-
 ## Later
 
 Keep these out of active work until a current focus item needs them:

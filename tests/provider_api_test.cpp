@@ -294,6 +294,19 @@ void test_security_model_documents_recommended_use_and_misuse_rejection()
 	require_contains(doc, "| RSA-OAEP decrypt | Treat decrypt failure as authentication failure and do not branch on internal padding details. | Wrong label/hash/ciphertext returns `authentication_failed`; unusable keys return `invalid_key` or `invalid_argument`. |");
 }
 
+void test_release_integrity_doc_defines_artifact_verification_contract()
+{
+	const auto doc = read_doc("release-integrity.md");
+
+	require_contains(doc, "## Artifact Verification");
+	require_contains(doc, "sha256sum -c crypto-core-${version}.sha256");
+	require_contains(doc, "cosign verify-blob --key crypto-core-release.pub --signature ${artifact}.sig ${artifact}");
+	require_contains(doc, "## Release Checklist");
+	require_contains(doc, "- publish SHA-256 checksums for every archive, package, binary, and SBOM");
+	require_contains(doc, "- publish SBOM in SPDX JSON or CycloneDX JSON format");
+	require_contains(doc, "- publish signing key fingerprint and verification command when artifacts are signed");
+}
+
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 void test_openssl_provider_capability_matrix_matches_status_docs()
 {
@@ -335,6 +348,7 @@ int main()
 	test_native_provider_capability_matrix_matches_status_docs();
 	test_algorithm_status_doc_matches_provider_capability_matrix();
 	test_security_model_documents_recommended_use_and_misuse_rejection();
+	test_release_integrity_doc_defines_artifact_verification_contract();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif
