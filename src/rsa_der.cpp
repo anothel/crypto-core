@@ -138,6 +138,28 @@ private:
 	return Result<ByteBuffer>::success(ByteBuffer::copy_from(magnitude));
 }
 
+[[nodiscard]] bool is_zero(std::span<const std::uint8_t> bytes) noexcept
+{
+	return std::all_of(bytes.begin(), bytes.end(), [](std::uint8_t byte) {
+		return byte == 0;
+	});
+}
+
+[[nodiscard]] Result<ByteBuffer> read_non_zero_integer(DerReader &reader, std::string_view name)
+{
+	auto value = read_positive_integer(reader);
+	if (!value)
+	{
+		return value;
+	}
+	if (is_zero(value.value().bytes()))
+	{
+		return Result<ByteBuffer>::failure(der_error(name));
+	}
+
+	return value;
+}
+
 [[nodiscard]] Result<void> read_version_zero(DerReader &reader)
 {
 	auto value = reader.read(der_integer);
@@ -199,8 +221,8 @@ private:
 	}
 
 	DerReader key(sequence.value().content);
-	auto modulus = read_positive_integer(key);
-	auto public_exponent = read_positive_integer(key);
+	auto modulus = read_non_zero_integer(key, "RSA modulus must be non-zero");
+	auto public_exponent = read_non_zero_integer(key, "RSA public exponent must be non-zero");
 	if (!modulus)
 	{
 		return Result<RsaPublicKeyMaterial>::failure(modulus.error());
@@ -274,14 +296,14 @@ private:
 		return Result<RsaPrivateKeyMaterial>::failure(version.error());
 	}
 
-	auto modulus = read_positive_integer(key);
-	auto public_exponent = read_positive_integer(key);
-	auto private_exponent = read_positive_integer(key);
-	auto prime1 = read_positive_integer(key);
-	auto prime2 = read_positive_integer(key);
-	auto exponent1 = read_positive_integer(key);
-	auto exponent2 = read_positive_integer(key);
-	auto coefficient = read_positive_integer(key);
+	auto modulus = read_non_zero_integer(key, "RSA modulus must be non-zero");
+	auto public_exponent = read_non_zero_integer(key, "RSA public exponent must be non-zero");
+	auto private_exponent = read_non_zero_integer(key, "RSA private exponent must be non-zero");
+	auto prime1 = read_non_zero_integer(key, "RSA prime1 must be non-zero");
+	auto prime2 = read_non_zero_integer(key, "RSA prime2 must be non-zero");
+	auto exponent1 = read_non_zero_integer(key, "RSA exponent1 must be non-zero");
+	auto exponent2 = read_non_zero_integer(key, "RSA exponent2 must be non-zero");
+	auto coefficient = read_non_zero_integer(key, "RSA coefficient must be non-zero");
 	if (!modulus)
 	{
 		return Result<RsaPrivateKeyMaterial>::failure(modulus.error());

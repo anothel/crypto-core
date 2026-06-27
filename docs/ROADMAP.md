@@ -152,6 +152,8 @@ Delivered slices:
 
 - AES-GCM rejects wrong key, wrong nonce, tampered tag, and tags below the
   supported 12-byte minimum.
+- RSA DER rejects zero modulus, public exponent, and CRT private-key fields at
+  parse/import time.
 
 Exit criteria:
 

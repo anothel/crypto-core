@@ -215,6 +215,44 @@ void test_rejects_malformed_der()
 	require(negative.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
+void test_rejects_zero_rsa_integer_fields()
+{
+	const std::array<std::uint8_t, 8> zero_modulus_public_key_der{
+	    0x30,
+	    0x06,
+	    0x02,
+	    0x01,
+	    0x00,
+	    0x02,
+	    0x01,
+	    0x11,
+	};
+	auto zero_modulus = crypto_core::internal::parse_rsa_pkcs1_public_key_der(zero_modulus_public_key_der);
+	require(!zero_modulus.has_value());
+	require(zero_modulus.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	const std::array<std::uint8_t, 9> zero_exponent_public_key_der{
+	    0x30,
+	    0x07,
+	    0x02,
+	    0x02,
+	    0x0C,
+	    0xA1,
+	    0x02,
+	    0x01,
+	    0x00,
+	};
+	auto zero_exponent = crypto_core::internal::parse_rsa_pkcs1_public_key_der(zero_exponent_public_key_der);
+	require(!zero_exponent.has_value());
+	require(zero_exponent.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto zero_crt_prime = pkcs1_private_key_der;
+	zero_crt_prime[18] = 0x00;
+	auto zero_private = crypto_core::internal::parse_rsa_pkcs1_private_key_der(zero_crt_prime);
+	require(!zero_private.has_value());
+	require(zero_private.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
 } // namespace
 
 int main()
@@ -224,5 +262,6 @@ int main()
 	test_parses_pkcs1_private_key();
 	test_parses_pkcs8_private_key();
 	test_rejects_malformed_der();
+	test_rejects_zero_rsa_integer_fields();
 	return 0;
 }
