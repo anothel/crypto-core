@@ -37,27 +37,11 @@ Before calling an alpha/reuse-ready release:
 - release artifacts include checksum policy, SBOM plan, and vulnerability
   reporting policy.
 
-## What To Do Next
+## Active Work
 
 Work in this order unless a security issue preempts it:
 
-1. P2: continue RSA and P-256 hardening.
-   - choose one reviewed boundary at a time: RSA CRT recombination or P-256
-     exceptional-case formulas.
-   - exit only with targeted tests and updated constant-time notes.
-
-2. P2: prepare release integrity.
-   - choose concrete SBOM and signing commands once release artifacts exist.
-   - add a release checklist only when a versioned release process exists.
-   - exit when release artifacts can be verified by users.
-
-## Current Focus
-
-### 1. Regression Hardening
-
-Status: active
-Priority: P0
-Size: M
+### 1. P0: Regression Hardening
 
 Goal: convert security-risk notes into executable tests.
 
@@ -67,6 +51,8 @@ Next slices:
 - negative vectors for tamper, wrong key, wrong nonce, unsupported tag length,
   malformed DER, unsupported version/algorithm, and invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
+- RSA-PSS and RSA-OAEP negative cases.
+- P-256 public-point rejection cases.
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
 
@@ -74,14 +60,9 @@ Exit criteria:
 
 - release-supported primitives have positive and negative vector coverage.
 - malformed inputs reject deterministically.
-- RNG failures do not silently fall back.
 - new malformed cases are added with targeted tests.
 
-### 2. API and Implementation Hardening
-
-Status: queued
-Priority: P1
-Size: M
+### 2. P1: API and Implementation Hardening
 
 Goal: reduce misuse without expanding the API surface unnecessarily.
 
@@ -97,11 +78,21 @@ Exit criteria:
 
 - API docs show both recommended use and common misuse rejection.
 
-### 3. Release Integrity
+### 3. P2: RSA and P-256 Hardening
 
-Status: active
-Priority: P2
-Size: M
+Goal: reduce risk in reviewed math boundaries without broad rewrites.
+
+Next slices:
+
+- RSA CRT recombination boundary.
+- P-256 exceptional-case formulas.
+
+Exit criteria:
+
+- one reviewed boundary closes with targeted tests.
+- constant-time notes update when behavior or limits change.
+
+### 4. P2: Release Integrity
 
 Goal: make build and distribution outputs verifiable.
 
