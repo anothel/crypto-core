@@ -74,6 +74,13 @@ Native OS RNG uses:
 RNG failure is returned as `Result<T>` failure. There is no silent fallback to a
 weaker PRNG.
 
+## Nonce And Tag Boundary
+
+AES-GCM nonces are caller-supplied. Callers must use a unique nonce for each
+key; the API authenticates the supplied nonce but does not generate, store, or
+track nonce reuse. AES-GCM decrypt accepts 12- to 16-byte tags, so protocols
+that require a fixed tag length must enforce that length before calling decrypt.
+
 ## Non-Goals For 0.x
 
 - production certification

@@ -198,6 +198,34 @@ void test_aes_gcm_authentication_failure()
 	require(decrypted.error().code() == crypto_core::ErrorCode::authentication_failed);
 }
 
+void test_aes_gcm_rejects_wrong_key_nonce_and_too_short_tag()
+{
+	auto key = hex("feffe9928665731c6d6a8f9467308308");
+	auto wrong_key = key;
+	wrong_key[0] ^= 0x01U;
+	auto nonce = hex("cafebabefacedbaddecaf888");
+	auto wrong_nonce = nonce;
+	wrong_nonce[0] ^= 0x01U;
+	auto aad = hex("feedfacedeadbeeffeedfacedeadbeefabaddad2");
+	auto plaintext = hex("d9313225f88406e5a55909c5aff5269a");
+
+	auto encrypted = crypto_core::aead_encrypt(encrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, aad), plaintext);
+	require(encrypted.has_value());
+
+	auto wrong_key_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, wrong_key, nonce, aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
+	require(!wrong_key_result.has_value());
+	require(wrong_key_result.error().code() == crypto_core::ErrorCode::authentication_failed);
+
+	auto wrong_nonce_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, wrong_nonce, aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
+	require(!wrong_nonce_result.has_value());
+	require(wrong_nonce_result.error().code() == crypto_core::ErrorCode::authentication_failed);
+
+	auto too_short_tag = std::vector<std::uint8_t>(encrypted.value().tag.bytes().begin(), encrypted.value().tag.bytes().begin() + 11);
+	auto short_tag_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, aad, too_short_tag), encrypted.value().ciphertext.bytes());
+	require(!short_tag_result.has_value());
+	require(short_tag_result.error().code() == crypto_core::ErrorCode::invalid_argument);
+}
+
 } // namespace
 
 int main()
@@ -208,5 +236,6 @@ int main()
 	test_aes_gcm_aad_round_trip_uses_default_provider();
 	test_aes_gcm_rejects_invalid_inputs();
 	test_aes_gcm_authentication_failure();
+	test_aes_gcm_rejects_wrong_key_nonce_and_too_short_tag();
 	return 0;
 }

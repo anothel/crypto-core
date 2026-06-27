@@ -41,63 +41,61 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-1. P0: close evidence and contract gaps.
-   - record first green remote CI runs for native and OpenSSL builds.
-   - run and record install-tree consumer smoke command/environment.
-   - review existing security docs against implemented API terminology.
-   - document public API failure modes for key import, DER parsing, decrypt,
-     verify, RNG, and KDF paths.
-   - exit when release notes can link to actual CI/install evidence.
-
-2. P0: harden RNG, nonce, key, and constant-time boundaries.
+1. P0: harden RNG, nonce, key, and constant-time boundaries.
    - prove RNG failures return errors and never silently downgrade.
    - audit nonce/IV generation and caller-supplied nonce surfaces.
    - audit secret debug/log/panic exposure and key material copies.
    - keep secret/tag comparison on the constant-time helper path.
    - exit when tests cover these boundary claims.
 
-3. P1: add malformed-input regression coverage.
+2. P0: add malformed-input and misuse regression coverage.
    - add the smallest focused fixture set for one surface at a time: RSA-PSS/
      OAEP, RSA DER, ECDSA DER, P-256 public points, RNG failure injection.
+   - cover AEAD wrong key, wrong nonce, tamper, and unsupported tag lengths.
    - exit when malformed inputs reject deterministically and no weak RNG
      fallback exists.
 
-4. P1: finish Ed25519 interoperability proof.
+3. P1: finish Ed25519 interoperability proof.
    - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
      support.
    - otherwise document it as unavailable in the status docs.
    - exit when Ed25519 native sign/verify has either OpenSSL differential
      coverage or an explicit, tested reason it cannot.
 
-5. P2: continue RSA and P-256 hardening.
+4. P2: continue RSA and P-256 hardening.
    - choose one reviewed boundary at a time, starting with RSA CRT recombination
      or P-256 exceptional-case formulas.
    - exit only with targeted tests and updated constant-time notes.
 
-6. P2: prepare release integrity.
+5. P2: prepare release integrity.
    - add dependency update policy.
    - define SBOM/checksum/signing expectations.
    - add release checklist only when a release process exists.
    - exit when release artifacts can be verified by users.
 
+Completed P0 gates:
+
+- CI and install-tree evidence is recorded in `docs/release-evidence.md`.
+- Security contract wording is aligned in `docs/security-model.md`,
+  `docs/algorithm-status.md`, `docs/constant-time-notes.md`, `SECURITY.md`,
+  and README.
+
 ## Current Focus
 
 ### 1. CI, Install, and Evidence
 
-Status: active
+Status: completed
 Priority: P0
 Size: M
 
 Goal: prove the library builds, tests, and installs outside a local checkout.
 
-Next slices:
+Evidence:
 
-- capture first green remote CI run for Windows/Linux/macOS native builds.
-- capture first green remote CI run for OpenSSL ON/OFF matrix.
-- run an install-tree consumer smoke test and record command/environment.
-- link release checklist or README badge to green CI evidence.
-- capture current module/API/dependency inventory in existing docs; add a new
-  inventory doc only if the existing docs cannot carry it cleanly.
+- first green remote CI run for Windows/Linux/macOS native builds is recorded.
+- first green remote CI run for the OpenSSL matrix is recorded.
+- install-tree consumer smoke command/environment is recorded.
+- current module/API/dependency inventory is kept in README and status docs.
 
 Exit criteria:
 
@@ -108,19 +106,20 @@ Exit criteria:
 
 ### 2. Security Contract
 
-Status: active
+Status: completed
 Priority: P0
 Size: S
 
 Goal: make clear what the library claims, rejects, and does not claim.
 
-Next slices:
+Evidence:
 
-- reconcile `docs/security-model.md`, `docs/algorithm-status.md`,
-  `docs/constant-time-notes.md`, `SECURITY.md`, and README wording.
-- add public API failure-mode notes for decrypt/verify/import/KDF/RNG.
-- document key lifecycle: generation/import/export/destruction/copy limits.
-- document nonce/IV/KDF policy and caller responsibilities.
+- `docs/security-model.md`, `docs/algorithm-status.md`,
+  `docs/constant-time-notes.md`, `SECURITY.md`, and README use aligned
+  terminology.
+- public API failure-mode notes cover decrypt/verify/import/KDF/RNG.
+- key lifecycle, nonce/IV, KDF, RNG, zeroization, and constant-time limits are
+  stated in docs.
 
 Exit criteria:
 
@@ -131,7 +130,7 @@ Exit criteria:
 
 ### 3. Regression Hardening
 
-Status: queued
+Status: active
 Priority: P0
 Size: M
 
@@ -140,14 +139,19 @@ Goal: convert security-risk notes into executable tests.
 Next slices:
 
 - known-answer vectors for every release-supported primitive.
-- negative vectors for tamper, wrong key, wrong nonce, truncated tag, malformed
-  DER, unsupported version/algorithm, and invalid length.
+- negative vectors for tamper, wrong key, wrong nonce, unsupported tag length,
+  malformed DER, unsupported version/algorithm, and invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
 - RSA-PSS and RSA-OAEP negative cases.
 - P-256 public-point rejection cases.
 - RNG failure injection with stable `ErrorCode`.
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
+
+Delivered slices:
+
+- AES-GCM rejects wrong key, wrong nonce, tampered tag, and tags below the
+  supported 12-byte minimum.
 
 Exit criteria:
 
