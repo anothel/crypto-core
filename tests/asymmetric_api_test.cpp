@@ -243,6 +243,18 @@ void test_public_key_import_spki_der_validates_container()
 	auto unknown = crypto_core::PublicKey::import_spki_der(static_cast<crypto_core::AsymmetricKeyAlgorithm>(255), rsa_spki_der, crypto_core::KeyUsage::verify);
 	require(!unknown.has_value());
 	require(unknown.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+
+	auto rsa_wrong_algorithm = std::vector<std::uint8_t>(rsa_spki_der.begin(), rsa_spki_der.end());
+	rsa_wrong_algorithm[14] = 0x02U;
+	auto wrong_algorithm = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, rsa_wrong_algorithm, crypto_core::KeyUsage::verify);
+	require(!wrong_algorithm.has_value());
+	require(wrong_algorithm.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto p256_wrong_curve = p256_der.value();
+	p256_wrong_curve[19] = 0x08U;
+	auto wrong_curve = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, p256_wrong_curve, crypto_core::KeyUsage::verify);
+	require(!wrong_curve.has_value());
+	require(wrong_curve.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_rsa_pkcs1_der_import_validates_container()
@@ -289,6 +301,19 @@ void test_rsa_pkcs1_der_import_validates_container()
 	auto pkcs8 = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(pkcs8_buffer.value()), crypto_core::KeyUsage::sign);
 	require(!pkcs8.has_value());
 	require(pkcs8.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto wrong_version_der = std::vector<std::uint8_t>(private_pkcs1_der.begin(), private_pkcs1_der.end());
+	wrong_version_der[4] = 0x01U;
+	auto wrong_version_buffer = crypto_core::SecureBuffer::copy_from(wrong_version_der);
+	require(wrong_version_buffer.has_value());
+	auto wrong_version = crypto_core::PrivateKey::import_rsa_pkcs1_der(std::move(wrong_version_buffer.value()), crypto_core::KeyUsage::sign);
+	require(!wrong_version.has_value());
+	require(wrong_version.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	const std::vector<std::uint8_t> overlong_public_length{0x30, 0x81, 0x07, 0x02, 0x02, 0x0C, 0xA1, 0x02, 0x01, 0x11};
+	auto overlong_public = crypto_core::PublicKey::import_rsa_pkcs1_der(overlong_public_length, crypto_core::KeyUsage::verify);
+	require(!overlong_public.has_value());
+	require(overlong_public.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_pkcs8_der_import_validates_container()
@@ -367,6 +392,28 @@ void test_pkcs8_der_import_validates_container()
 	    crypto_core::KeyUsage::sign);
 	require(!unknown.has_value());
 	require(unknown.error().code() == crypto_core::ErrorCode::unsupported_algorithm);
+
+	auto rsa_wrong_version_der = std::vector<std::uint8_t>(private_pkcs8_der.begin(), private_pkcs8_der.end());
+	rsa_wrong_version_der[4] = 0x01U;
+	auto rsa_wrong_version_buffer = crypto_core::SecureBuffer::copy_from(rsa_wrong_version_der);
+	require(rsa_wrong_version_buffer.has_value());
+	auto rsa_wrong_version = crypto_core::PrivateKey::import_pkcs8_der(
+	    crypto_core::AsymmetricKeyAlgorithm::rsa,
+	    std::move(rsa_wrong_version_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!rsa_wrong_version.has_value());
+	require(rsa_wrong_version.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto p256_wrong_version_der = p256_pkcs8_der.value();
+	p256_wrong_version_der[4] = 0x01U;
+	auto p256_wrong_version_buffer = crypto_core::SecureBuffer::copy_from(p256_wrong_version_der);
+	require(p256_wrong_version_buffer.has_value());
+	auto p256_wrong_version = crypto_core::PrivateKey::import_pkcs8_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(p256_wrong_version_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!p256_wrong_version.has_value());
+	require(p256_wrong_version.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_sec1_der_import_validates_container()
@@ -403,6 +450,17 @@ void test_sec1_der_import_validates_container()
 	    crypto_core::KeyUsage::sign);
 	require(!rsa.has_value());
 	require(rsa.error().code() == crypto_core::ErrorCode::invalid_key);
+
+	auto wrong_version_der = sec1_der.value();
+	wrong_version_der[4] = 0x02U;
+	auto wrong_version_buffer = crypto_core::SecureBuffer::copy_from(wrong_version_der);
+	require(wrong_version_buffer.has_value());
+	auto wrong_version = crypto_core::PrivateKey::import_sec1_der(
+	    crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256,
+	    std::move(wrong_version_buffer.value()),
+	    crypto_core::KeyUsage::sign);
+	require(!wrong_version.has_value());
+	require(wrong_version.error().code() == crypto_core::ErrorCode::invalid_key);
 }
 
 void test_asymmetric_keys_reject_empty_der()

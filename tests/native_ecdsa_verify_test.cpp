@@ -35,6 +35,8 @@ constexpr std::string_view off_curve_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D030107034200040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 constexpr std::string_view basepoint_public_key_spki_der_hex =
     "3059301306072A8648CE3D020106082A8648CE3D030107034200046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
+constexpr std::string_view compressed_public_key_spki_der_hex =
+    "3039301306072A8648CE3D020106082A8648CE3D030107032200026B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
 constexpr std::string_view scalar_one_private_key_der_hex =
     "303102010104200000000000000000000000000000000000000000000000000000000000000001A00A06082A8648CE3D030107";
 constexpr std::string_view p256_group_order_half_hex =
@@ -302,11 +304,19 @@ void test_ecdsa_helper_rejects_malformed_signature_as_invalid()
 {
 	auto public_key_der = bytes(public_key_spki_der_hex);
 	auto digest = bytes(digest_sha256_hex);
-	auto bad_signature = bytes("300602010102010200");
+	const std::array<std::string_view, 5> signatures{
+	    "300602010102010200",
+	    "3006020180020101",
+	    "300702020001020101",
+	    "3006020101020101FF",
+	    "3008020101020101020101"};
 
-	auto malformed_sig = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, bad_signature, digest);
-	require(malformed_sig.has_value());
-	require(!malformed_sig.value());
+	for (const auto signature : signatures)
+	{
+		auto malformed_sig = crypto_core::internal::verify_ecdsa_p256_sha256_digest(public_key_der, bytes(signature), digest);
+		require(malformed_sig.has_value());
+		require(!malformed_sig.value());
+	}
 }
 
 void test_ecdsa_helper_rejects_bad_public_key_as_error()
@@ -330,6 +340,22 @@ void test_ecdsa_helper_rejects_off_curve_public_key_as_error()
 	auto bad_key = crypto_core::internal::verify_ecdsa_p256_sha256_digest(off_curve_public_key_der, signature_der, digest);
 	require(!bad_key.has_value());
 	require(bad_key.error().code() == crypto_core::ErrorCode::invalid_key);
+}
+
+void test_ecdsa_helper_rejects_malformed_public_points_as_error()
+{
+	const std::array<std::string_view, 2> public_keys{
+	    off_curve_public_key_spki_der_hex,
+	    compressed_public_key_spki_der_hex};
+	auto signature_der = bytes(signature_der_hex);
+	auto digest = bytes(digest_sha256_hex);
+
+	for (const auto public_key : public_keys)
+	{
+		auto bad_key = crypto_core::internal::verify_ecdsa_p256_sha256_digest(bytes(public_key), signature_der, digest);
+		require(!bad_key.has_value());
+		require(bad_key.error().code() == crypto_core::ErrorCode::invalid_key);
+	}
 }
 
 void test_ecdsa_helper_rejects_non_sha256_digest_size_as_error()
@@ -572,6 +598,7 @@ int main()
 	RUN_TEST(test_ecdsa_helper_rejects_malformed_signature_as_invalid);
 	RUN_TEST(test_ecdsa_helper_rejects_bad_public_key_as_error);
 	RUN_TEST(test_ecdsa_helper_rejects_off_curve_public_key_as_error);
+	RUN_TEST(test_ecdsa_helper_rejects_malformed_public_points_as_error);
 	RUN_TEST(test_ecdsa_helper_rejects_non_sha256_digest_size_as_error);
 	RUN_TEST(test_ecdsa_helper_signs_and_verifies_digest);
 	RUN_TEST(test_ecdsa_helper_signing_is_deterministic);

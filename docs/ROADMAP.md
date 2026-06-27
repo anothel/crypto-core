@@ -41,26 +41,7 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-### 1. P0: Regression Hardening
-
-Goal: convert security-risk notes into executable tests.
-
-Next slices:
-
-- negative vectors for malformed DER, unsupported version/algorithm, and
-  invalid length.
-- malformed DER/signature fixtures for RSA and ECDSA.
-- RSA-PSS and RSA-OAEP negative cases.
-- P-256 public-point rejection cases.
-- property-style round-trip and tamper checks where one compact test covers the
-  behavior without a new framework.
-
-Exit criteria:
-
-- malformed inputs reject deterministically.
-- new malformed cases are added with targeted tests.
-
-### 2. P1: API and Implementation Hardening
+### 1. P1: API and Implementation Hardening
 
 Goal: reduce misuse without expanding the API surface unnecessarily.
 
@@ -76,7 +57,7 @@ Exit criteria:
 
 - API docs show both recommended use and common misuse rejection.
 
-### 3. P2: RSA and P-256 Hardening
+### 2. P2: RSA and P-256 Hardening
 
 Goal: reduce risk in reviewed math boundaries without broad rewrites.
 
@@ -90,7 +71,7 @@ Exit criteria:
 - one reviewed boundary closes with targeted tests.
 - constant-time notes update when behavior or limits change.
 
-### 4. P2: Release Integrity
+### 3. P2: Release Integrity
 
 Goal: make build and distribution outputs verifiable.
 
