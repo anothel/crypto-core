@@ -47,9 +47,8 @@ Goal: convert security-risk notes into executable tests.
 
 Next slices:
 
-- known-answer vectors for every release-supported primitive.
-- negative vectors for tamper, wrong key, wrong nonce, unsupported tag length,
-  malformed DER, unsupported version/algorithm, and invalid length.
+- negative vectors for malformed DER, unsupported version/algorithm, and
+  invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
 - RSA-PSS and RSA-OAEP negative cases.
 - P-256 public-point rejection cases.
@@ -58,7 +57,6 @@ Next slices:
 
 Exit criteria:
 
-- release-supported primitives have positive and negative vector coverage.
 - malformed inputs reject deterministically.
 - new malformed cases are added with targeted tests.
 

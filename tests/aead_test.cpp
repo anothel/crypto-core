@@ -79,7 +79,39 @@ constexpr std::string_view gcm_vector_data =
     "AAD = \n"
     "PLAINTEXT = 00000000000000000000000000000000\n"
     "CIPHERTEXT = 0388dace60b6a392f328c2b971b2fe78\n"
-    "TAG = ab6e47d42cec13bdf53a67b21257bddf\n";
+    "TAG = ab6e47d42cec13bdf53a67b21257bddf\n"
+    "\n"
+    "[AES-192-GCM Empty]\n"
+    "KEY = 000000000000000000000000000000000000000000000000\n"
+    "NONCE = 000000000000000000000000\n"
+    "AAD = \n"
+    "PLAINTEXT = \n"
+    "CIPHERTEXT = \n"
+    "TAG = cd33b28ac773f74ba00ed1f312572435\n"
+    "\n"
+    "[AES-192-GCM OneBlock]\n"
+    "KEY = 000000000000000000000000000000000000000000000000\n"
+    "NONCE = 000000000000000000000000\n"
+    "AAD = \n"
+    "PLAINTEXT = 00000000000000000000000000000000\n"
+    "CIPHERTEXT = 98e7247c07f0fe411c267e4384b0f600\n"
+    "TAG = 2ff58d80033927ab8ef4d4587514f0fb\n"
+    "\n"
+    "[AES-256-GCM Empty]\n"
+    "KEY = 0000000000000000000000000000000000000000000000000000000000000000\n"
+    "NONCE = 000000000000000000000000\n"
+    "AAD = \n"
+    "PLAINTEXT = \n"
+    "CIPHERTEXT = \n"
+    "TAG = 530f8afbc74536b9a963b4f1c4cb738b\n"
+    "\n"
+    "[AES-256-GCM OneBlock]\n"
+    "KEY = 0000000000000000000000000000000000000000000000000000000000000000\n"
+    "NONCE = 000000000000000000000000\n"
+    "AAD = \n"
+    "PLAINTEXT = 00000000000000000000000000000000\n"
+    "CIPHERTEXT = cea7403d4d606b6e074ec5d3baf39d18\n"
+    "TAG = d0d1c8a799996bf0265b98b5d48ab919\n";
 
 crypto_core::AeadAlgorithm gcm_algorithm(const crypto_core::test_support::GcmTestVector &vector)
 {
@@ -127,7 +159,7 @@ void test_native_provider_supports_aes_gcm()
 	require(provider.supports(crypto_core::AeadAlgorithm::aes_256_gcm));
 }
 
-void test_aes_128_gcm_known_answer_vectors()
+void test_aes_gcm_known_answer_vectors()
 {
 	crypto_core::NativeProvider provider;
 	auto vectors = load_gcm_vectors();
@@ -179,6 +211,10 @@ void test_aes_gcm_rejects_invalid_inputs()
 	auto invalid_tag_size = crypto_core::aead_encrypt(encrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, {}, 3), plaintext);
 	require(!invalid_tag_size.has_value());
 	require(invalid_tag_size.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+	auto too_large_tag_size = crypto_core::aead_encrypt(encrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, {}, 17), plaintext);
+	require(!too_large_tag_size.has_value());
+	require(too_large_tag_size.error().code() == crypto_core::ErrorCode::invalid_argument);
 }
 
 void test_aes_gcm_authentication_failure()
@@ -198,32 +234,51 @@ void test_aes_gcm_authentication_failure()
 	require(decrypted.error().code() == crypto_core::ErrorCode::authentication_failed);
 }
 
-void test_aes_gcm_rejects_wrong_key_nonce_and_too_short_tag()
+void test_aes_gcm_rejects_wrong_inputs_and_tag_lengths()
 {
-	auto key = hex("feffe9928665731c6d6a8f9467308308");
-	auto wrong_key = key;
-	wrong_key[0] ^= 0x01U;
-	auto nonce = hex("cafebabefacedbaddecaf888");
-	auto wrong_nonce = nonce;
-	wrong_nonce[0] ^= 0x01U;
-	auto aad = hex("feedfacedeadbeeffeedfacedeadbeefabaddad2");
-	auto plaintext = hex("d9313225f88406e5a55909c5aff5269a");
+	for (const auto &vector : load_gcm_vectors())
+	{
+		const auto algorithm = gcm_algorithm(vector);
+		auto encrypted = crypto_core::aead_encrypt(encrypt_params(algorithm, vector.key, vector.nonce, vector.aad), vector.plaintext);
+		require(encrypted.has_value());
 
-	auto encrypted = crypto_core::aead_encrypt(encrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, aad), plaintext);
-	require(encrypted.has_value());
+		auto wrong_key = vector.key;
+		wrong_key[0] ^= 0x01U;
+		auto wrong_key_result = crypto_core::aead_decrypt(decrypt_params(algorithm, wrong_key, vector.nonce, vector.aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
+		require(!wrong_key_result.has_value());
+		require(wrong_key_result.error().code() == crypto_core::ErrorCode::authentication_failed);
 
-	auto wrong_key_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, wrong_key, nonce, aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
-	require(!wrong_key_result.has_value());
-	require(wrong_key_result.error().code() == crypto_core::ErrorCode::authentication_failed);
+		auto wrong_nonce = vector.nonce;
+		wrong_nonce[0] ^= 0x01U;
+		auto wrong_nonce_result = crypto_core::aead_decrypt(decrypt_params(algorithm, vector.key, wrong_nonce, vector.aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
+		require(!wrong_nonce_result.has_value());
+		require(wrong_nonce_result.error().code() == crypto_core::ErrorCode::authentication_failed);
 
-	auto wrong_nonce_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, wrong_nonce, aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
-	require(!wrong_nonce_result.has_value());
-	require(wrong_nonce_result.error().code() == crypto_core::ErrorCode::authentication_failed);
+		auto wrong_aad = vector.aad;
+		wrong_aad.push_back(0x01U);
+		auto wrong_aad_result = crypto_core::aead_decrypt(decrypt_params(algorithm, vector.key, vector.nonce, wrong_aad, encrypted.value().tag.bytes()), encrypted.value().ciphertext.bytes());
+		require(!wrong_aad_result.has_value());
+		require(wrong_aad_result.error().code() == crypto_core::ErrorCode::authentication_failed);
 
-	auto too_short_tag = std::vector<std::uint8_t>(encrypted.value().tag.bytes().begin(), encrypted.value().tag.bytes().begin() + 11);
-	auto short_tag_result = crypto_core::aead_decrypt(decrypt_params(crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, aad, too_short_tag), encrypted.value().ciphertext.bytes());
-	require(!short_tag_result.has_value());
-	require(short_tag_result.error().code() == crypto_core::ErrorCode::invalid_argument);
+		if (!encrypted.value().ciphertext.empty())
+		{
+			auto tampered_ciphertext = std::vector<std::uint8_t>(encrypted.value().ciphertext.bytes().begin(), encrypted.value().ciphertext.bytes().end());
+			tampered_ciphertext[0] ^= 0x01U;
+			auto tampered_ciphertext_result = crypto_core::aead_decrypt(decrypt_params(algorithm, vector.key, vector.nonce, vector.aad, encrypted.value().tag.bytes()), tampered_ciphertext);
+			require(!tampered_ciphertext_result.has_value());
+			require(tampered_ciphertext_result.error().code() == crypto_core::ErrorCode::authentication_failed);
+		}
+
+		auto too_short_tag = std::vector<std::uint8_t>(11, 0);
+		auto short_tag_result = crypto_core::aead_decrypt(decrypt_params(algorithm, vector.key, vector.nonce, vector.aad, too_short_tag), encrypted.value().ciphertext.bytes());
+		require(!short_tag_result.has_value());
+		require(short_tag_result.error().code() == crypto_core::ErrorCode::invalid_argument);
+
+		auto too_long_tag = std::vector<std::uint8_t>(17, 0);
+		auto long_tag_result = crypto_core::aead_decrypt(decrypt_params(algorithm, vector.key, vector.nonce, vector.aad, too_long_tag), encrypted.value().ciphertext.bytes());
+		require(!long_tag_result.has_value());
+		require(long_tag_result.error().code() == crypto_core::ErrorCode::invalid_argument);
+	}
 }
 
 } // namespace
@@ -232,10 +287,10 @@ int main()
 {
 	test_aead_algorithm_metadata();
 	test_native_provider_supports_aes_gcm();
-	test_aes_128_gcm_known_answer_vectors();
+	test_aes_gcm_known_answer_vectors();
 	test_aes_gcm_aad_round_trip_uses_default_provider();
 	test_aes_gcm_rejects_invalid_inputs();
 	test_aes_gcm_authentication_failure();
-	test_aes_gcm_rejects_wrong_key_nonce_and_too_short_tag();
+	test_aes_gcm_rejects_wrong_inputs_and_tag_lengths();
 	return 0;
 }
