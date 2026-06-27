@@ -13,8 +13,8 @@ history belongs in commits, not in the roadmap.
 
 ## Roadmap Rules
 
-- Evidence first: do not mark security, CI, packaging, or release claims done
-  without a reproducible command, test, or linked remote run.
+- Evidence first: security, CI, packaging, and release claims need a
+  reproducible command, test, or linked remote run.
 - Keep security docs and code vocabulary aligned.
 - Prefer targeted hardening slices over broad rewrites.
 - Every non-trivial hardening change needs a focused regression test.
@@ -41,19 +41,20 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-1. P0: harden RNG, nonce, key, and constant-time boundaries.
-   - prove RNG failures return errors and never silently downgrade.
-   - audit nonce/IV generation and caller-supplied nonce surfaces.
+1. P0: close security-boundary regression gaps.
+   - add NativeProvider RNG failure injection where randomness is consumed
+     inside RSA signing/encryption.
+   - add RSA-PSS and RSA-OAEP malformed/misuse vectors.
+   - add P-256 public-point rejection vectors.
    - audit secret debug/log/panic exposure and key material copies.
    - keep secret/tag comparison on the constant-time helper path.
-   - exit when tests cover these boundary claims.
+   - exit when malformed inputs reject deterministically and RNG failures never
+     silently fall back.
 
-2. P0: add malformed-input and misuse regression coverage.
-   - add the smallest focused fixture set for one surface at a time: RSA-PSS/
-     OAEP, RSA DER, ECDSA DER, P-256 public points, RNG failure injection.
-   - cover AEAD wrong key, wrong nonce, tamper, and unsupported tag lengths.
-   - exit when malformed inputs reject deterministically and no weak RNG
-     fallback exists.
+2. P0: harden imported key structure.
+   - add SPKI/SEC1/PKCS#8 malformed algorithm and parameter variants.
+   - add P-256 public-point rejection vectors.
+   - exit when structurally invalid keys reject before crypto operations.
 
 3. P1: finish Ed25519 interoperability proof.
    - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
@@ -63,72 +64,18 @@ Work in this order unless a security issue preempts it:
      coverage or an explicit, tested reason it cannot.
 
 4. P2: continue RSA and P-256 hardening.
-   - choose one reviewed boundary at a time, starting with RSA CRT recombination
-     or P-256 exceptional-case formulas.
+   - choose one reviewed boundary at a time: RSA CRT recombination or P-256
+     exceptional-case formulas.
    - exit only with targeted tests and updated constant-time notes.
 
 5. P2: prepare release integrity.
-   - add dependency update policy.
-   - define SBOM/checksum/signing expectations.
-   - add release checklist only when a release process exists.
+   - choose concrete SBOM and signing commands once release artifacts exist.
+   - add a release checklist only when a versioned release process exists.
    - exit when release artifacts can be verified by users.
-
-Completed P0 gates:
-
-- CI and install-tree evidence is recorded in `docs/release-evidence.md`.
-- Security contract wording is aligned in `docs/security-model.md`,
-  `docs/algorithm-status.md`, `docs/constant-time-notes.md`, `SECURITY.md`,
-  and README.
 
 ## Current Focus
 
-### 1. CI, Install, and Evidence
-
-Status: completed
-Priority: P0
-Size: M
-
-Goal: prove the library builds, tests, and installs outside a local checkout.
-
-Evidence:
-
-- first green remote CI run for Windows/Linux/macOS native builds is recorded.
-- first green remote CI run for the OpenSSL matrix is recorded.
-- install-tree consumer smoke command/environment is recorded.
-- current module/API/dependency inventory is kept in README and status docs.
-
-Exit criteria:
-
-- `find_package(crypto_core CONFIG REQUIRED)` works from install tree.
-- remote CI evidence exists, not just workflow files.
-- OpenSSL remains optional and disabled by default.
-- release notes can cite exact CI/install evidence.
-
-### 2. Security Contract
-
-Status: completed
-Priority: P0
-Size: S
-
-Goal: make clear what the library claims, rejects, and does not claim.
-
-Evidence:
-
-- `docs/security-model.md`, `docs/algorithm-status.md`,
-  `docs/constant-time-notes.md`, `SECURITY.md`, and README use aligned
-  terminology.
-- public API failure-mode notes cover decrypt/verify/import/KDF/RNG.
-- key lifecycle, nonce/IV, KDF, RNG, zeroization, and constant-time limits are
-  stated in docs.
-
-Exit criteria:
-
-- each supported public crypto surface has a documented security contract.
-- unsupported and deferred algorithms/modes are explicit.
-- key lifecycle, RNG failure behavior, zeroization limits, and constant-time
-  limits are not implied by scattered code comments alone.
-
-### 3. Regression Hardening
+### 1. Regression Hardening
 
 Status: active
 Priority: P0
@@ -148,17 +95,6 @@ Next slices:
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
 
-Delivered slices:
-
-- AES-GCM rejects wrong key, wrong nonce, tampered tag, and tags below the
-  supported 12-byte minimum.
-- RNG wrapper tests prove provider creation and generation failures propagate
-  as errors without fallback output.
-- RSA DER rejects zero, even, and one-valued modulus/public exponent shapes;
-  private-key CRT primes must be odd and greater than one.
-- P-256 SEC1/PKCS#8 private-key DER rejects zero and out-of-range private
-  scalars at parse/import time.
-
 Exit criteria:
 
 - release-supported primitives have positive and negative vector coverage.
@@ -166,7 +102,26 @@ Exit criteria:
 - RNG failures do not silently fall back.
 - new malformed cases are added with targeted tests.
 
-### 4. Ed25519 Finish
+### 2. Imported-Key Validation
+
+Status: active
+Priority: P0
+Size: M
+
+Goal: reject structurally invalid key material at import time.
+
+Next slices:
+
+- SPKI/SEC1/PKCS#8 malformed algorithm and parameter variants.
+- P-256 public-point rejection vectors.
+
+Exit criteria:
+
+- invalid key structure rejects before sign, verify, encrypt, or decrypt.
+- parser errors remain deterministic and use stable `ErrorCode`.
+- each new boundary has one focused regression test.
+
+### 3. Ed25519 Finish
 
 Status: active
 Priority: P1
@@ -187,7 +142,7 @@ Exit criteria:
 - invalid signatures return `VerifyResult::invalid()`.
 - OpenSSL differential support is tested or explicitly documented unavailable.
 
-### 5. API and Implementation Hardening
+### 4. API and Implementation Hardening
 
 Status: queued
 Priority: P1
@@ -211,20 +166,13 @@ Exit criteria:
 - no secret-owning public type exposes accidental copy/debug output.
 - API docs show both recommended use and common misuse rejection.
 
-### 6. Release Integrity
+### 5. Release Integrity
 
 Status: active
 Priority: P2
 Size: M
 
 Goal: make build and distribution outputs verifiable.
-
-Delivered slices:
-
-- dependency update policy, SBOM expectations, checksum policy, and signing
-  expectations are documented in `docs/release-integrity.md`.
-- release checklist is intentionally deferred until a versioned release process
-  exists.
 
 Next slices:
 

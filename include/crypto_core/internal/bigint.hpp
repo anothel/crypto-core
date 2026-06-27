@@ -23,6 +23,7 @@ public:
 	[[nodiscard]] static Result<BigInt> mod_exp_secret(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits);
 	[[nodiscard]] static Result<BigInt> mod_exp_secret_montgomery(const BigInt &base, const BigInt &exponent, const BigInt &modulus, std::size_t exponent_bits);
 	[[nodiscard]] static BigInt constant_time_select(std::uint8_t mask, const BigInt &if_set, const BigInt &if_clear, std::size_t width);
+	[[nodiscard]] static BigInt multiply(const BigInt &lhs, const BigInt &rhs);
 
 	[[nodiscard]] ByteBuffer to_be_bytes() const;
 	[[nodiscard]] bool is_zero() const noexcept;
@@ -40,7 +41,6 @@ private:
 	[[nodiscard]] static int compare_limbs(std::span<const std::uint32_t> lhs, std::span<const std::uint32_t> rhs) noexcept;
 	[[nodiscard]] static BigInt add(const BigInt &lhs, const BigInt &rhs);
 	[[nodiscard]] static BigInt subtract(const BigInt &lhs, const BigInt &rhs);
-	[[nodiscard]] static BigInt multiply(const BigInt &lhs, const BigInt &rhs);
 	[[nodiscard]] static BigInt shift_left_bits(const BigInt &value, std::size_t bits);
 	[[nodiscard]] static BigInt mod(const BigInt &value, const BigInt &modulus);
 

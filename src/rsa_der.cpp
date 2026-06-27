@@ -1,6 +1,7 @@
 #include "crypto_core/internal/rsa_der.hpp"
 
 #include "crypto_core/error.hpp"
+#include "crypto_core/internal/bigint.hpp"
 
 #include <algorithm>
 #include <array>
@@ -185,6 +186,109 @@ private:
 	return value;
 }
 
+[[nodiscard]] Result<BigInt> read_bigint(const ByteBuffer &value)
+{
+	return BigInt::from_be_bytes(value.bytes());
+}
+
+[[nodiscard]] Result<void> require_equal(const BigInt &lhs, const BigInt &rhs, std::string_view message)
+{
+	if (lhs.compare(rhs) != 0)
+	{
+		return Result<void>::failure(der_error(message));
+	}
+
+	return Result<void>::success();
+}
+
+[[nodiscard]] Result<BigInt> reduce(const BigInt &value, const BigInt &modulus)
+{
+	auto zero = BigInt::from_be_bytes(std::span<const std::uint8_t>{});
+	if (!zero)
+	{
+		return Result<BigInt>::failure(zero.error());
+	}
+
+	return BigInt::mod_add(value, zero.value(), modulus);
+}
+
+[[nodiscard]] Result<void> validate_private_key_math(const ByteBuffer &modulus,
+                                                     const ByteBuffer &public_exponent,
+                                                     const ByteBuffer &private_exponent,
+                                                     const ByteBuffer &prime1,
+                                                     const ByteBuffer &prime2,
+                                                     const ByteBuffer &exponent1,
+                                                     const ByteBuffer &exponent2,
+                                                     const ByteBuffer &coefficient)
+{
+	constexpr std::array<std::uint8_t, 1> one_bytes{1};
+
+	auto n = read_bigint(modulus);
+	auto e = read_bigint(public_exponent);
+	auto d = read_bigint(private_exponent);
+	auto p = read_bigint(prime1);
+	auto q = read_bigint(prime2);
+	auto dp = read_bigint(exponent1);
+	auto dq = read_bigint(exponent2);
+	auto qi = read_bigint(coefficient);
+	auto one = BigInt::from_be_bytes(one_bytes);
+	if (!n || !e || !d || !p || !q || !dp || !dq || !qi || !one)
+	{
+		return Result<void>::failure(der_error("invalid RSA private key integer"));
+	}
+
+	auto product = BigInt::multiply(p.value(), q.value());
+	auto product_check = require_equal(product, n.value(), "RSA modulus must equal p*q");
+	if (!product_check)
+	{
+		return product_check;
+	}
+
+	auto p_minus_one = BigInt::mod_subtract(p.value(), one.value(), p.value());
+	auto q_minus_one = BigInt::mod_subtract(q.value(), one.value(), q.value());
+	if (!p_minus_one || !q_minus_one)
+	{
+		return Result<void>::failure(der_error("invalid RSA CRT modulus"));
+	}
+
+	auto d_mod_p = reduce(d.value(), p_minus_one.value());
+	auto d_mod_q = reduce(d.value(), q_minus_one.value());
+	if (!d_mod_p || !d_mod_q)
+	{
+		return Result<void>::failure(der_error("invalid RSA CRT exponent"));
+	}
+	auto dp_check = require_equal(d_mod_p.value(), dp.value(), "RSA exponent1 must equal d mod (p-1)");
+	if (!dp_check)
+	{
+		return dp_check;
+	}
+	auto dq_check = require_equal(d_mod_q.value(), dq.value(), "RSA exponent2 must equal d mod (q-1)");
+	if (!dq_check)
+	{
+		return dq_check;
+	}
+
+	auto edp = BigInt::mod_multiply(e.value(), dp.value(), p_minus_one.value());
+	auto edq = BigInt::mod_multiply(e.value(), dq.value(), q_minus_one.value());
+	auto qiq = BigInt::mod_multiply(q.value(), qi.value(), p.value());
+	if (!edp || !edq || !qiq)
+	{
+		return Result<void>::failure(der_error("invalid RSA CRT relation"));
+	}
+	auto edp_check = require_equal(edp.value(), one.value(), "RSA exponent1 is not inverse of public exponent mod (p-1)");
+	if (!edp_check)
+	{
+		return edp_check;
+	}
+	auto edq_check = require_equal(edq.value(), one.value(), "RSA exponent2 is not inverse of public exponent mod (q-1)");
+	if (!edq_check)
+	{
+		return edq_check;
+	}
+
+	return require_equal(qiq.value(), one.value(), "RSA coefficient must equal q^-1 mod p");
+}
+
 [[nodiscard]] Result<void> read_version_zero(DerReader &reader)
 {
 	auto value = reader.read(der_integer);
@@ -364,6 +468,18 @@ private:
 	if (!key.empty())
 	{
 		return Result<RsaPrivateKeyMaterial>::failure(der_error("trailing data in RSA private key"));
+	}
+	auto math = validate_private_key_math(modulus.value(),
+	                                      public_exponent.value(),
+	                                      private_exponent.value(),
+	                                      prime1.value(),
+	                                      prime2.value(),
+	                                      exponent1.value(),
+	                                      exponent2.value(),
+	                                      coefficient.value());
+	if (!math)
+	{
+		return Result<RsaPrivateKeyMaterial>::failure(math.error());
 	}
 
 	return Result<RsaPrivateKeyMaterial>::success(RsaPrivateKeyMaterial{

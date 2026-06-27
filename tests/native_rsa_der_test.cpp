@@ -303,6 +303,29 @@ void test_rejects_invalid_rsa_key_shape()
 	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(even_prime_private_key_der));
 }
 
+void test_rejects_inconsistent_rsa_private_key_math()
+{
+	auto wrong_modulus = pkcs1_private_key_der;
+	wrong_modulus[8] = 0xA3;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(wrong_modulus));
+
+	auto wrong_private_exponent = pkcs1_private_key_der;
+	wrong_private_exponent[15] = 0xC3;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(wrong_private_exponent));
+
+	auto wrong_exponent1 = pkcs1_private_key_der;
+	wrong_exponent1[24] = 0x37;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(wrong_exponent1));
+
+	auto wrong_exponent2 = pkcs1_private_key_der;
+	wrong_exponent2[27] = 0x33;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(wrong_exponent2));
+
+	auto wrong_coefficient = pkcs1_private_key_der;
+	wrong_coefficient[30] = 0x27;
+	require_invalid_key(crypto_core::internal::parse_rsa_pkcs1_private_key_der(wrong_coefficient));
+}
+
 } // namespace
 
 int main()
@@ -314,5 +337,6 @@ int main()
 	test_rejects_malformed_der();
 	test_rejects_zero_rsa_integer_fields();
 	test_rejects_invalid_rsa_key_shape();
+	test_rejects_inconsistent_rsa_private_key_math();
 	return 0;
 }
