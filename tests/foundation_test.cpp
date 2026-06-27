@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <ostream>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -26,6 +27,16 @@ void test_error()
 	assert(error.message() == std::string_view{"bad input"});
 	assert(crypto_core::error_code_name(error.code()) == std::string_view{"invalid_argument"});
 }
+
+template <typename T, typename = void>
+struct IsStreamInsertable : std::false_type
+{
+};
+
+template <typename T>
+struct IsStreamInsertable<T, std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const T &>())>> : std::true_type
+{
+};
 
 void test_result()
 {
@@ -106,6 +117,7 @@ void test_secure_buffer()
 	static_assert(!std::is_copy_assignable_v<crypto_core::SecureBuffer>);
 	static_assert(std::is_move_constructible_v<crypto_core::SecureBuffer>);
 	static_assert(std::is_move_assignable_v<crypto_core::SecureBuffer>);
+	static_assert(!IsStreamInsertable<crypto_core::SecureBuffer>::value);
 
 	const std::array<std::uint8_t, 4> secret_bytes{4, 3, 2, 1};
 	auto secret = crypto_core::SecureBuffer::copy_from(secret_bytes);

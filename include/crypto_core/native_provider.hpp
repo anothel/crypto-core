@@ -8,7 +8,7 @@
 namespace crypto_core
 {
 
-class NativeProvider final : public ICryptoProvider
+class NativeProvider : public ICryptoProvider
 {
 public:
 	using ICryptoProvider::supports;

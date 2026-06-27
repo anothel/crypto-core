@@ -6,9 +6,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <ostream>
 #include <span>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace
@@ -21,6 +23,16 @@ void require(bool condition)
 		std::exit(1);
 	}
 }
+
+template <typename T, typename = void>
+struct IsStreamInsertable : std::false_type
+{
+};
+
+template <typename T>
+struct IsStreamInsertable<T, std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const T &>())>> : std::true_type
+{
+};
 
 class MinimalHashContext final : public crypto_core::IHashContext
 {
@@ -503,6 +515,8 @@ void test_private_key_and_key_pair_are_move_only()
 	static_assert(!std::is_copy_assignable_v<crypto_core::KeyPair>);
 	static_assert(std::is_move_constructible_v<crypto_core::KeyPair>);
 	static_assert(std::is_move_assignable_v<crypto_core::KeyPair>);
+	static_assert(!IsStreamInsertable<crypto_core::PrivateKey>::value);
+	static_assert(!IsStreamInsertable<crypto_core::KeyPair>::value);
 }
 
 void test_rsa_key_generation_params_have_safe_defaults()

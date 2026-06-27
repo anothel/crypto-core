@@ -41,27 +41,19 @@ Before calling an alpha/reuse-ready release:
 
 Work in this order unless a security issue preempts it:
 
-1. P0: close security-boundary regression gaps.
-   - add NativeProvider RNG failure injection where randomness is consumed
-     inside RSA signing/encryption.
-   - audit secret debug/log/panic exposure and key material copies.
-   - keep secret/tag comparison on the constant-time helper path.
-   - exit when malformed inputs reject deterministically and RNG failures never
-     silently fall back.
-
-2. P1: finish Ed25519 interoperability proof.
+1. P1: finish Ed25519 interoperability proof.
    - add OpenSSL differential tests if local/CI OpenSSL exposes Ed25519
      support.
    - otherwise document it as unavailable in the status docs.
    - exit when Ed25519 native sign/verify has either OpenSSL differential
      coverage or an explicit, tested reason it cannot.
 
-3. P2: continue RSA and P-256 hardening.
+2. P2: continue RSA and P-256 hardening.
    - choose one reviewed boundary at a time: RSA CRT recombination or P-256
      exceptional-case formulas.
    - exit only with targeted tests and updated constant-time notes.
 
-4. P2: prepare release integrity.
+3. P2: prepare release integrity.
    - choose concrete SBOM and signing commands once release artifacts exist.
    - add a release checklist only when a versioned release process exists.
    - exit when release artifacts can be verified by users.
@@ -82,7 +74,6 @@ Next slices:
 - negative vectors for tamper, wrong key, wrong nonce, unsupported tag length,
   malformed DER, unsupported version/algorithm, and invalid length.
 - malformed DER/signature fixtures for RSA and ECDSA.
-- RNG failure injection with stable `ErrorCode`.
 - property-style round-trip and tamper checks where one compact test covers the
   behavior without a new framework.
 
@@ -126,16 +117,12 @@ Next slices:
 
 - keep dedicated key/nonce/salt/tag/AAD types where they already exist; add a
   new type only when raw bytes are causing real misuse risk.
-- block secret material from debug/log/panic paths.
-- keep constant-time comparison centralized.
 - make error types precise where callers must branch, and intentionally vague
   where detail would leak security state.
 - isolate deprecated or unsafe surfaces behind explicit names/docs.
 
 Exit criteria:
 
-- no release-supported secret/tag verification path uses ordinary byte compare.
-- no secret-owning public type exposes accidental copy/debug output.
 - API docs show both recommended use and common misuse rejection.
 
 ### 4. Release Integrity

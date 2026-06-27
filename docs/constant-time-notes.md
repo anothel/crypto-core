@@ -17,6 +17,8 @@ operation-count internals.
   selection.
 - RSA-PSS and RSA-OAEP checks that avoid early public padding exits in key
   paths where the code already tracks validity masks.
+- Native AES-GCM tag verification, RSA-PSS expected-hash verification, and
+  RSA-OAEP label-hash verification route through `constant_time_equal`.
 
 ## Known Limits
 

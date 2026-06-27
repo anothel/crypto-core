@@ -58,6 +58,8 @@ contract.
 
 `SecureBuffer` zeroes owned bytes on destruction. `PrivateKey` is move-only so
 private material is not accidentally copied through the public key API.
+`SecureBuffer`, `SecretKey`, `PrivateKey`, and `KeyPair` are not stream
+insertable by the public API.
 
 This does not promise that all compiler temporaries, OS paging, crash dumps,
 allocator copies, or caller-owned buffers are erased.

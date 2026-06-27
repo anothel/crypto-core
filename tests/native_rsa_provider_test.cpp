@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <span>
 #include <vector>
 
 namespace
@@ -31,6 +33,49 @@ crypto_core::PublicKey import_rsa_sign_verify_key()
 crypto_core::PrivateKey import_rsa_sign_key()
 {
 	return crypto_core::test_support::rsa_reference_sign_key();
+}
+
+class FailingRng final : public crypto_core::IRng
+{
+public:
+	crypto_core::Result<void> generate(std::span<std::uint8_t>) noexcept override
+	{
+		return crypto_core::Result<void>::failure(
+		    crypto_core::make_error(crypto_core::ErrorCode::provider_error, "test", "rng generation failed"));
+	}
+};
+
+class FailingRngNativeProvider final : public crypto_core::NativeProvider
+{
+public:
+	explicit FailingRngNativeProvider(bool fail_create) noexcept
+	    : fail_create_(fail_create)
+	{
+	}
+
+	crypto_core::Result<std::unique_ptr<crypto_core::IRng>> create_rng(crypto_core::RngAlgorithm algorithm) noexcept override
+	{
+		requested_algorithm = algorithm;
+		++create_rng_calls;
+		if (fail_create_)
+		{
+			return crypto_core::Result<std::unique_ptr<crypto_core::IRng>>::failure(
+			    crypto_core::make_error(crypto_core::ErrorCode::provider_error, "test", "rng creation failed"));
+		}
+		return crypto_core::Result<std::unique_ptr<crypto_core::IRng>>::success(std::make_unique<FailingRng>());
+	}
+
+	crypto_core::RngAlgorithm requested_algorithm{crypto_core::RngAlgorithm::os_random};
+	int create_rng_calls{0};
+
+private:
+	bool fail_create_{false};
+};
+
+void require_provider_error(auto result)
+{
+	require(!result.has_value());
+	require(result.error().code() == crypto_core::ErrorCode::provider_error);
 }
 
 void test_native_provider_verifies_rsa_pss_sha256_signature()
@@ -168,6 +213,66 @@ void test_native_provider_rejects_rsa_oaep_parameter_misuse()
 	require(short_input.error().code() == crypto_core::ErrorCode::authentication_failed);
 }
 
+void test_native_provider_propagates_rsa_rng_creation_failure()
+{
+	auto private_key = import_rsa_sign_key();
+	auto public_key = import_rsa_sign_verify_key();
+	const auto message = crypto_core::test_support::bytes("rsa rng failure");
+	const auto plaintext = crypto_core::test_support::bytes("rsa oaep rng");
+	auto zero_salt = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	zero_salt.salt_length = 0;
+
+	FailingRngNativeProvider pss_salt_provider(true);
+	require_provider_error(crypto_core::sign(pss_salt_provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &private_key}, message.bytes()));
+	require(pss_salt_provider.create_rng_calls == 1);
+	require(pss_salt_provider.requested_algorithm == crypto_core::RngAlgorithm::os_random);
+
+	FailingRngNativeProvider pss_blinding_provider(true);
+	require_provider_error(crypto_core::sign(pss_blinding_provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key, zero_salt}, message.bytes()));
+	require(pss_blinding_provider.create_rng_calls == 1);
+
+	FailingRngNativeProvider oaep_encrypt_provider(true);
+	require_provider_error(crypto_core::asymmetric_encrypt(oaep_encrypt_provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &public_key}, plaintext.bytes()));
+	require(oaep_encrypt_provider.create_rng_calls == 1);
+
+	FailingRngNativeProvider oaep_decrypt_provider(true);
+	require_provider_error(crypto_core::asymmetric_decrypt(
+	    oaep_decrypt_provider,
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &private_key},
+	    crypto_core::test_support::rsa_reference_oaep_sha256_ciphertext()));
+	require(oaep_decrypt_provider.create_rng_calls == 1);
+}
+
+void test_native_provider_propagates_rsa_rng_generation_failure()
+{
+	auto private_key = import_rsa_sign_key();
+	auto public_key = import_rsa_sign_verify_key();
+	const auto message = crypto_core::test_support::bytes("rsa rng failure");
+	const auto plaintext = crypto_core::test_support::bytes("rsa oaep rng");
+	auto zero_salt = crypto_core::RsaPssParams::for_hash(crypto_core::HashAlgorithm::sha256);
+	zero_salt.salt_length = 0;
+
+	FailingRngNativeProvider pss_salt_provider(false);
+	require_provider_error(crypto_core::sign(pss_salt_provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &private_key}, message.bytes()));
+	require(pss_salt_provider.create_rng_calls == 1);
+	require(pss_salt_provider.requested_algorithm == crypto_core::RngAlgorithm::os_random);
+
+	FailingRngNativeProvider pss_blinding_provider(false);
+	require_provider_error(crypto_core::sign(pss_blinding_provider, {crypto_core::SignatureAlgorithm::rsa_pss, &private_key, zero_salt}, message.bytes()));
+	require(pss_blinding_provider.create_rng_calls == 1);
+
+	FailingRngNativeProvider oaep_encrypt_provider(false);
+	require_provider_error(crypto_core::asymmetric_encrypt(oaep_encrypt_provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &public_key}, plaintext.bytes()));
+	require(oaep_encrypt_provider.create_rng_calls == 1);
+
+	FailingRngNativeProvider oaep_decrypt_provider(false);
+	require_provider_error(crypto_core::asymmetric_decrypt(
+	    oaep_decrypt_provider,
+	    {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &private_key},
+	    crypto_core::test_support::rsa_reference_oaep_sha256_ciphertext()));
+	require(oaep_decrypt_provider.create_rng_calls == 1);
+}
+
 } // namespace
 
 int main()
@@ -179,5 +284,7 @@ int main()
 	test_native_provider_encrypts_and_decrypts_rsa_oaep_sha256();
 	test_native_provider_rsa_oaep_uses_label_and_rejects_tampering();
 	test_native_provider_rejects_rsa_oaep_parameter_misuse();
+	test_native_provider_propagates_rsa_rng_creation_failure();
+	test_native_provider_propagates_rsa_rng_generation_failure();
 	return 0;
 }

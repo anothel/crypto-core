@@ -1,9 +1,11 @@
 #include "crypto_core/crypto_core.hpp"
 
 #include <cstdlib>
+#include <ostream>
 #include <span>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace
@@ -16,6 +18,16 @@ void require(bool condition)
 		std::exit(1);
 	}
 }
+
+template <typename T, typename = void>
+struct IsStreamInsertable : std::false_type
+{
+};
+
+template <typename T>
+struct IsStreamInsertable<T, std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const T &>())>> : std::true_type
+{
+};
 
 void test_key_algorithm_metadata()
 {
@@ -43,6 +55,7 @@ void test_secret_key_is_move_only()
 	static_assert(!std::is_copy_assignable_v<crypto_core::SecretKey>);
 	static_assert(std::is_move_constructible_v<crypto_core::SecretKey>);
 	static_assert(std::is_move_assignable_v<crypto_core::SecretKey>);
+	static_assert(!IsStreamInsertable<crypto_core::SecretKey>::value);
 }
 
 void test_secret_key_imports_raw_aes_key()
