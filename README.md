@@ -156,4 +156,4 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 
 ## License
 
-License not selected yet.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).

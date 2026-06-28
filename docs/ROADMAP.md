@@ -23,7 +23,6 @@ history belongs in commits, not in the roadmap.
 
 Before calling an alpha/reuse-ready release:
 
-- `LICENSE` selected by the project owner.
 - Windows, Linux, and macOS native CI have a green remote run.
 - OpenSSL ON/OFF CI has a green remote run where OpenSSL is supported.
 - `find_package(crypto_core CONFIG REQUIRED)` works from an install tree.
