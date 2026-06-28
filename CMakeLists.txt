@@ -446,6 +446,31 @@ if(CRYPTO_CORE_BUILD_TESTS)
 
     add_test(NAME crypto_core.rng COMMAND crypto_core_rng_tests)
 
+    add_executable(crypto_core_fuzz_boundary_smoke_tests
+        tests/fuzz_boundary_smoke_test.cpp
+    )
+
+    target_link_libraries(crypto_core_fuzz_boundary_smoke_tests
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
+    target_compile_definitions(crypto_core_fuzz_boundary_smoke_tests
+        PRIVATE
+            CRYPTO_CORE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+
+    add_test(NAME crypto_core.fuzz_boundary_smoke COMMAND crypto_core_fuzz_boundary_smoke_tests)
+
+    add_library(crypto_core_fuzz_parser_boundaries_object OBJECT
+        tests/fuzz/fuzz_parser_boundaries.cpp
+    )
+
+    target_link_libraries(crypto_core_fuzz_parser_boundaries_object
+        PRIVATE
+            crypto_core::crypto_core
+    )
+
     if(CRYPTO_CORE_ENABLE_OPENSSL)
         add_executable(crypto_core_openssl_provider_tests
             tests/openssl_provider_test.cpp

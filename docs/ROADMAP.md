@@ -38,43 +38,6 @@ Before calling an alpha/reuse-ready release:
 
 ## Active Work
 
-### P0: Fuzzing And Malformed Corpus
-
-Goal: make external-input boundaries fail deterministically under mutation.
-
-Targets:
-
-- DER/SPKI/PKCS#8/PKCS#1 import.
-- PEM/Base64/Base64url decode.
-- ECDSA DER signature parse and verify.
-- RSA-PSS signature and RSA-OAEP ciphertext inputs.
-- AES-GCM decrypt with malformed nonce, tag, ciphertext, and AAD.
-
-Exit criteria:
-
-- fuzz harness skeletons exist for parser/import/decrypt boundaries.
-- malformed corpus files live under a single test-owned path.
-- CI can run the harnesses manually or non-blocking before they become gates.
-
-### P0: API Misuse Regression
-
-Goal: keep unsafe default paths and ambiguous key/format boundaries visible.
-
-Targets:
-
-- AES-GCM nonce length, tag length, invalid key size, wrong key, wrong nonce,
-  wrong AAD, and tamper cases.
-- provider `supports` answers match operation failure modes.
-- raw bytes, DER bytes, seed bytes, public key bytes, and private key bytes are
-  named and documented at each API boundary.
-- `Result<T>` failure handling stays explicit in public examples.
-
-Exit criteria:
-
-- misuse-sensitive public examples show failure checks.
-- each new supported format or algorithm adds positive and negative tests.
-- API contract docs and provider capability tests change together.
-
 ### P1: Static Analysis And Coverage
 
 Goal: add cheap mechanical checks without blocking useful work too early.
@@ -89,6 +52,23 @@ Exit criteria:
 
 - analysis failures are visible in CI before becoming required.
 - coverage reports help find missing parser and negative-path tests.
+
+### P1: Expand Fuzzing
+
+Goal: turn the current smoke harness into useful coverage-guided fuzzing.
+
+Targets:
+
+- add ECDSA DER signature parsing to the fuzz harness.
+- add RSA-PSS signature and RSA-OAEP ciphertext fuzz selectors.
+- run the harness manually or non-blocking in CI when Clang/libFuzzer is
+  available.
+- grow `tests/corpus/invalid/` from real regression inputs.
+
+Exit criteria:
+
+- fuzzer build command is validated on at least one supported platform.
+- CI records a non-blocking fuzz run or a documented reason it is unavailable.
 
 ### P1: Alpha Release Preparation
 

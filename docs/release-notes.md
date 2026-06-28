@@ -16,6 +16,8 @@ Changed:
 - aligned README provider wording with Ed25519 OpenSSL differential coverage.
 - tracked fuzzing, malformed corpus, static analysis, coverage, and alpha
   release preparation in the roadmap.
+- added a fuzz boundary smoke test, invalid corpus path, and libFuzzer skeleton
+  for parser/import/decrypt boundaries.
 
 Known limitations:
 
@@ -23,5 +25,5 @@ Known limitations:
 - no provider-backed KMS/HSM/Secret Manager key lifecycle implementation yet.
 - AES-GCM nonce uniqueness is caller responsibility in the current low-level
   API.
-- fuzzing and coverage jobs are planned but not release gates yet.
-
+- coverage-guided fuzzing and coverage jobs are planned but not release gates
+  yet.

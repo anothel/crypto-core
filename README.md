@@ -84,6 +84,7 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
   [docs/api-contract.md](docs/api-contract.md),
   [docs/crypto-policy.md](docs/crypto-policy.md),
   [docs/crypto-envelope-format.md](docs/crypto-envelope-format.md),
+  [docs/fuzzing.md](docs/fuzzing.md),
   [docs/key-lifecycle.md](docs/key-lifecycle.md),
   [docs/quickstart.md](docs/quickstart.md),
   [docs/release-integrity.md](docs/release-integrity.md),
@@ -158,9 +159,9 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Fuzzing harnesses and malformed corpus for parser/import/decrypt surfaces
-2. API misuse tests and provider capability/failure-mode contract checks
-3. Static-analysis and coverage jobs after the current test matrix stays green
+1. Static-analysis and coverage jobs after the current test matrix stays green
+2. Expand fuzzing beyond the current parser/import/decrypt smoke harness
+3. Alpha release checklist and evidence refresh
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

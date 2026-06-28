@@ -358,13 +358,14 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(readme, "OpenSSLProvider` is optional and used as compatibility backend and");
 	require_contains(readme, "Ed25519 differential test oracle");
 	require_contains(readme, "[docs/api-contract.md](docs/api-contract.md)");
+	require_contains(readme, "[docs/fuzzing.md](docs/fuzzing.md)");
 	require_contains(readme, "[docs/quickstart.md](docs/quickstart.md)");
 	require_contains(readme, "[docs/release-notes.md](docs/release-notes.md)");
 
 	const auto roadmap = read_doc("ROADMAP.md");
 	require_contains(roadmap, "## Active Work");
-	require_contains(roadmap, "### P0: Fuzzing And Malformed Corpus");
-	require_contains(roadmap, "DER/SPKI/PKCS#8/PKCS#1 import");
+	require_contains(roadmap, "### P1: Expand Fuzzing");
+	require_contains(roadmap, "run the harness manually or non-blocking in CI");
 	require_contains(roadmap, "### P1: Static Analysis And Coverage");
 
 	const auto release_evidence = read_doc("release-evidence.md");
@@ -384,6 +385,11 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	const auto release_notes = read_doc("release-notes.md");
 	require_contains(release_notes, "## Unreleased");
 	require_contains(release_notes, "Known limitations");
+
+	const auto fuzzing = read_doc("fuzzing.md");
+	require_contains(fuzzing, "tests/fuzz/fuzz_parser_boundaries.cpp");
+	require_contains(fuzzing, "tests/corpus/invalid/");
+	require_contains(fuzzing, "crypto_core.fuzz_boundary_smoke");
 
 	const auto contributing = read_repo_file("CONTRIBUTING.md");
 	require_contains(contributing, "## Security-Sensitive Changes");
