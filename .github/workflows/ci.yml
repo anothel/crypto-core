@@ -137,3 +137,86 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build-sanitize --output-on-failure
+
+  static-analysis:
+    name: static-analysis-ubuntu-clang
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+
+      - name: Configure compile database
+        shell: bash
+        run: |
+          cmake -S . -B build-analysis \
+            -DCRYPTO_CORE_ENABLE_OPENSSL=OFF \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run clang-tidy
+        shell: bash
+        run: |
+          find src -name '*.cpp' -print0 | xargs -0 clang-tidy -p build-analysis
+
+  coverage:
+    name: coverage-ubuntu-clang
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure coverage
+        shell: bash
+        run: |
+          cmake -S . -B build-coverage \
+            -DCRYPTO_CORE_ENABLE_OPENSSL=OFF \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+
+      - name: Build
+        run: cmake --build build-coverage --parallel
+
+      - name: Test
+        shell: bash
+        run: |
+          LLVM_PROFILE_FILE='crypto-core-%p.profraw' ctest --test-dir build-coverage --output-on-failure
+
+      - name: Report coverage
+        shell: bash
+        run: |
+          llvm-profdata merge -sparse crypto-core-*.profraw -o crypto-core.profdata
+          mapfile -t objects < <(find build-coverage -type f -executable -name 'crypto_core*_tests' -print)
+          llvm-cov report -instr-profile=crypto-core.profdata "${objects[@]/#/-object=}" src include
+
+  fuzzing:
+    name: fuzzing-ubuntu-clang
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build fuzz parser boundaries
+        shell: bash
+        run: |
+          mapfile -t sources < <(find src -name '*.cpp' ! -name 'openssl_provider.cpp' -print)
+          clang++ -std=c++20 -fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer \
+            -I include -I tests \
+            tests/fuzz/fuzz_parser_boundaries.cpp "${sources[@]}" \
+            -o fuzz_parser_boundaries
+
+      - name: Run seed corpus
+        shell: bash
+        run: ./fuzz_parser_boundaries tests/corpus/invalid -runs=256

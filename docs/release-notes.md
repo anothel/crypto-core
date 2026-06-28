@@ -20,6 +20,8 @@ Changed:
   for parser/import/decrypt boundaries.
 - expanded the fuzz boundary harness and corpus to cover ECDSA DER signatures,
   RSA-PSS signatures, and RSA-OAEP ciphertexts.
+- added non-blocking CI jobs for clang-tidy, LLVM coverage reporting, and the
+  libFuzzer seed corpus.
 
 Known limitations:
 

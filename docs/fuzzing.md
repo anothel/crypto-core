@@ -44,14 +44,21 @@ requires deterministic rejection. It is not coverage-guided fuzzing.
 The CMake test build also compiles `tests/fuzz/fuzz_parser_boundaries.cpp` as an
 object target, which catches API drift without requiring libFuzzer locally.
 
+## CI Hook
+
+`fuzzing-ubuntu-clang` builds the harness with libFuzzer and runs the invalid
+seed corpus. The job is non-blocking until signal quality is proven.
+
 ## Manual Fuzzer Build
 
 Use Clang/libFuzzer when available:
 
 ```sh
-clang++ -std=c++20 -fsanitize=fuzzer,address \
-  -I include tests/fuzz/fuzz_parser_boundaries.cpp \
-  src/*.cpp -o fuzz_parser_boundaries
+mapfile -t sources < <(find src -name '*.cpp' ! -name 'openssl_provider.cpp' -print)
+clang++ -std=c++20 -fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer \
+  -I include -I tests tests/fuzz/fuzz_parser_boundaries.cpp "${sources[@]}" \
+  -o fuzz_parser_boundaries
+./fuzz_parser_boundaries tests/corpus/invalid -runs=256
 ```
 
 Keep OpenSSL-specific builds separate; this harness targets native/public

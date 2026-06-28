@@ -81,6 +81,7 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
   [docs/algorithm-status.md](docs/algorithm-status.md),
   [docs/security-model.md](docs/security-model.md),
   [docs/constant-time-notes.md](docs/constant-time-notes.md),
+  [docs/analysis-ci.md](docs/analysis-ci.md),
   [docs/api-contract.md](docs/api-contract.md),
   [docs/crypto-policy.md](docs/crypto-policy.md),
   [docs/crypto-envelope-format.md](docs/crypto-envelope-format.md),
@@ -159,9 +160,9 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Static-analysis and coverage jobs after the current test matrix stays green
-2. Expand fuzzing beyond the current parser/import/decrypt smoke harness
-3. Alpha release checklist and evidence refresh
+1. Alpha release checklist and evidence refresh
+2. Promote non-blocking analysis, coverage, and fuzzing jobs once stable
+3. Grow malformed corpus from real regressions
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

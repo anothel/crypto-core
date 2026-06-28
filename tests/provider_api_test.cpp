@@ -364,9 +364,9 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 
 	const auto roadmap = read_doc("ROADMAP.md");
 	require_contains(roadmap, "## Active Work");
-	require_contains(roadmap, "### P1: Fuzzing CI Hook");
-	require_contains(roadmap, "run the harness manually or non-blocking in CI");
-	require_contains(roadmap, "### P1: Static Analysis And Coverage");
+	require_contains(roadmap, "### P1: Promote Analysis Gates");
+	require_contains(roadmap, "static-analysis-ubuntu-clang");
+	require_contains(roadmap, "fuzzing-ubuntu-clang");
 
 	const auto release_evidence = read_doc("release-evidence.md");
 	require_contains(release_evidence, "Historical evidence");
@@ -385,6 +385,21 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	const auto release_notes = read_doc("release-notes.md");
 	require_contains(release_notes, "## Unreleased");
 	require_contains(release_notes, "Known limitations");
+
+	const auto analysis = read_doc("analysis-ci.md");
+	require_contains(analysis, "## Non-Blocking Jobs");
+	require_contains(analysis, "static-analysis-ubuntu-clang");
+	require_contains(analysis, "coverage-ubuntu-clang");
+	require_contains(analysis, "fuzzing-ubuntu-clang");
+
+	const auto workflow = read_repo_file(".github/workflows/ci.yml");
+	require_contains(workflow, "static-analysis-ubuntu-clang");
+	require_contains(workflow, "coverage-ubuntu-clang");
+	require_contains(workflow, "fuzzing-ubuntu-clang");
+	require_contains(workflow, "continue-on-error: true");
+	require_contains(workflow, "clang-tidy");
+	require_contains(workflow, "llvm-cov report");
+	require_contains(workflow, "-fsanitize=fuzzer,address,undefined");
 
 	const auto fuzzing = read_doc("fuzzing.md");
 	require_contains(fuzzing, "tests/fuzz/fuzz_parser_boundaries.cpp");

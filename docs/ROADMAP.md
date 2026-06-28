@@ -38,36 +38,6 @@ Before calling an alpha/reuse-ready release:
 
 ## Active Work
 
-### P1: Static Analysis And Coverage
-
-Goal: add cheap mechanical checks without blocking useful work too early.
-
-Targets:
-
-- manual or non-blocking `clang-tidy` job first.
-- parser/negative-path coverage reporting.
-- sanitizer coverage expansion only after the current matrix stays stable.
-
-Exit criteria:
-
-- analysis failures are visible in CI before becoming required.
-- coverage reports help find missing parser and negative-path tests.
-
-### P1: Fuzzing CI Hook
-
-Goal: run the current fuzz harness with coverage guidance when toolchains allow.
-
-Targets:
-
-- run the harness manually or non-blocking in CI when Clang/libFuzzer is
-  available.
-- grow `tests/corpus/invalid/` from real regression inputs.
-
-Exit criteria:
-
-- fuzzer build command is validated on at least one supported platform.
-- CI records a non-blocking fuzz run or a documented reason it is unavailable.
-
 ### P1: Alpha Release Preparation
 
 Goal: make `v0.1.0-alpha.1` verifiable without implying production readiness.
@@ -84,6 +54,24 @@ Exit criteria:
 - release evidence names exact commit/run and freshness status.
 - release notes say artifacts are unsigned until signing exists.
 - users can verify source/archive integrity from documented commands.
+
+### P1: Promote Analysis Gates
+
+Goal: decide when non-blocking analysis, coverage, and fuzzing jobs are stable
+enough to become required.
+
+Targets:
+
+- monitor `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
+  `fuzzing-ubuntu-clang` for toolchain noise.
+- fix actionable findings before promoting jobs.
+- keep growing `tests/corpus/invalid/` from real regressions.
+
+Exit criteria:
+
+- jobs are green on normal pull requests.
+- each failure class has a local reproduction command.
+- required status checks are updated only after the jobs are stable.
 
 ## Later
 
