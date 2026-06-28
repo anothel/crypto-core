@@ -391,6 +391,9 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(analysis, "static-analysis-ubuntu-clang");
 	require_contains(analysis, "coverage-ubuntu-clang");
 	require_contains(analysis, "fuzzing-ubuntu-clang");
+	require_contains(analysis, "scripts/ci/static-analysis.sh");
+	require_contains(analysis, "scripts/ci/coverage.sh");
+	require_contains(analysis, "scripts/ci/fuzzing.sh");
 
 	const auto alpha = read_doc("alpha-release-checklist.md");
 	require_contains(alpha, "## v0.1.0-alpha.1 Checklist");
@@ -414,9 +417,21 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(workflow, "coverage-ubuntu-clang");
 	require_contains(workflow, "fuzzing-ubuntu-clang");
 	require_contains(workflow, "continue-on-error: true");
-	require_contains(workflow, "clang-tidy");
-	require_contains(workflow, "llvm-cov report");
-	require_contains(workflow, "-fsanitize=fuzzer,address,undefined");
+	require_contains(workflow, "bash scripts/ci/static-analysis.sh");
+	require_contains(workflow, "bash scripts/ci/coverage.sh");
+	require_contains(workflow, "bash scripts/ci/fuzzing.sh");
+
+	const auto static_script = read_repo_file("scripts/ci/static-analysis.sh");
+	require_contains(static_script, "clang-tidy");
+	require_contains(static_script, "CMAKE_EXPORT_COMPILE_COMMANDS=ON");
+
+	const auto coverage_script = read_repo_file("scripts/ci/coverage.sh");
+	require_contains(coverage_script, "llvm-profdata merge");
+	require_contains(coverage_script, "llvm-cov report");
+
+	const auto fuzzing_script = read_repo_file("scripts/ci/fuzzing.sh");
+	require_contains(fuzzing_script, "-fsanitize=fuzzer,address,undefined");
+	require_contains(fuzzing_script, "tests/corpus/invalid");
 
 	const auto fuzzing = read_doc("fuzzing.md");
 	require_contains(fuzzing, "tests/fuzz/fuzz_parser_boundaries.cpp");

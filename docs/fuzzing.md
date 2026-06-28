@@ -54,11 +54,7 @@ seed corpus. The job is non-blocking until signal quality is proven.
 Use Clang/libFuzzer when available:
 
 ```sh
-mapfile -t sources < <(find src -name '*.cpp' ! -name 'openssl_provider.cpp' -print)
-clang++ -std=c++20 -fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer \
-  -I include -I tests tests/fuzz/fuzz_parser_boundaries.cpp "${sources[@]}" \
-  -o fuzz_parser_boundaries
-./fuzz_parser_boundaries tests/corpus/invalid -runs=256
+bash scripts/ci/fuzzing.sh
 ```
 
 Keep OpenSSL-specific builds separate; this harness targets native/public

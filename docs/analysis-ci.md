@@ -5,12 +5,28 @@ until their signal is stable.
 
 ## Non-Blocking Jobs
 
-- `static-analysis-ubuntu-clang`: configures a compile database and runs
-  `clang-tidy` on `src/*.cpp`.
+- `static-analysis-ubuntu-clang`: configures a native compile database and runs
+  `clang-tidy` on native `src/*.cpp`.
 - `coverage-ubuntu-clang`: builds with Clang source coverage instrumentation,
   runs tests, and prints an `llvm-cov report`.
 - `fuzzing-ubuntu-clang`: builds `tests/fuzz/fuzz_parser_boundaries.cpp` with
   libFuzzer and runs the invalid seed corpus.
+
+## Local Reproduction
+
+Run the same commands as CI on Ubuntu or another Clang/LLVM environment:
+
+```sh
+bash scripts/ci/static-analysis.sh
+bash scripts/ci/coverage.sh
+bash scripts/ci/fuzzing.sh
+```
+
+Set `FUZZ_RUNS` to change the fuzz smoke budget:
+
+```sh
+FUZZ_RUNS=1024 bash scripts/ci/fuzzing.sh
+```
 
 ## Promotion Criteria
 

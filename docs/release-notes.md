@@ -24,6 +24,8 @@ Changed:
   libFuzzer seed corpus.
 - added an alpha release checklist document and GitHub issue template for
   CI evidence, install smoke, checksum, SBOM, signing status, and limitations.
+- added local reproduction scripts for non-blocking static analysis, coverage,
+  and fuzzing CI jobs.
 
 Known limitations:
 

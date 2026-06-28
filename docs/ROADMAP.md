@@ -53,7 +53,6 @@ Targets:
 Exit criteria:
 
 - jobs are green on normal pull requests.
-- each failure class has a local reproduction command.
 - required status checks are updated only after the jobs are stable.
 
 ## Later
