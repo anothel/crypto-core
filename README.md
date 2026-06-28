@@ -10,7 +10,7 @@ encoding.
 
 - `NativeProvider` is the default backend and proof target.
 - `OpenSSLProvider` is optional and used as compatibility backend and
-  differential test oracle.
+  RSA/ECDSA/Ed25519 differential test oracle where supported.
 - Public convenience APIs use `default_provider()`.
 - Core APIs accept explicit `ICryptoProvider&` injection.
 - 0.x does not support runtime replacement of the default provider.
@@ -81,10 +81,13 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
   [docs/algorithm-status.md](docs/algorithm-status.md),
   [docs/security-model.md](docs/security-model.md),
   [docs/constant-time-notes.md](docs/constant-time-notes.md),
+  [docs/api-contract.md](docs/api-contract.md),
   [docs/crypto-policy.md](docs/crypto-policy.md),
   [docs/crypto-envelope-format.md](docs/crypto-envelope-format.md),
   [docs/key-lifecycle.md](docs/key-lifecycle.md),
+  [docs/quickstart.md](docs/quickstart.md),
   [docs/release-integrity.md](docs/release-integrity.md),
+  [docs/release-notes.md](docs/release-notes.md),
   [docs/security-review-checklist.md](docs/security-review-checklist.md),
   [SECURITY.md](SECURITY.md), and
   [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -97,6 +100,8 @@ install-tree smoke evidence is in
 [docs/release-evidence.md](docs/release-evidence.md).
 
 ## Build
+
+For focused consumer examples, see [docs/quickstart.md](docs/quickstart.md).
 
 Native-only build:
 
@@ -153,8 +158,9 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Later: provider-backed KeyStore handles, shared ASN.1 DER, PEM, CSR,
-   PKCS#11, and PQC
+1. Fuzzing harnesses and malformed corpus for parser/import/decrypt surfaces
+2. API misuse tests and provider capability/failure-mode contract checks
+3. Static-analysis and coverage jobs after the current test matrix stays green
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

@@ -1,5 +1,9 @@
 # Release Evidence
 
+This is Historical evidence for the exact run and commit named below. It is not
+proof that current `main` is green after later commits. Each release candidate
+must add fresh evidence or create a versioned evidence file.
+
 Evidence captured for the P0 CI/install gate.
 
 ## Remote CI

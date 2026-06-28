@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <span>
 #include <string>
@@ -108,9 +109,21 @@ std::string read_doc(std::string_view name)
 	return std::string(std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
 }
 
+std::string read_repo_file(std::string_view name)
+{
+	const auto path = std::filesystem::path{CRYPTO_CORE_SOURCE_DIR} / std::string{name};
+	std::ifstream input(path);
+	require(input.is_open());
+	return std::string(std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
+}
+
 void require_contains(std::string_view haystack, std::string_view needle)
 {
-	require(haystack.find(needle) != std::string_view::npos);
+	if (haystack.find(needle) == std::string_view::npos)
+	{
+		std::cerr << "missing required text: " << needle << '\n';
+		std::exit(1);
+	}
 }
 
 } // namespace
@@ -339,6 +352,48 @@ void test_security_review_checklist_covers_uploaded_roadmap_controls()
 	require_contains(doc, "- release artifacts have SBOM, checksums, signing status, and vulnerability reporting notes");
 }
 
+void test_uploaded_analysis_documentation_actions_are_tracked()
+{
+	const auto readme = read_repo_file("README.md");
+	require_contains(readme, "OpenSSLProvider` is optional and used as compatibility backend and");
+	require_contains(readme, "Ed25519 differential test oracle");
+	require_contains(readme, "[docs/api-contract.md](docs/api-contract.md)");
+	require_contains(readme, "[docs/quickstart.md](docs/quickstart.md)");
+	require_contains(readme, "[docs/release-notes.md](docs/release-notes.md)");
+
+	const auto roadmap = read_doc("ROADMAP.md");
+	require_contains(roadmap, "## Active Work");
+	require_contains(roadmap, "### P0: Fuzzing And Malformed Corpus");
+	require_contains(roadmap, "DER/SPKI/PKCS#8/PKCS#1 import");
+	require_contains(roadmap, "### P1: Static Analysis And Coverage");
+
+	const auto release_evidence = read_doc("release-evidence.md");
+	require_contains(release_evidence, "Historical evidence");
+	require_contains(release_evidence, "current `main` is green");
+
+	const auto api_contract = read_doc("api-contract.md");
+	require_contains(api_contract, "## Provider Capability Contract");
+	require_contains(api_contract, "A false `supports` result means callers must not expect");
+	require_contains(api_contract, "## Raw And Encoded Key Material");
+
+	const auto quickstart = read_doc("quickstart.md");
+	require_contains(quickstart, "## Consumer CMake");
+	require_contains(quickstart, "## AES-GCM");
+	require_contains(quickstart, "Never reuse an AES-GCM nonce with the same key");
+
+	const auto release_notes = read_doc("release-notes.md");
+	require_contains(release_notes, "## Unreleased");
+	require_contains(release_notes, "Known limitations");
+
+	const auto contributing = read_repo_file("CONTRIBUTING.md");
+	require_contains(contributing, "## Security-Sensitive Changes");
+	require_contains(contributing, "add or update negative tests");
+
+	const auto pr_template = read_repo_file(".github/pull_request_template.md");
+	require_contains(pr_template, "Security checklist");
+	require_contains(pr_template, "I updated docs and tests for any supported algorithm, parameter, or format change");
+}
+
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 void test_openssl_provider_capability_matrix_matches_status_docs()
 {
@@ -383,6 +438,7 @@ int main()
 	test_release_integrity_doc_defines_artifact_verification_contract();
 	test_governance_docs_cover_crypto_policy_envelope_and_key_lifecycle();
 	test_security_review_checklist_covers_uploaded_roadmap_controls();
+	test_uploaded_analysis_documentation_actions_are_tracked();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif
