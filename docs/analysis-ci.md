@@ -41,3 +41,12 @@ Move a job from non-blocking to required only after:
 
 On Windows/MSVC, use the CMake object target and `crypto_core.fuzz_boundary_smoke`
 until Clang/libFuzzer and LLVM coverage tools are available.
+
+## Generated Files
+
+The reproduction scripts keep generated artifacts under ignored build
+directories:
+
+- coverage profiles: `build-coverage/profiles/`
+- merged coverage data: `build-coverage/crypto-core.profdata`
+- fuzz binary: `build-fuzz/fuzz_parser_boundaries`

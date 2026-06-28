@@ -450,6 +450,16 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(pr_template, "I updated docs and tests for any supported algorithm, parameter, or format change");
 }
 
+void test_analysis_reproduction_scripts_keep_generated_artifacts_under_build_dirs()
+{
+	const auto coverage_script = read_repo_file("scripts/ci/coverage.sh");
+	require_contains(coverage_script, "build-coverage/profiles");
+	require_contains(coverage_script, "build-coverage/crypto-core.profdata");
+
+	const auto fuzzing_script = read_repo_file("scripts/ci/fuzzing.sh");
+	require_contains(fuzzing_script, "build-fuzz/fuzz_parser_boundaries");
+}
+
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 void test_openssl_provider_capability_matrix_matches_status_docs()
 {
@@ -495,6 +505,7 @@ int main()
 	test_governance_docs_cover_crypto_policy_envelope_and_key_lifecycle();
 	test_security_review_checklist_covers_uploaded_roadmap_controls();
 	test_uploaded_analysis_documentation_actions_are_tracked();
+	test_analysis_reproduction_scripts_keep_generated_artifacts_under_build_dirs();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif

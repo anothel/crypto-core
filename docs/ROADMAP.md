@@ -48,11 +48,14 @@ Targets:
 - monitor `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
   `fuzzing-ubuntu-clang` for toolchain noise.
 - fix actionable findings before promoting jobs.
+- keep local reproduction scripts from writing generated artifacts outside
+  ignored build directories.
 - keep growing `tests/corpus/invalid/` from real regressions.
 
 Exit criteria:
 
 - jobs are green on normal pull requests.
+- reproduction scripts leave no tracked or untracked root artifacts.
 - required status checks are updated only after the jobs are stable.
 
 ## Later

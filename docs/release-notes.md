@@ -26,6 +26,8 @@ Changed:
   CI evidence, install smoke, checksum, SBOM, signing status, and limitations.
 - added local reproduction scripts for non-blocking static analysis, coverage,
   and fuzzing CI jobs.
+- kept coverage and fuzzing reproduction artifacts under ignored build
+  directories.
 
 Known limitations:
 

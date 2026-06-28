@@ -10,7 +10,11 @@ cmake -S . -B build-coverage \
   -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 
 cmake --build build-coverage --parallel
-LLVM_PROFILE_FILE='crypto-core-%p.profraw' ctest --test-dir build-coverage --output-on-failure
-llvm-profdata merge -sparse crypto-core-*.profraw -o crypto-core.profdata
+profile_dir="build-coverage/profiles"
+profdata="build-coverage/crypto-core.profdata"
+rm -rf "$profile_dir"
+mkdir -p "$profile_dir"
+LLVM_PROFILE_FILE="${profile_dir}/crypto-core-%p.profraw" ctest --test-dir build-coverage --output-on-failure
+llvm-profdata merge -sparse "${profile_dir}"/crypto-core-*.profraw -o "$profdata"
 mapfile -t objects < <(find build-coverage -type f -executable -name 'crypto_core*_tests' -print)
-llvm-cov report -instr-profile=crypto-core.profdata "${objects[@]/#/-object=}" src include
+llvm-cov report -instr-profile="$profdata" "${objects[@]/#/-object=}" src include
