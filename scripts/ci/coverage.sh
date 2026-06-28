@@ -17,4 +17,12 @@ mkdir -p "$profile_dir"
 LLVM_PROFILE_FILE="${profile_dir}/crypto-core-%p.profraw" ctest --test-dir build-coverage --output-on-failure
 llvm-profdata merge -sparse "${profile_dir}"/crypto-core-*.profraw -o "$profdata"
 mapfile -t objects < <(find build-coverage -type f -executable -name 'crypto_core*_tests' -print)
-llvm-cov report -instr-profile="$profdata" "${objects[@]/#/-object=}" src include
+if [ "${#objects[@]}" -eq 0 ]; then
+  echo "error: no coverage test binaries found" >&2
+  exit 1
+fi
+llvm_cov_args=("${objects[0]}")
+for object in "${objects[@]:1}"; do
+  llvm_cov_args+=("-object=${object}")
+done
+llvm-cov report -instr-profile="$profdata" "${llvm_cov_args[@]}" src include

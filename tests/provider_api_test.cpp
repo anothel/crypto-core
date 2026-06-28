@@ -456,6 +456,10 @@ void test_analysis_reproduction_scripts_keep_generated_artifacts_under_build_dir
 	const auto coverage_script = read_repo_file("scripts/ci/coverage.sh");
 	require_contains(coverage_script, "profile_dir=\"$PWD/build-coverage/profiles\"");
 	require_contains(coverage_script, "build-coverage/crypto-core.profdata");
+	require_contains(coverage_script, "if [ \"${#objects[@]}\" -eq 0 ]; then");
+	require_contains(coverage_script, "llvm_cov_args=(\"${objects[0]}\")");
+	require_contains(coverage_script, "llvm_cov_args+=(\"-object=${object}\")");
+	require_contains(coverage_script, "llvm-cov report -instr-profile=\"$profdata\" \"${llvm_cov_args[@]}\" src include");
 
 	const auto fuzzing_script = read_repo_file("scripts/ci/fuzzing.sh");
 	require_contains(fuzzing_script, "build-fuzz/fuzz_parser_boundaries");
