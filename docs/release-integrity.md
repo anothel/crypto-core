@@ -100,6 +100,20 @@ Each versioned release should state:
 - new unsupported modes or removed experimental surfaces
 - known unsigned-artifact or missing-SBOM exceptions
 
+## Alpha Release Checklist Issue
+
+For each alpha candidate, create a release checklist issue before tagging. Use
+`.github/ISSUE_TEMPLATE/alpha-release-checklist.md` and keep it linked from the
+release notes or release evidence.
+
+The issue must track:
+
+- CI run links
+- install-tree consumer smoke
+- checksum and SBOM status
+- signing status, including when artifacts are unsigned
+- known limitations and provider differences
+
 ## Release Checklist
 
 Before publishing versioned artifacts:

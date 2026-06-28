@@ -83,6 +83,7 @@ The active plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
   [docs/constant-time-notes.md](docs/constant-time-notes.md),
   [docs/analysis-ci.md](docs/analysis-ci.md),
   [docs/api-contract.md](docs/api-contract.md),
+  [docs/alpha-release-checklist.md](docs/alpha-release-checklist.md),
   [docs/crypto-policy.md](docs/crypto-policy.md),
   [docs/crypto-envelope-format.md](docs/crypto-envelope-format.md),
   [docs/fuzzing.md](docs/fuzzing.md),
@@ -160,9 +161,9 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Alpha release checklist and evidence refresh
-2. Promote non-blocking analysis, coverage, and fuzzing jobs once stable
-3. Grow malformed corpus from real regressions
+1. Promote non-blocking analysis, coverage, and fuzzing jobs once stable
+2. Grow malformed corpus from real regressions
+3. Keep alpha release evidence fresh for each candidate
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

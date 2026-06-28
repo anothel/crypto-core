@@ -22,6 +22,8 @@ Changed:
   RSA-PSS signatures, and RSA-OAEP ciphertexts.
 - added non-blocking CI jobs for clang-tidy, LLVM coverage reporting, and the
   libFuzzer seed corpus.
+- added an alpha release checklist document and GitHub issue template for
+  CI evidence, install smoke, checksum, SBOM, signing status, and limitations.
 
 Known limitations:
 

@@ -38,23 +38,6 @@ Before calling an alpha/reuse-ready release:
 
 ## Active Work
 
-### P1: Alpha Release Preparation
-
-Goal: make `v0.1.0-alpha.1` verifiable without implying production readiness.
-
-Targets:
-
-- release checklist issue with CI run links, install smoke, checksum, SBOM,
-  signing status, and known limitations.
-- release notes for security-relevant changes and provider differences.
-- source archive checksum policy before binary artifacts.
-
-Exit criteria:
-
-- release evidence names exact commit/run and freshness status.
-- release notes say artifacts are unsigned until signing exists.
-- users can verify source/archive integrity from documented commands.
-
 ### P1: Promote Analysis Gates
 
 Goal: decide when non-blocking analysis, coverage, and fuzzing jobs are stable

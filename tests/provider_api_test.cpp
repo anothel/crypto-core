@@ -392,6 +392,23 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(analysis, "coverage-ubuntu-clang");
 	require_contains(analysis, "fuzzing-ubuntu-clang");
 
+	const auto alpha = read_doc("alpha-release-checklist.md");
+	require_contains(alpha, "## v0.1.0-alpha.1 Checklist");
+	require_contains(alpha, "CI run links");
+	require_contains(alpha, "install-tree consumer smoke");
+	require_contains(alpha, "artifacts are unsigned");
+	require_contains(alpha, "SBOM status");
+
+	const auto issue_template = read_repo_file(".github/ISSUE_TEMPLATE/alpha-release-checklist.md");
+	require_contains(issue_template, "name: Alpha release checklist");
+	require_contains(issue_template, "CI evidence");
+	require_contains(issue_template, "Known limitations");
+	require_contains(issue_template, "Unsigned artifacts");
+
+	const auto release_integrity = read_doc("release-integrity.md");
+	require_contains(release_integrity, "## Alpha Release Checklist Issue");
+	require_contains(release_integrity, "create a release checklist issue before tagging");
+
 	const auto workflow = read_repo_file(".github/workflows/ci.yml");
 	require_contains(workflow, "static-analysis-ubuntu-clang");
 	require_contains(workflow, "coverage-ubuntu-clang");
