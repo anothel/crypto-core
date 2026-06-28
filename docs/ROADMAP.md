@@ -42,8 +42,11 @@ Keep these out of active work until a current focus item needs them:
 
 - full `docs/architecture.md`, `docs/api-contract.md`,
   `docs/testing-strategy.md`, `docs/release-process.md`, and
-  `docs/migration-guide.md` split. Keep content in existing docs until a split
+  `docs/migration-guide.md` split. Keep content in existing policy,
+  envelope, key lifecycle, security model, and release docs until a split
   removes real duplication.
+- envelope serializer implementation and golden file tests.
+- provider-backed key lifecycle implementation.
 - shared ASN.1 DER core.
 - PEM parser/encoder.
 - CSR parser.

@@ -307,6 +307,38 @@ void test_release_integrity_doc_defines_artifact_verification_contract()
 	require_contains(doc, "- publish signing key fingerprint and verification command when artifacts are signed");
 }
 
+void test_governance_docs_cover_crypto_policy_envelope_and_key_lifecycle()
+{
+	const auto policy = read_doc("crypto-policy.md");
+	require_contains(policy, "## Allowed Algorithms");
+	require_contains(policy, "- AES-128/192/256-GCM");
+	require_contains(policy, "- RSA-PKCS1-v1_5 encryption for new data");
+	require_contains(policy, "Nonce/IV values for AES-GCM are caller-supplied today");
+
+	const auto envelope = read_doc("crypto-envelope-format.md");
+	require_contains(envelope, "## Versioned Envelope");
+	require_contains(envelope, "\"suite\"");
+	require_contains(envelope, "\"kid\"");
+	require_contains(envelope, "New encryption must emit only the latest envelope version");
+
+	const auto key_lifecycle = read_doc("key-lifecycle.md");
+	require_contains(key_lifecycle, "## KeyProvider Boundary");
+	require_contains(key_lifecycle, "`keyId`");
+	require_contains(key_lifecycle, "Production integrations should use KMS, HSM, or Secret Manager");
+}
+
+void test_security_review_checklist_covers_uploaded_roadmap_controls()
+{
+	const auto doc = read_doc("security-review-checklist.md");
+
+	require_contains(doc, "## Required Checks");
+	require_contains(doc, "- forbidden algorithms are not introduced");
+	require_contains(doc, "- nonce, IV, and salt handling is explicit");
+	require_contains(doc, "- logs and errors do not expose plaintext, keys, tokens, passwords, seeds, or private keys");
+	require_contains(doc, "- malformed inputs have deterministic negative tests");
+	require_contains(doc, "- release artifacts have SBOM, checksums, signing status, and vulnerability reporting notes");
+}
+
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 void test_openssl_provider_capability_matrix_matches_status_docs()
 {
@@ -349,6 +381,8 @@ int main()
 	test_algorithm_status_doc_matches_provider_capability_matrix();
 	test_security_model_documents_recommended_use_and_misuse_rejection();
 	test_release_integrity_doc_defines_artifact_verification_contract();
+	test_governance_docs_cover_crypto_policy_envelope_and_key_lifecycle();
+	test_security_review_checklist_covers_uploaded_roadmap_controls();
 #if defined(CRYPTO_CORE_ENABLE_OPENSSL)
 	test_openssl_provider_capability_matrix_matches_status_docs();
 #endif
