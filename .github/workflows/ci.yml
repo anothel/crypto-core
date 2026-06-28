@@ -141,7 +141,6 @@ jobs:
   static-analysis:
     name: static-analysis-ubuntu-clang
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +158,6 @@ jobs:
   coverage:
     name: coverage-ubuntu-clang
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +175,6 @@ jobs:
   fuzzing:
     name: fuzzing-ubuntu-clang
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

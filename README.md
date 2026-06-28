@@ -161,9 +161,8 @@ $env:Path = "C:\vcpkg\installed\x64-windows\bin;$env:Path"
 
 Near-term queue:
 
-1. Promote non-blocking analysis, coverage, and fuzzing jobs once stable
-2. Grow malformed corpus from real regressions
-3. Keep alpha release evidence fresh for each candidate
+1. Grow malformed corpus from real regressions
+2. Keep alpha release evidence fresh for each candidate
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for quantified remaining work.
 

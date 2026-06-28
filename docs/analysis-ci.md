@@ -1,9 +1,8 @@
 # Analysis CI
 
-Static analysis, coverage, and coverage-guided fuzzing are non-blocking CI jobs
-until their signal is stable.
+Static analysis, coverage, and coverage-guided fuzzing are required CI jobs.
 
-## Non-Blocking Jobs
+## Required Jobs
 
 - `static-analysis-ubuntu-clang`: configures a native compile database and runs
   `clang-tidy` on native `src/*.cpp`.
@@ -29,9 +28,9 @@ Set `FUZZ_RUNS` to change the fuzz smoke budget:
 FUZZ_RUNS=1024 bash scripts/ci/fuzzing.sh
 ```
 
-## Promotion Criteria
+## Required-Job Criteria
 
-Move a job from non-blocking to required only after:
+Keep these jobs required while:
 
 - the job is green on normal pull requests.
 - failures are actionable and not toolchain noise.

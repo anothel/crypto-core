@@ -373,7 +373,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 
 	const auto roadmap = read_doc("ROADMAP.md");
 	require_contains(roadmap, "## Active Work");
-	require_contains(roadmap, "### P1: Promote Analysis Gates");
+	require_contains(roadmap, "### P1: Grow Malformed Corpus");
 	require_contains(roadmap, "static-analysis-ubuntu-clang");
 	require_contains(roadmap, "fuzzing-ubuntu-clang");
 
@@ -396,10 +396,11 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(release_notes, "Known limitations");
 
 	const auto analysis = read_doc("analysis-ci.md");
-	require_contains(analysis, "## Non-Blocking Jobs");
+	require_contains(analysis, "## Required Jobs");
 	require_contains(analysis, "static-analysis-ubuntu-clang");
 	require_contains(analysis, "coverage-ubuntu-clang");
 	require_contains(analysis, "fuzzing-ubuntu-clang");
+	require_not_contains(analysis, "non-blocking");
 	require_contains(analysis, "scripts/ci/static-analysis.sh");
 	require_contains(analysis, "scripts/ci/coverage.sh");
 	require_contains(analysis, "scripts/ci/fuzzing.sh");
@@ -426,7 +427,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(workflow, "coverage-ubuntu-clang");
 	require_contains(workflow, "fuzzing-ubuntu-clang");
 	require_contains(workflow, "sudo apt-get install -y llvm");
-	require_contains(workflow, "continue-on-error: true");
+	require_not_contains(workflow, "continue-on-error: true");
 	require_contains(workflow, "bash scripts/ci/static-analysis.sh");
 	require_contains(workflow, "bash scripts/ci/coverage.sh");
 	require_contains(workflow, "bash scripts/ci/fuzzing.sh");
@@ -447,6 +448,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(fuzzing, "tests/fuzz/fuzz_parser_boundaries.cpp");
 	require_contains(fuzzing, "tests/corpus/invalid/");
 	require_contains(fuzzing, "crypto_core.fuzz_boundary_smoke");
+	require_contains(fuzzing, "The job is required");
 	require_contains(fuzzing, "ECDSA DER signature verify");
 	require_contains(fuzzing, "RSA-PSS signature verify");
 	require_contains(fuzzing, "RSA-OAEP decrypt");

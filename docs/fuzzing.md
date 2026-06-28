@@ -1,7 +1,7 @@
 # Fuzzing
 
-Fuzzing is not a release gate yet. This document tracks the current harness and
-corpus contract so parser/import/decrypt boundaries have one place to grow.
+Fuzzing is a required CI smoke gate. This document tracks the current harness
+and corpus contract so parser/import/decrypt boundaries have one place to grow.
 
 ## Current Harness
 
@@ -47,7 +47,7 @@ object target, which catches API drift without requiring libFuzzer locally.
 ## CI Hook
 
 `fuzzing-ubuntu-clang` builds the harness with libFuzzer and runs the invalid
-seed corpus. The job is non-blocking until signal quality is proven.
+seed corpus. The job is required.
 
 ## Manual Fuzzer Build
 

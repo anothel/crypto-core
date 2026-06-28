@@ -38,25 +38,26 @@ Before calling an alpha/reuse-ready release:
 
 ## Active Work
 
-### P1: Promote Analysis Gates
+### P1: Grow Malformed Corpus
 
-Goal: decide when non-blocking analysis, coverage, and fuzzing jobs are stable
-enough to become required.
+Goal: keep expanding malformed parser/import/decrypt coverage from real
+regressions and edge cases.
 
 Targets:
 
-- monitor `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
-  `fuzzing-ubuntu-clang` for toolchain noise.
-- fix actionable findings before promoting jobs.
-- keep local reproduction scripts from writing generated artifacts outside
-  ignored build directories.
-- keep growing `tests/corpus/invalid/` from real regressions.
+- add `tests/corpus/invalid/` seeds for newly found malformed-input bugs.
+- keep `tests/fuzz/fuzz_parser_boundaries.cpp` aligned with supported public
+  parser/import/decrypt boundaries.
+- keep `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
+  `fuzzing-ubuntu-clang` green as required CI jobs.
 
 Exit criteria:
 
-- jobs are green on normal pull requests.
-- reproduction scripts leave no tracked or untracked root artifacts.
-- required status checks are updated only after the jobs are stable.
+- supported malformed parser/import/decrypt boundaries have representative
+  negative corpus coverage.
+- each new malformed-input regression lands with a corpus seed or focused
+  negative test.
+- required analysis jobs stay green on normal pull requests.
 
 ## Later
 

@@ -20,16 +20,18 @@ Changed:
   for parser/import/decrypt boundaries.
 - expanded the fuzz boundary harness and corpus to cover ECDSA DER signatures,
   RSA-PSS signatures, and RSA-OAEP ciphertexts.
-- added non-blocking CI jobs for clang-tidy, LLVM coverage reporting, and the
-  libFuzzer seed corpus.
+- added CI jobs for clang-tidy, LLVM coverage reporting, and the libFuzzer seed
+  corpus.
 - added an alpha release checklist document and GitHub issue template for
   CI evidence, install smoke, checksum, SBOM, signing status, and limitations.
-- added local reproduction scripts for non-blocking static analysis, coverage,
-  and fuzzing CI jobs.
+- added local reproduction scripts for static analysis, coverage, and fuzzing
+  CI jobs.
 - kept coverage and fuzzing reproduction artifacts under ignored build
   directories.
 - installed LLVM coverage tools in CI before running the coverage reproduction
   script.
+- promoted static analysis, coverage, and fuzzing CI jobs to required workflow
+  gates after stabilizing toolchain noise.
 
 Known limitations:
 
@@ -37,5 +39,4 @@ Known limitations:
 - no provider-backed KMS/HSM/Secret Manager key lifecycle implementation yet.
 - AES-GCM nonce uniqueness is caller responsibility in the current low-level
   API.
-- coverage-guided fuzzing and coverage jobs are planned but not release gates
-  yet.
+- coverage-guided fuzzing and coverage jobs are required CI workflow gates.

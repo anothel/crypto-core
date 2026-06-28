@@ -23,6 +23,4 @@ production-ready or production-certified.
 - no external audit is claimed.
 - no formal constant-time certification is claimed.
 - unsigned artifacts require users to verify source commit and CI evidence.
-- coverage-guided fuzzing and analysis jobs may remain non-blocking until
-  signal quality is proven.
-
+- coverage-guided fuzzing and analysis jobs are required CI jobs.
