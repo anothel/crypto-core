@@ -18,6 +18,8 @@ Changed:
   release preparation in the roadmap.
 - added a fuzz boundary smoke test, invalid corpus path, and libFuzzer skeleton
   for parser/import/decrypt boundaries.
+- expanded the fuzz boundary harness and corpus to cover ECDSA DER signatures,
+  RSA-PSS signatures, and RSA-OAEP ciphertexts.
 
 Known limitations:
 

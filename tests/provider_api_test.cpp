@@ -364,7 +364,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 
 	const auto roadmap = read_doc("ROADMAP.md");
 	require_contains(roadmap, "## Active Work");
-	require_contains(roadmap, "### P1: Expand Fuzzing");
+	require_contains(roadmap, "### P1: Fuzzing CI Hook");
 	require_contains(roadmap, "run the harness manually or non-blocking in CI");
 	require_contains(roadmap, "### P1: Static Analysis And Coverage");
 
@@ -390,6 +390,9 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(fuzzing, "tests/fuzz/fuzz_parser_boundaries.cpp");
 	require_contains(fuzzing, "tests/corpus/invalid/");
 	require_contains(fuzzing, "crypto_core.fuzz_boundary_smoke");
+	require_contains(fuzzing, "ECDSA DER signature verify");
+	require_contains(fuzzing, "RSA-PSS signature verify");
+	require_contains(fuzzing, "RSA-OAEP decrypt");
 
 	const auto contributing = read_repo_file("CONTRIBUTING.md");
 	require_contains(contributing, "## Security-Sensitive Changes");

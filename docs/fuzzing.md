@@ -16,6 +16,9 @@ Covered boundaries:
 - RSA PKCS#8 private-key import.
 - P-256 SEC1 private-key import.
 - AES-GCM decrypt with mutated tag and ciphertext.
+- ECDSA DER signature verify.
+- RSA-PSS signature verify.
+- RSA-OAEP decrypt.
 
 ## Corpus
 
@@ -29,11 +32,17 @@ Current corpus:
 - `der_truncated_sequence.der`
 - `aead_short_tag.bin`
 - `aead_tampered_ciphertext.bin`
+- `ecdsa_der_truncated_signature.der`
+- `rsa_pss_short_signature.bin`
+- `rsa_oaep_short_ciphertext.bin`
 
 ## Local Smoke
 
 `crypto_core.fuzz_boundary_smoke` runs the seed corpus through public APIs and
 requires deterministic rejection. It is not coverage-guided fuzzing.
+
+The CMake test build also compiles `tests/fuzz/fuzz_parser_boundaries.cpp` as an
+object target, which catches API drift without requiring libFuzzer locally.
 
 ## Manual Fuzzer Build
 
@@ -47,3 +56,6 @@ clang++ -std=c++20 -fsanitize=fuzzer,address \
 
 Keep OpenSSL-specific builds separate; this harness targets native/public
 boundaries first.
+
+On MSVC-only local environments, use the CMake object target and smoke test as
+the available fallback until Clang/libFuzzer is installed.

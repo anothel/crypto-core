@@ -53,14 +53,12 @@ Exit criteria:
 - analysis failures are visible in CI before becoming required.
 - coverage reports help find missing parser and negative-path tests.
 
-### P1: Expand Fuzzing
+### P1: Fuzzing CI Hook
 
-Goal: turn the current smoke harness into useful coverage-guided fuzzing.
+Goal: run the current fuzz harness with coverage guidance when toolchains allow.
 
 Targets:
 
-- add ECDSA DER signature parsing to the fuzz harness.
-- add RSA-PSS signature and RSA-OAEP ciphertext fuzz selectors.
 - run the harness manually or non-blocking in CI when Clang/libFuzzer is
   available.
 - grow `tests/corpus/invalid/` from real regression inputs.
