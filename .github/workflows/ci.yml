@@ -164,6 +164,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install LLVM tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm
+
       - name: Run coverage
         shell: bash
         run: bash scripts/ci/coverage.sh

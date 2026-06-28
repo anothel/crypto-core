@@ -416,6 +416,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(workflow, "static-analysis-ubuntu-clang");
 	require_contains(workflow, "coverage-ubuntu-clang");
 	require_contains(workflow, "fuzzing-ubuntu-clang");
+	require_contains(workflow, "sudo apt-get install -y llvm");
 	require_contains(workflow, "continue-on-error: true");
 	require_contains(workflow, "bash scripts/ci/static-analysis.sh");
 	require_contains(workflow, "bash scripts/ci/coverage.sh");

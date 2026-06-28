@@ -8,7 +8,8 @@ until their signal is stable.
 - `static-analysis-ubuntu-clang`: configures a native compile database and runs
   `clang-tidy` on native `src/*.cpp`.
 - `coverage-ubuntu-clang`: builds with Clang source coverage instrumentation,
-  runs tests, and prints an `llvm-cov report`.
+  runs tests, and prints an `llvm-cov report`. The CI job installs the LLVM
+  tools package for `llvm-profdata` and `llvm-cov`.
 - `fuzzing-ubuntu-clang`: builds `tests/fuzz/fuzz_parser_boundaries.cpp` with
   libFuzzer and runs the invalid seed corpus.
 

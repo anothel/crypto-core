@@ -28,6 +28,8 @@ Changed:
   and fuzzing CI jobs.
 - kept coverage and fuzzing reproduction artifacts under ignored build
   directories.
+- installed LLVM coverage tools in CI before running the coverage reproduction
+  script.
 
 Known limitations:
 
