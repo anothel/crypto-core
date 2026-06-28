@@ -4,7 +4,6 @@ set -euo pipefail
 cmake -S . -B build-coverage \
   -DCRYPTO_CORE_ENABLE_OPENSSL=OFF \
   -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_C_COMPILER=clang \
   -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
   -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fcoverage-mapping"

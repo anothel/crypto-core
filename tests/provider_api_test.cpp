@@ -126,6 +126,15 @@ void require_contains(std::string_view haystack, std::string_view needle)
 	}
 }
 
+void require_not_contains(std::string_view haystack, std::string_view needle)
+{
+	if (haystack.find(needle) != std::string_view::npos)
+	{
+		std::cerr << "unexpected text: " << needle << '\n';
+		std::exit(1);
+	}
+}
+
 } // namespace
 
 void test_hash_algorithm_metadata()
@@ -454,6 +463,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 void test_analysis_reproduction_scripts_keep_generated_artifacts_under_build_dirs()
 {
 	const auto coverage_script = read_repo_file("scripts/ci/coverage.sh");
+	require_not_contains(coverage_script, "CMAKE_C_COMPILER");
 	require_contains(coverage_script, "profile_dir=\"$PWD/build-coverage/profiles\"");
 	require_contains(coverage_script, "build-coverage/crypto-core.profdata");
 	require_contains(coverage_script, "if [ \"${#objects[@]}\" -eq 0 ]; then");
