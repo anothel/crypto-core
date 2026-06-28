@@ -454,7 +454,7 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 void test_analysis_reproduction_scripts_keep_generated_artifacts_under_build_dirs()
 {
 	const auto coverage_script = read_repo_file("scripts/ci/coverage.sh");
-	require_contains(coverage_script, "build-coverage/profiles");
+	require_contains(coverage_script, "profile_dir=\"$PWD/build-coverage/profiles\"");
 	require_contains(coverage_script, "build-coverage/crypto-core.profdata");
 
 	const auto fuzzing_script = read_repo_file("scripts/ci/fuzzing.sh");

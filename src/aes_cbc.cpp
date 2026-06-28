@@ -29,11 +29,6 @@ std::size_t expected_key_size(CipherAlgorithm algorithm) noexcept
 	return 0;
 }
 
-ByteBuffer copy_to_buffer(const std::vector<std::uint8_t> &bytes)
-{
-	return ByteBuffer(std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
-}
-
 class AesCbcContext final : public ICipherContext
 {
 public:
