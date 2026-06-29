@@ -51,6 +51,15 @@ Targets:
 - keep `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
   `fuzzing-ubuntu-clang` green as required CI jobs.
 
+Current slices:
+
+- done: encoding/PEM malformed corpus seeds cover invalid Base64 character,
+  Base64url padding, and invalid PEM payload.
+- done: DER import malformed corpus seeds cover short length, over-declared
+  length, truncated sequence, and wrong tag across public/private key import
+  paths.
+- next: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
+
 Exit criteria:
 
 - supported malformed parser/import/decrypt boundaries have representative
