@@ -79,15 +79,35 @@ void test_aead_mutation_corpus_rejects()
 {
 	const std::vector<std::uint8_t> key(16, 0x11);
 	const std::vector<std::uint8_t> nonce(12, 0x22);
-	const auto tag = read_bytes("tests/corpus/invalid/aead_short_tag.bin");
+	const std::string_view tag_corpus[] = {
+	    "tests/corpus/invalid/aead_tiny_tag.bin",
+	    "tests/corpus/invalid/aead_long_tag.bin",
+	    "tests/corpus/invalid/aead_short_tag.bin",
+	};
 	const auto ciphertext = read_bytes("tests/corpus/invalid/aead_tampered_ciphertext.bin");
+	for (const auto relative : tag_corpus)
+	{
+		const auto tag = read_bytes(relative);
+		auto decrypted = crypto_core::aead_decrypt(
+		    {crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, {}, tag},
+		    ciphertext);
+		require(!decrypted.has_value());
+		require(decrypted.error().code() == crypto_core::ErrorCode::invalid_argument ||
+		        decrypted.error().code() == crypto_core::ErrorCode::authentication_failed);
+	}
 
-	auto decrypted = crypto_core::aead_decrypt(
-	    {crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, {}, tag},
-	    ciphertext);
-	require(!decrypted.has_value());
-	require(decrypted.error().code() == crypto_core::ErrorCode::invalid_argument ||
-	        decrypted.error().code() == crypto_core::ErrorCode::authentication_failed);
+	const std::vector<std::uint8_t> tag(16, 0x33);
+	const std::string_view ciphertext_corpus[] = {
+	    "tests/corpus/invalid/aead_tiny_ciphertext.bin",
+	    "tests/corpus/invalid/aead_tampered_ciphertext.bin",
+	};
+	for (const auto relative : ciphertext_corpus)
+	{
+		auto decrypted = crypto_core::aead_decrypt(
+		    {crypto_core::AeadAlgorithm::aes_128_gcm, key, nonce, {}, tag},
+		    read_bytes(relative));
+		require(!decrypted.has_value());
+	}
 }
 
 void test_signature_and_oaep_corpus_rejects()
@@ -98,16 +118,29 @@ void test_signature_and_oaep_corpus_rejects()
 	require(p256_public_der.has_value());
 	auto p256_public_key = crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, p256_public_der.value(), crypto_core::KeyUsage::verify);
 	require(p256_public_key.has_value());
-	const auto ecdsa_signature = read_bytes("tests/corpus/invalid/ecdsa_der_truncated_signature.der");
 	const std::vector<std::uint8_t> message{'m', 's', 'g'};
-	auto ecdsa = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &p256_public_key.value(), ecdsa_signature}, message);
-	require(!ecdsa.has_value() || !ecdsa.value().is_valid());
+	const std::string_view ecdsa_corpus[] = {
+	    "tests/corpus/invalid/ecdsa_der_short_sequence.der",
+	    "tests/corpus/invalid/ecdsa_der_truncated_signature.der",
+	    "tests/corpus/invalid/ecdsa_der_wrong_tag.der",
+	};
+	for (const auto relative : ecdsa_corpus)
+	{
+		auto ecdsa = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::ecdsa_p256_sha256, &p256_public_key.value(), read_bytes(relative)}, message);
+		require(!ecdsa.has_value() || !ecdsa.value().is_valid());
+	}
 
 	auto rsa_public_key = crypto_core::test_support::rsa_reference_verify_key();
-	const auto rsa_pss_signature = read_bytes("tests/corpus/invalid/rsa_pss_short_signature.bin");
 	const auto rsa_message = crypto_core::test_support::bytes("rsa pss message");
-	auto rsa_pss = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &rsa_public_key, rsa_pss_signature}, rsa_message.bytes());
-	require(!rsa_pss.has_value() || !rsa_pss.value().is_valid());
+	const std::string_view rsa_pss_corpus[] = {
+	    "tests/corpus/invalid/rsa_pss_tiny_signature.bin",
+	    "tests/corpus/invalid/rsa_pss_short_signature.bin",
+	};
+	for (const auto relative : rsa_pss_corpus)
+	{
+		auto rsa_pss = crypto_core::verify(provider, {crypto_core::SignatureAlgorithm::rsa_pss_sha256, &rsa_public_key, read_bytes(relative)}, rsa_message.bytes());
+		require(!rsa_pss.has_value() || !rsa_pss.value().is_valid());
+	}
 
 	auto rsa_private_key = crypto_core::test_support::rsa_reference_sign_key();
 	const auto rsa_oaep_ciphertext = read_bytes("tests/corpus/invalid/rsa_oaep_short_ciphertext.bin");
@@ -126,7 +159,13 @@ void test_fuzz_skeleton_is_tracked()
 	require(fuzzing.find("der_short_length.der") != std::string::npos);
 	require(fuzzing.find("der_wrong_tag.der") != std::string::npos);
 	require(fuzzing.find("pem_invalid_payload.pem") != std::string::npos);
+	require(fuzzing.find("aead_long_tag.bin") != std::string::npos);
+	require(fuzzing.find("aead_tiny_ciphertext.bin") != std::string::npos);
+	require(fuzzing.find("aead_tiny_tag.bin") != std::string::npos);
+	require(fuzzing.find("ecdsa_der_short_sequence.der") != std::string::npos);
 	require(fuzzing.find("ECDSA DER signature verify") != std::string::npos);
+	require(fuzzing.find("ecdsa_der_wrong_tag.der") != std::string::npos);
+	require(fuzzing.find("rsa_pss_tiny_signature.bin") != std::string::npos);
 	require(fuzzing.find("RSA-PSS signature verify") != std::string::npos);
 	require(fuzzing.find("RSA-OAEP decrypt") != std::string::npos);
 }

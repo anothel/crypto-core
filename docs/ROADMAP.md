@@ -58,7 +58,8 @@ Current slices:
 - done: DER import malformed corpus seeds cover short length, over-declared
   length, truncated sequence, and wrong tag across public/private key import
   paths.
-- next: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
+- done: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
+- next: RSA-OAEP decrypt edge seeds and current required-CI evidence refresh.
 
 Exit criteria:
 

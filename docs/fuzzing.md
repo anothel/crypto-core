@@ -36,10 +36,16 @@ Current corpus:
 - `der_short_length.der`
 - `der_truncated_sequence.der`
 - `der_wrong_tag.der`
+- `aead_long_tag.bin`
 - `aead_short_tag.bin`
 - `aead_tampered_ciphertext.bin`
+- `aead_tiny_ciphertext.bin`
+- `aead_tiny_tag.bin`
+- `ecdsa_der_short_sequence.der`
 - `ecdsa_der_truncated_signature.der`
+- `ecdsa_der_wrong_tag.der`
 - `rsa_pss_short_signature.bin`
+- `rsa_pss_tiny_signature.bin`
 - `rsa_oaep_short_ciphertext.bin`
 
 ## Local Smoke
