@@ -52,17 +52,27 @@ void test_invalid_encoding_corpus_rejects()
 
 void test_invalid_key_import_corpus_rejects()
 {
-	const auto der = read_bytes("tests/corpus/invalid/der_truncated_sequence.der");
-	require(!crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der, crypto_core::KeyUsage::verify).has_value());
-	require(!crypto_core::PublicKey::import_rsa_pkcs1_der(der, crypto_core::KeyUsage::verify).has_value());
+	const std::string_view corpus[] = {
+	    "tests/corpus/invalid/der_declared_length_too_long.der",
+	    "tests/corpus/invalid/der_short_length.der",
+	    "tests/corpus/invalid/der_truncated_sequence.der",
+	    "tests/corpus/invalid/der_wrong_tag.der",
+	};
 
-	auto private_der = crypto_core::SecureBuffer::copy_from(der);
-	require(private_der.has_value());
-	require(!crypto_core::PrivateKey::import_pkcs8_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(private_der.value()), crypto_core::KeyUsage::sign).has_value());
+	for (const auto relative : corpus)
+	{
+		const auto der = read_bytes(relative);
+		require(!crypto_core::PublicKey::import_spki_der(crypto_core::AsymmetricKeyAlgorithm::rsa, der, crypto_core::KeyUsage::verify).has_value());
+		require(!crypto_core::PublicKey::import_rsa_pkcs1_der(der, crypto_core::KeyUsage::verify).has_value());
 
-	auto sec1_der = crypto_core::SecureBuffer::copy_from(der);
-	require(sec1_der.has_value());
-	require(!crypto_core::PrivateKey::import_sec1_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, std::move(sec1_der.value()), crypto_core::KeyUsage::sign).has_value());
+		auto private_der = crypto_core::SecureBuffer::copy_from(der);
+		require(private_der.has_value());
+		require(!crypto_core::PrivateKey::import_pkcs8_der(crypto_core::AsymmetricKeyAlgorithm::rsa, std::move(private_der.value()), crypto_core::KeyUsage::sign).has_value());
+
+		auto sec1_der = crypto_core::SecureBuffer::copy_from(der);
+		require(sec1_der.has_value());
+		require(!crypto_core::PrivateKey::import_sec1_der(crypto_core::AsymmetricKeyAlgorithm::ecdsa_p256, std::move(sec1_der.value()), crypto_core::KeyUsage::sign).has_value());
+	}
 }
 
 void test_aead_mutation_corpus_rejects()
@@ -112,6 +122,9 @@ void test_fuzz_skeleton_is_tracked()
 	const auto fuzzing = read_text("docs/fuzzing.md");
 	require(fuzzing.find("base64_invalid_character.txt") != std::string::npos);
 	require(fuzzing.find("base64url_bad_padding.txt") != std::string::npos);
+	require(fuzzing.find("der_declared_length_too_long.der") != std::string::npos);
+	require(fuzzing.find("der_short_length.der") != std::string::npos);
+	require(fuzzing.find("der_wrong_tag.der") != std::string::npos);
 	require(fuzzing.find("pem_invalid_payload.pem") != std::string::npos);
 	require(fuzzing.find("ECDSA DER signature verify") != std::string::npos);
 	require(fuzzing.find("RSA-PSS signature verify") != std::string::npos);

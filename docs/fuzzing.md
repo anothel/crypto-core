@@ -32,7 +32,10 @@ Current corpus:
 - `base64url_standard_alphabet.txt`
 - `pem_invalid_payload.pem`
 - `pem_mismatched_label.pem`
+- `der_declared_length_too_long.der`
+- `der_short_length.der`
 - `der_truncated_sequence.der`
+- `der_wrong_tag.der`
 - `aead_short_tag.bin`
 - `aead_tampered_ciphertext.bin`
 - `ecdsa_der_truncated_signature.der`
