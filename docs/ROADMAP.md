@@ -51,19 +51,17 @@ Targets:
 - keep `static-analysis-ubuntu-clang`, `coverage-ubuntu-clang`, and
   `fuzzing-ubuntu-clang` green as required CI jobs.
 
-Current slices:
+Current bundle:
 
-- done: encoding/PEM malformed corpus seeds cover invalid Base64 character,
-  Base64url padding, and invalid PEM payload.
-- done: DER import malformed corpus seeds cover short length, over-declared
-  length, truncated sequence, and wrong tag across public/private key import
-  paths.
-- done: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
-- done: RSA-OAEP decrypt edge seeds and current local evidence refresh.
-- done: remote required-CI evidence refreshed for commit
-  `30ae38ec1506a0281a9314976a8362c5982df537`.
-- next: reassess P1 malformed-corpus exit criteria and pick the next release
-  gate slice.
+- malformed parser/import/decrypt corpus bundle: representative negative seeds
+  cover encoding/PEM, DER key import, ECDSA/RSA signatures, AES-GCM decrypt,
+  and RSA-OAEP decrypt. Local and remote CI evidence is recorded.
+
+Next bundle:
+
+- release-gate closure bundle: reassess P1 exit criteria, close any remaining
+  malformed-input gaps, then move to install-tree/package evidence or release
+  artifact integrity.
 
 Exit criteria:
 

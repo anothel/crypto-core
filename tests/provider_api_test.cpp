@@ -374,10 +374,17 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	const auto roadmap = read_doc("ROADMAP.md");
 	require_contains(roadmap, "## Active Work");
 	require_contains(roadmap, "### P1: Grow Malformed Corpus");
-	require_contains(roadmap, "encoding/PEM malformed corpus seeds");
-	require_contains(roadmap, "DER import malformed corpus seeds");
-	require_contains(roadmap, "ECDSA/RSA malformed signature seeds");
-	require_contains(roadmap, "AES-GCM decrypt edge seeds");
+	require_contains(roadmap, "Current bundle:");
+	require_contains(roadmap, "Next bundle:");
+	require_contains(roadmap, "malformed parser/import/decrypt corpus bundle");
+	require_contains(roadmap, "encoding/PEM");
+	require_contains(roadmap, "DER key import");
+	require_contains(roadmap, "ECDSA/RSA signatures");
+	require_contains(roadmap, "AES-GCM decrypt");
+	require_contains(roadmap, "RSA-OAEP decrypt");
+	require_contains(roadmap, "release-gate closure bundle");
+	require_not_contains(roadmap, "Current slices:");
+	require_not_contains(roadmap, "- done:");
 	require_contains(roadmap, "static-analysis-ubuntu-clang");
 	require_contains(roadmap, "fuzzing-ubuntu-clang");
 
