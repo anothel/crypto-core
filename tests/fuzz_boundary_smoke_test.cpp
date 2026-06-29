@@ -143,9 +143,16 @@ void test_signature_and_oaep_corpus_rejects()
 	}
 
 	auto rsa_private_key = crypto_core::test_support::rsa_reference_sign_key();
-	const auto rsa_oaep_ciphertext = read_bytes("tests/corpus/invalid/rsa_oaep_short_ciphertext.bin");
-	auto rsa_oaep = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &rsa_private_key}, rsa_oaep_ciphertext);
-	require(!rsa_oaep.has_value());
+	const std::string_view rsa_oaep_corpus[] = {
+	    "tests/corpus/invalid/rsa_oaep_long_ciphertext.bin",
+	    "tests/corpus/invalid/rsa_oaep_short_ciphertext.bin",
+	    "tests/corpus/invalid/rsa_oaep_tiny_ciphertext.bin",
+	};
+	for (const auto relative : rsa_oaep_corpus)
+	{
+		auto rsa_oaep = crypto_core::asymmetric_decrypt(provider, {crypto_core::AsymmetricEncryptionAlgorithm::rsa_oaep_sha256, &rsa_private_key}, read_bytes(relative));
+		require(!rsa_oaep.has_value());
+	}
 }
 
 void test_fuzz_skeleton_is_tracked()
@@ -168,6 +175,8 @@ void test_fuzz_skeleton_is_tracked()
 	require(fuzzing.find("rsa_pss_tiny_signature.bin") != std::string::npos);
 	require(fuzzing.find("RSA-PSS signature verify") != std::string::npos);
 	require(fuzzing.find("RSA-OAEP decrypt") != std::string::npos);
+	require(fuzzing.find("rsa_oaep_long_ciphertext.bin") != std::string::npos);
+	require(fuzzing.find("rsa_oaep_tiny_ciphertext.bin") != std::string::npos);
 }
 
 } // namespace

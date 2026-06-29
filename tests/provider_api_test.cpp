@@ -384,6 +384,8 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	const auto release_evidence = read_doc("release-evidence.md");
 	require_contains(release_evidence, "Historical evidence");
 	require_contains(release_evidence, "current `main` is green");
+	require_contains(release_evidence, "## Current Local Evidence Refresh");
+	require_contains(release_evidence, "Required remote jobs still need");
 
 	const auto api_contract = read_doc("api-contract.md");
 	require_contains(api_contract, "## Provider Capability Contract");

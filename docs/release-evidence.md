@@ -105,3 +105,39 @@ Result:
 - Consumer configure: success through `find_package(crypto_core CONFIG REQUIRED)`
 - Consumer build: success
 - Smoke executable: exit code 0
+
+## Current Local Evidence Refresh
+
+Evidence captured for the active malformed-corpus hardening slice on
+2026-06-29. This is local Windows/MSVC evidence only.
+
+Required remote jobs still need a fresh GitHub Actions run after the next
+commit.
+
+Environment:
+
+- Host: Windows PowerShell from `D:\project\crypto-core`
+- Dev shell: Visual Studio 2026 Developer Command Prompt v18.6.2, `-arch=amd64`
+- Generator: Ninja
+- Build tree: `build-p0-native-ninja`
+
+Commands:
+
+```cmd
+C:\PROGRA~1\MICROS~4\18\Community\Common7\Tools\VsDevCmd.bat -arch=amd64 && cmake --build build-p0-native-ninja --target crypto_core_fuzz_boundary_smoke_tests && ctest --test-dir build-p0-native-ninja -R crypto_core.fuzz_boundary_smoke --output-on-failure
+```
+
+```cmd
+C:\PROGRA~1\MICROS~4\18\Community\Common7\Tools\VsDevCmd.bat -arch=amd64 && cmake --build build-p0-native-ninja --target crypto_core_provider_api_tests && ctest --test-dir build-p0-native-ninja -R crypto_core.provider_api --output-on-failure
+```
+
+```powershell
+ctest --test-dir build-p0-native-ninja --output-on-failure
+```
+
+Result:
+
+- `crypto_core.fuzz_boundary_smoke`: passed
+- `crypto_core.provider_api`: passed
+- Full native CTest: 28/28 passed
+- Total test time: 269.56 sec

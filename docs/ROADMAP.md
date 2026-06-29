@@ -59,7 +59,8 @@ Current slices:
   length, truncated sequence, and wrong tag across public/private key import
   paths.
 - done: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
-- next: RSA-OAEP decrypt edge seeds and current required-CI evidence refresh.
+- done: RSA-OAEP decrypt edge seeds and current local evidence refresh.
+- next: refresh remote required-CI evidence after the next commit.
 
 Exit criteria:
 

@@ -46,7 +46,9 @@ Current corpus:
 - `ecdsa_der_wrong_tag.der`
 - `rsa_pss_short_signature.bin`
 - `rsa_pss_tiny_signature.bin`
+- `rsa_oaep_long_ciphertext.bin`
 - `rsa_oaep_short_ciphertext.bin`
+- `rsa_oaep_tiny_ciphertext.bin`
 
 ## Local Smoke
 
