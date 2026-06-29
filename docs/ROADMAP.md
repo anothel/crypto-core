@@ -60,7 +60,10 @@ Current slices:
   paths.
 - done: ECDSA/RSA malformed signature seeds and AES-GCM decrypt edge seeds.
 - done: RSA-OAEP decrypt edge seeds and current local evidence refresh.
-- next: refresh remote required-CI evidence after the next commit.
+- done: remote required-CI evidence refreshed for commit
+  `30ae38ec1506a0281a9314976a8362c5982df537`.
+- next: reassess P1 malformed-corpus exit criteria and pick the next release
+  gate slice.
 
 Exit criteria:
 

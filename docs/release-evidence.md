@@ -111,9 +111,6 @@ Result:
 Evidence captured for the active malformed-corpus hardening slice on
 2026-06-29. This is local Windows/MSVC evidence only.
 
-Required remote jobs still need a fresh GitHub Actions run after the next
-commit.
-
 Environment:
 
 - Host: Windows PowerShell from `D:\project\crypto-core`
@@ -141,3 +138,33 @@ Result:
 - `crypto_core.provider_api`: passed
 - Full native CTest: 28/28 passed
 - Total test time: 269.56 sec
+
+## Current Remote CI Refresh
+
+Evidence captured for current `main` after the malformed-corpus hardening
+slice.
+
+- Workflow: CI
+- Run: 28367629034
+- Commit: `30ae38ec1506a0281a9314976a8362c5982df537`
+- Title: `test: grow rsa oaep invalid corpus`
+- Status: success
+- Started: 2026-06-29T11:08:01Z
+- Completed: 2026-06-29T11:22:09Z
+- Run URL: https://github.com/anothel/crypto-core/actions/runs/28367629034
+
+Recorded successful jobs:
+
+| Job | Completed | URL |
+|---|---:|---|
+| native-windows-msvc | 2026-06-29T11:11:56Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324144 |
+| native-ubuntu-gcc | 2026-06-29T11:09:35Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324148 |
+| native-ubuntu-clang | 2026-06-29T11:10:50Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324273 |
+| native-macos-clang | 2026-06-29T11:09:59Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324205 |
+| openssl-windows-msvc | 2026-06-29T11:22:08Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324162 |
+| openssl-ubuntu-gcc | 2026-06-29T11:09:53Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324141 |
+| openssl-macos-clang | 2026-06-29T11:10:24Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324243 |
+| sanitizers-ubuntu-clang | 2026-06-29T11:12:04Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324202 |
+| static-analysis-ubuntu-clang | 2026-06-29T11:10:04Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324152 |
+| coverage-ubuntu-clang | 2026-06-29T11:09:35Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324156 |
+| fuzzing-ubuntu-clang | 2026-06-29T11:09:12Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324167 |

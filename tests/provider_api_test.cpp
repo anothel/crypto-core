@@ -385,7 +385,10 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(release_evidence, "Historical evidence");
 	require_contains(release_evidence, "current `main` is green");
 	require_contains(release_evidence, "## Current Local Evidence Refresh");
-	require_contains(release_evidence, "Required remote jobs still need");
+	require_contains(release_evidence, "## Current Remote CI Refresh");
+	require_contains(release_evidence, "Run: 28367629034");
+	require_contains(release_evidence, "30ae38ec1506a0281a9314976a8362c5982df537");
+	require_not_contains(release_evidence, "Required remote jobs still need");
 
 	const auto api_contract = read_doc("api-contract.md");
 	require_contains(api_contract, "## Provider Capability Contract");
