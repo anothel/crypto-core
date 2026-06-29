@@ -43,7 +43,10 @@ std::string read_text(std::string_view relative)
 void test_invalid_encoding_corpus_rejects()
 {
 	require(!crypto_core::base64_decode(read_text("tests/corpus/invalid/base64_bad_padding.txt")).has_value());
+	require(!crypto_core::base64_decode(read_text("tests/corpus/invalid/base64_invalid_character.txt")).has_value());
+	require(!crypto_core::base64url_decode(read_text("tests/corpus/invalid/base64url_bad_padding.txt")).has_value());
 	require(!crypto_core::base64url_decode(read_text("tests/corpus/invalid/base64url_standard_alphabet.txt")).has_value());
+	require(!crypto_core::pem_decode(read_text("tests/corpus/invalid/pem_invalid_payload.pem")).has_value());
 	require(!crypto_core::pem_decode(read_text("tests/corpus/invalid/pem_mismatched_label.pem")).has_value());
 }
 
@@ -107,6 +110,9 @@ void test_fuzz_skeleton_is_tracked()
 	require(std::filesystem::exists(source_path("tests/fuzz/fuzz_parser_boundaries.cpp")));
 	require(std::filesystem::exists(source_path("docs/fuzzing.md")));
 	const auto fuzzing = read_text("docs/fuzzing.md");
+	require(fuzzing.find("base64_invalid_character.txt") != std::string::npos);
+	require(fuzzing.find("base64url_bad_padding.txt") != std::string::npos);
+	require(fuzzing.find("pem_invalid_payload.pem") != std::string::npos);
 	require(fuzzing.find("ECDSA DER signature verify") != std::string::npos);
 	require(fuzzing.find("RSA-PSS signature verify") != std::string::npos);
 	require(fuzzing.find("RSA-OAEP decrypt") != std::string::npos);

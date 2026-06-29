@@ -27,7 +27,10 @@ Invalid seed files live in `tests/corpus/invalid/`.
 Current corpus:
 
 - `base64_bad_padding.txt`
+- `base64_invalid_character.txt`
+- `base64url_bad_padding.txt`
 - `base64url_standard_alphabet.txt`
+- `pem_invalid_payload.pem`
 - `pem_mismatched_label.pem`
 - `der_truncated_sequence.der`
 - `aead_short_tag.bin`
