@@ -7,7 +7,12 @@ Status:
 - 0.x remains experimental.
 - no production certification is claimed.
 - no formal constant-time certification is claimed.
+- unsigned artifacts require users to verify the source commit and CI evidence.
 - no release artifacts are signed until a release signing key exists.
+- no SBOM is published for `v0.1.0-alpha.1` unless custom binary/package
+  artifacts are added.
+- source archives require SHA-256 checksums generated from final release
+  artifacts.
 
 Changed:
 
@@ -43,3 +48,5 @@ Known limitations:
   API.
 - coverage-guided fuzzing, coverage, static-analysis, and install-tree smoke
   jobs are required CI workflow gates.
+- no SBOM is published for `v0.1.0-alpha.1` when the alpha publishes only
+  GitHub-generated source archives.

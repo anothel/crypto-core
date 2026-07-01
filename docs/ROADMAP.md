@@ -69,15 +69,15 @@ Exit criteria:
 
 Current bundle:
 
-- install-tree/package evidence bundle: the existing install package smoke
-  fixture is promoted into CI and local install-tree evidence is refreshed;
-  remote evidence waits for the next GitHub Actions run.
+- release artifact integrity bundle: source archive checksum commands,
+  alpha SBOM absence conditions, unsigned-artifact status, and alpha checklist
+  issue creation command are documented.
 
 Next bundle:
 
-- release artifact integrity bundle: refresh exact release-candidate remote CI
-  evidence, record checksum/SBOM/signing status, and create the alpha release
-  checklist issue.
+- remote release evidence bundle: refresh exact release-candidate remote CI
+  evidence, generate final source archive checksums from the release candidate,
+  and create the alpha release checklist issue.
 
 ### P1: Grow Malformed Corpus And Fuzzing
 

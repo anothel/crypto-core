@@ -54,6 +54,23 @@ Command template:
 sha256sum ${artifacts} > crypto-core-${version}.sha256
 ```
 
+Source archive command template:
+
+```sh
+git archive --format=tar --prefix=crypto-core-${version}/ -o crypto-core-${version}.tar ${commit}
+sha256sum crypto-core-${version}.tar > crypto-core-${version}.sha256
+```
+
+PowerShell checksum equivalent:
+
+```powershell
+Get-FileHash -Algorithm SHA256 crypto-core-${version}.tar
+```
+
+Regenerate the archive and checksum only from the final release candidate
+commit. Do not reuse checksums from a dirty worktree or from a pre-release
+candidate preflight.
+
 ## Signing
 
 Release signing is required before calling artifacts reuse-ready.
@@ -113,6 +130,31 @@ The issue must track:
 - checksum and SBOM status
 - signing status, including when artifacts are unsigned
 - known limitations and provider differences
+
+Command template:
+
+```sh
+gh issue create --title "Release checklist: v0.1.0-alpha.1" --label release --body-file .github/ISSUE_TEMPLATE/alpha-release-checklist.md
+```
+
+Create the issue only after the release candidate commit exists, so CI evidence,
+checksum, SBOM, and signing status can point at exact artifacts.
+
+## Alpha SBOM status
+
+For `v0.1.0-alpha.1`, no binary package is planned. If the alpha publishes only
+GitHub-generated source archives, no SBOM is published for `v0.1.0-alpha.1`.
+Record that absence in release notes and the release checklist issue.
+
+If any custom archive, package, binary, or installer is added to the alpha,
+publish an SPDX JSON or CycloneDX JSON SBOM beside it and include its SHA-256
+checksum.
+
+## Alpha Signing Status
+
+No release signing key exists yet. `v0.1.0-alpha.1` artifacts are unsigned
+unless the project owner creates and publishes a release signing key before the
+tag.
 
 ## Release Checklist
 

@@ -443,6 +443,15 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	const auto release_integrity = read_doc("release-integrity.md");
 	require_contains(release_integrity, "## Alpha Release Checklist Issue");
 	require_contains(release_integrity, "create a release checklist issue before tagging");
+	require_contains(release_integrity, "git archive --format=tar --prefix=crypto-core-${version}/");
+	require_contains(release_integrity, "crypto-core-${version}.tar");
+	require_contains(release_integrity, "Alpha SBOM status");
+	require_contains(release_integrity, "no SBOM is published for `v0.1.0-alpha.1`");
+	require_contains(release_integrity, "gh issue create --title \"Release checklist: v0.1.0-alpha.1\"");
+
+	require_contains(release_notes, "no SBOM is published for `v0.1.0-alpha.1`");
+	require_contains(release_notes, "source archives require SHA-256 checksums");
+	require_contains(release_notes, "unsigned artifacts");
 
 	const auto workflow = read_repo_file(".github/workflows/ci.yml");
 	require_contains(workflow, "static-analysis-ubuntu-clang");

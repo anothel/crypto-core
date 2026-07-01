@@ -197,3 +197,29 @@ Result:
 - Consumer configure: success through `find_package(crypto_core CONFIG REQUIRED)`
 - Consumer build: success
 - Smoke executable: exit code 0
+
+## Current Local Source Archive Checksum Preflight
+
+Evidence captured for the release artifact integrity command path on
+2026-07-01. This is a local preflight for the committed `HEAD` only, not final
+release-candidate evidence. It excludes uncommitted working-tree changes.
+
+Environment:
+
+- Host: Windows PowerShell from `D:\project\crypto-core`
+- Commit: `ac12b50ae4897467a0ea3d739305fa99ebbbfad4`
+- Archive: `build-release-preflight/crypto-core-v0.1.0-alpha.1-preflight.tar`
+
+Commands:
+
+```powershell
+New-Item -ItemType Directory -Force build-release-preflight
+git archive --format=tar --prefix=crypto-core-v0.1.0-alpha.1-preflight/ -o build-release-preflight/crypto-core-v0.1.0-alpha.1-preflight.tar HEAD
+Get-FileHash -Algorithm SHA256 build-release-preflight\crypto-core-v0.1.0-alpha.1-preflight.tar
+```
+
+Result:
+
+- Archive generation: success
+- SHA-256:
+  `9BA54F6660A483985E46B99523D21E77996A923716E22BD9A13594B2EDF1CF33`
