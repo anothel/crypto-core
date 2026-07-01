@@ -12,10 +12,11 @@ assignees: ""
 - [ ] OpenSSL-enabled CI run links recorded where supported.
 - [ ] Sanitizer job status recorded.
 - [ ] Static analysis, coverage, and fuzzing job status recorded.
+- [ ] Install-tree smoke CI job status recorded.
 
 ## Install and artifacts
 
-- [ ] install-tree consumer smoke completed.
+- [ ] install-tree consumer smoke completed through `find_package`.
 - [ ] Source archive checksum generated from final artifact.
 - [ ] SBOM status recorded.
 - [ ] Unsigned artifacts clearly stated, or signing key fingerprint recorded.

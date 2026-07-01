@@ -416,10 +416,16 @@ void test_uploaded_analysis_documentation_actions_are_tracked()
 	require_contains(analysis, "static-analysis-ubuntu-clang");
 	require_contains(analysis, "coverage-ubuntu-clang");
 	require_contains(analysis, "fuzzing-ubuntu-clang");
+	require_contains(analysis, "install-smoke-ubuntu-gcc");
 	require_not_contains(analysis, "non-blocking");
 	require_contains(analysis, "scripts/ci/static-analysis.sh");
 	require_contains(analysis, "scripts/ci/coverage.sh");
 	require_contains(analysis, "scripts/ci/fuzzing.sh");
+
+	const auto ci = read_repo_file(".github/workflows/ci.yml");
+	require_contains(ci, "install-smoke-ubuntu-gcc");
+	require_contains(ci, "cmake --install build-install-source --prefix");
+	require_contains(ci, "tests/install_package_smoke");
 
 	const auto alpha = read_doc("alpha-release-checklist.md");
 	require_contains(alpha, "## v0.1.0-alpha.1 Checklist");

@@ -168,3 +168,32 @@ Recorded successful jobs:
 | static-analysis-ubuntu-clang | 2026-06-29T11:10:04Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324152 |
 | coverage-ubuntu-clang | 2026-06-29T11:09:35Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324156 |
 | fuzzing-ubuntu-clang | 2026-06-29T11:09:12Z | https://github.com/anothel/crypto-core/actions/runs/28367629034/job/84037324167 |
+
+## Current Local Install-Tree Smoke Refresh
+
+Evidence captured for the install-tree CI gate update on 2026-07-01. This is
+local Windows/MSVC evidence only; the new `install-smoke-ubuntu-gcc` workflow
+job needs fresh remote evidence after this change reaches GitHub Actions.
+
+Environment:
+
+- Host: Windows PowerShell from `D:\project\crypto-core`
+- Dev shell: Visual Studio 2026 Developer Command Prompt v18.6.2, `-arch=amd64`
+- Compiler: MSVC 19.51.36246.0
+- Generator: Ninja
+- Producer build tree: `build-p0-native-ninja`
+- Install prefix: `build-codex-install-native`
+- Consumer build tree: `build-codex-install-smoke-native`
+
+Command:
+
+```cmd
+C:\PROGRA~1\MICROS~4\18\Community\Common7\Tools\VsDevCmd.bat -arch=amd64 && cmake --install build-p0-native-ninja --prefix build-codex-install-native && cmake -G Ninja -S tests/install_package_smoke -B build-codex-install-smoke-native -DCMAKE_PREFIX_PATH=D:/project/crypto-core/build-codex-install-native -DCMAKE_BUILD_TYPE=Debug && cmake --build build-codex-install-smoke-native --parallel && build-codex-install-smoke-native\crypto_core_install_package_smoke.exe
+```
+
+Result:
+
+- Install: success
+- Consumer configure: success through `find_package(crypto_core CONFIG REQUIRED)`
+- Consumer build: success
+- Smoke executable: exit code 0

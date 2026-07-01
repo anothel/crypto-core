@@ -8,7 +8,7 @@ production-ready or production-certified.
 - CI run links for native Windows, Linux, and macOS jobs.
 - CI run links for OpenSSL-enabled jobs where OpenSSL is supported.
 - sanitizer, static-analysis, coverage, and fuzzing job status recorded.
-- install-tree consumer smoke completed through `find_package`.
+- install-tree consumer smoke CI job completed through `find_package`.
 - source archive checksum generated from final release artifacts.
 - SBOM status recorded as published or explicitly absent.
 - signing status recorded; artifacts are unsigned until a release key exists.
@@ -23,4 +23,5 @@ production-ready or production-certified.
 - no external audit is claimed.
 - no formal constant-time certification is claimed.
 - unsigned artifacts require users to verify source commit and CI evidence.
-- coverage-guided fuzzing and analysis jobs are required CI jobs.
+- coverage-guided fuzzing, analysis, and install-tree smoke jobs are required
+  CI jobs.

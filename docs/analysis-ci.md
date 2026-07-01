@@ -1,6 +1,7 @@
 # Analysis CI
 
-Static analysis, coverage, and coverage-guided fuzzing are required CI jobs.
+Static analysis, coverage, coverage-guided fuzzing, and install-tree smoke are
+required CI jobs.
 
 ## Required Jobs
 
@@ -11,6 +12,8 @@ Static analysis, coverage, and coverage-guided fuzzing are required CI jobs.
   tools package for `llvm-profdata` and `llvm-cov`.
 - `fuzzing-ubuntu-clang`: builds `tests/fuzz/fuzz_parser_boundaries.cpp` with
   libFuzzer and runs the invalid seed corpus.
+- `install-smoke-ubuntu-gcc`: installs the native CMake package and verifies a
+  separate consumer can use `find_package(crypto_core CONFIG REQUIRED)`.
 
 ## Local Reproduction
 
@@ -20,6 +23,16 @@ Run the same commands as CI on Ubuntu or another Clang/LLVM environment:
 bash scripts/ci/static-analysis.sh
 bash scripts/ci/coverage.sh
 bash scripts/ci/fuzzing.sh
+```
+
+Run the install-tree smoke locally from a built native tree:
+
+```sh
+cmake --install build --prefix build-install
+cmake -S tests/install_package_smoke -B build-install-smoke \
+  -DCMAKE_PREFIX_PATH="$PWD/build-install"
+cmake --build build-install-smoke
+./build-install-smoke/crypto_core_install_package_smoke
 ```
 
 Set `FUZZ_RUNS` to change the fuzz smoke budget:

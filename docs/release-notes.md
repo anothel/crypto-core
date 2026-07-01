@@ -32,6 +32,8 @@ Changed:
   script.
 - promoted static analysis, coverage, and fuzzing CI jobs to required workflow
   gates after stabilizing toolchain noise.
+- added an install-tree smoke CI job that verifies
+  `find_package(crypto_core CONFIG REQUIRED)` from an installed package.
 
 Known limitations:
 
@@ -39,4 +41,5 @@ Known limitations:
 - no provider-backed KMS/HSM/Secret Manager key lifecycle implementation yet.
 - AES-GCM nonce uniqueness is caller responsibility in the current low-level
   API.
-- coverage-guided fuzzing and coverage jobs are required CI workflow gates.
+- coverage-guided fuzzing, coverage, static-analysis, and install-tree smoke
+  jobs are required CI workflow gates.

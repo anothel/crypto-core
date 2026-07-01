@@ -84,6 +84,41 @@ jobs:
       - name: Test
         run: ctest --test-dir build-openssl -C Debug --output-on-failure
 
+  install-smoke:
+    name: install-smoke-ubuntu-gcc
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure producer
+        shell: bash
+        run: |
+          cmake -S . -B build-install-source \
+            -DCRYPTO_CORE_ENABLE_OPENSSL=OFF \
+            -DCRYPTO_CORE_BUILD_TESTS=OFF \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build producer
+        run: cmake --build build-install-source --parallel
+
+      - name: Install producer
+        shell: bash
+        run: cmake --install build-install-source --prefix "$PWD/build-install-prefix"
+
+      - name: Configure consumer
+        shell: bash
+        run: |
+          cmake -S tests/install_package_smoke -B build-install-consumer \
+            -DCMAKE_PREFIX_PATH="$PWD/build-install-prefix" \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build consumer
+        run: cmake --build build-install-consumer --parallel
+
+      - name: Run consumer smoke
+        run: ./build-install-consumer/crypto_core_install_package_smoke
+
   openssl-windows:
     name: openssl-windows-msvc
     runs-on: windows-latest
